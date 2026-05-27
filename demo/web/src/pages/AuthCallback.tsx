@@ -1,0 +1,30 @@
+import { useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../lib/auth';
+
+export default function AuthCallback() {
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const { loginWithToken } = useAuth();
+  const ran = useRef(false);
+
+  useEffect(() => {
+    if (ran.current) return;
+    ran.current = true;
+    const token = params.get('token');
+    (async () => {
+      if (token) {
+        await loginWithToken(token);
+        navigate('/', { replace: true });
+      } else {
+        navigate('/login?error=google_not_configured', { replace: true });
+      }
+    })();
+  }, [params, navigate, loginWithToken]);
+
+  return (
+    <div className="grid h-full place-items-center bg-paper">
+      <div className="label animate-pulse">Đang xác thực với Google…</div>
+    </div>
+  );
+}

@@ -1,0 +1,62 @@
+# ───────────────── Dependencies ─────────────────
+node_modules/
+.pnp
+.pnp.js
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# ───────────────── Build output ─────────────────
+dist/
+build/
+out/
+*.tsbuildinfo
+.vite/
+apps/api/dist/
+apps/web/dist/
+
+# ───────────────── Env & secrets ─────────────────
+.env
+.env.*
+!.env.example
+
+# ───────────────── Logs ─────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ───────────────── Testing / coverage ─────────────────
+coverage/
+.nyc_output/
+
+# ───────────────── Local file storage (uploads MVP) ─────────────────
+uploads/
+storage/
+
+# ───────────────── OS ─────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ───────────────── IDE / editor ─────────────────
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+
+# ───────────────── Claude Code ─────────────────
+# Share .claude/settings.json and .claude/rules/; keep personal overrides local
+.claude/settings.local.json
+CLAUDE.local.md
+
+# ───────────────── Misc ─────────────────
+.cache/
+.temp/
+tmp/

@@ -1,0 +1,20 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: inkframe-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: inkframe_root
+    ports:
+      - "3307:3306"   # host 3307 -> container 3306 (avoids clashing with any local MySQL)
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d:ro   # 01-schema.sql + 02-seed.sql run on first init
+      - inkframe_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  inkframe_mysql_data:
