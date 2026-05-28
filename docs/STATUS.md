@@ -5,6 +5,7 @@
 
 - **Last updated:** 2026-05-28
 - **Current phase:** Working **demo** (`demo/`) on the **latest** stack — auth (local + Google) + Mangaka dashboard. Main app still un-scaffolded.
+- **Last fix (2026-05-28):** `demo/api` build silently produced empty `dist/` → `nest start` failed with `Cannot find module 'dist/main'`. Root cause: `nest-cli.json:deleteOutDir=true` wipes `dist/` but `tsconfig.build.tsbuildinfo` (TS incremental cache) lived at root, survived the wipe, made tsc skip emit. Fix: added `"tsBuildInfoFile": "./dist/.tsbuildinfo"` to `demo/api/tsconfig.json` so the cache is wiped together with `dist/`. Verified: `node dist/main.js` boots Nest, all routes mapped, listening on :3000/api.
 - **Calendar:** Week ~2 of 10 (project runs 2026-05-18 → 2026-07-26).
 
 ---
@@ -48,3 +49,4 @@
 - **Tailwind v4** = CSS-first: `@import "tailwindcss";` + `@theme { --color-*; --font-*; --shadow-* }` in CSS, `@tailwindcss/vite` plugin. **No `tailwind.config.js`, no `postcss.config.js`, no `@tailwind` directives.**
 - **UTF-8:** SQL files declare `SET NAMES utf8mb4;` (docker-entrypoint loads via latin1 otherwise → mojibake); mysql2 pool uses `charset: 'utf8mb4'`. JWT bakes the name at issue-time → re-login after a re-seed.
 - **Schema gap:** demo `User` adds `google_id` + `auth_provider` and makes `password_hash` nullable. Fold into real schema if keeping Google login.
+- **TS incremental + `deleteOutDir`:** when `nest-cli.json` has `deleteOutDir: true` AND `tsconfig.json` has `incremental: true`, the `.tsbuildinfo` MUST live inside `outDir` (`"tsBuildInfoFile": "./dist/.tsbuildinfo"`), else `dist/` is wiped but the stale buildinfo makes tsc skip emit → empty `dist/` → `Cannot find module 'dist/main'`. Carry this into the real `apps/api`.
