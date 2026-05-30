@@ -1,0 +1,54 @@
+/* ── Plain skin variables. Default (:root) = Mangaka "Sakura Studio". ── */
+:root,
+[data-role="mangaka"] {
+  --app-bg: #FBF7F4;
+  --app-surface: #FFFFFF;
+  --app-ink: #4A4039;
+  --app-ink-soft: #8A8078;
+  --app-line: #ECE2DA;
+  --app-accent: #E58A86;     /* coral */
+  --app-accent-2: #A8C8E0;   /* sky */
+  --app-radius: 12px;
+  --app-shadow: 0 2px 8px rgba(180,150,140,.12);
+  --app-density: 1;          /* row padding multiplier */
+}
+[data-role="assistant"] {            /* Atelier — cool work-desk */
+  --app-bg: #F4F7FA; --app-ink: #3E454C; --app-line: #E1E8ED;
+  --app-accent: #5BA0B8; --app-accent-2: #7FC9B0;
+  --app-shadow: 0 2px 8px rgba(120,150,170,.14); --app-density: .9;
+}
+[data-role="tantou_editor"] {        /* Red-Pencil Desk */
+  --app-bg: #F7F4EF; --app-surface: #FFFDF9; --app-ink: #403A33; --app-line: #E4DBCD;
+  --app-accent: #B5564A; --app-accent-2: #A8946F; --app-density: .9;
+}
+[data-role="editorial_board"] {      /* Boardroom */
+  --app-bg: #F3F3F8; --app-ink: #39373F; --app-line: #E2E1EC;
+  --app-accent: #6E63A8; --app-accent-2: #7E9AD0; --app-density: .85;
+}
+[data-role="admin"] {                /* Console — not manga */
+  --app-bg: #EEF1F4; --app-ink: #2E343B; --app-line: #D7DEE5;
+  --app-accent: #3B82C4; --app-accent-2: #64748B;
+  --app-radius: 6px; --app-shadow: none; --app-density: .8;
+}
+
+/* ── Map semantic tokens → plain vars so utilities re-skin per [data-role] scope. ── */
+@theme inline {
+  --color-bg: var(--app-bg);
+  --color-surface: var(--app-surface);
+  --color-ink: var(--app-ink);
+  --color-ink-soft: var(--app-ink-soft);
+  --color-line: var(--app-line);
+  --color-accent: var(--app-accent);
+  --color-accent-2: var(--app-accent-2);
+
+  /* Global status semantics (NOT overridden per role) */
+  --color-ok: #5E9A72;
+  --color-info: #5B8FBE;
+  --color-warn: #D49A52;
+  --color-danger: #D0746B;
+  --color-muted: #9A8F84;
+
+  --font-display: "Shippori Mincho", serif;
+  --font-sans: "Zen Kaku Gothic New", system-ui, sans-serif;
+  --font-mono: "Spline Sans Mono", ui-monospace, monospace;
+}
