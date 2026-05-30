@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { TaskStatus } from "@manga/shared";
 import { api } from "../../lib/api";
 import type { TaskItem } from "../../types";
@@ -8,6 +9,7 @@ import { Stamp } from "../../components/ui/Stamp";
 import { SubmitDialog } from "../../components/assistant/SubmitDialog";
 
 export default function Tasks() {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -166,13 +168,22 @@ export default function Tasks() {
 
                   {(task.status === TaskStatus.IN_PROGRESS ||
                     task.status === TaskStatus.REVISION_REQUIRED) && (
-                    <Button
-                      variant="accent"
-                      onClick={() => handleSubmitTask(task)}
-                      className="w-32"
-                    >
-                      Nộp bài
-                    </Button>
+                    <>
+                      <Button
+                        variant="soft"
+                        className="w-32"
+                        onClick={() => navigate(`/studio/region/${task.id}`, { state: { task } })}
+                      >
+                        Vẽ trong Studio
+                      </Button>
+                      <Button
+                        variant="accent"
+                        onClick={() => handleSubmitTask(task)}
+                        className="w-32"
+                      >
+                        Nộp bài
+                      </Button>
+                    </>
                   )}
 
                   {task.status === TaskStatus.SUBMITTED && (

@@ -1,0 +1,1 @@
+{ "targets": { "release": { "outFile": "build/inkforge.wasm", "optimizeLevel": 3, "runtime": "minimal" } } }

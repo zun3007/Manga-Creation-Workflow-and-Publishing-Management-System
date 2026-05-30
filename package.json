@@ -4,9 +4,10 @@
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
-    "build:shared": "pnpm -F @manga/shared build",
-    "dev:web": "pnpm build:shared && pnpm -F web dev",
-    "dev:api": "pnpm build:shared && pnpm -F api start:dev",
+    "build:packages": "pnpm -F @manga/shared build && pnpm -F @manga/canvas-wasm build",
+    "build:shared": "pnpm build:packages",
+    "dev:web": "pnpm build:packages && pnpm -F web dev",
+    "dev:api": "pnpm build:packages && pnpm -F api start:dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "db:up": "docker compose -f db/docker-compose.yml up -d",

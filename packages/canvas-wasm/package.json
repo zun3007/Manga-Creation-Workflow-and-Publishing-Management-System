@@ -1,0 +1,19 @@
+{
+  "name": "@manga/canvas-wasm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./inkforge.wasm": "./dist/inkforge.wasm"
+  },
+  "files": ["dist", "build/inkforge.wasm"],
+  "scripts": {
+    "asbuild": "asc assembly/index.ts --outFile build/inkforge.wasm --textFile build/inkforge.wat --bindings raw --exportRuntime --optimize --runtime minimal --use abort=",
+    "build": "pnpm asbuild && tsc -p tsconfig.json && node -e \"import('fs').then(f=>{f.mkdirSync('dist',{recursive:true});f.copyFileSync('build/inkforge.wasm','dist/inkforge.wasm')})\"",
+    "test": "vitest run"
+  },
+  "devDependencies": { "assemblyscript": "latest", "typescript": "latest", "vitest": "latest" }
+}

@@ -4,4 +4,6 @@ packages:
 
 allowBuilds:
   "@nestjs/core": true
+  '@swc/core': true
+  protobufjs: true
   unrs-resolver: true

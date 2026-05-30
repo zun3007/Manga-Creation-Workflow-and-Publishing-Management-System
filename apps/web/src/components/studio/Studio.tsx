@@ -1,0 +1,580 @@
+import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, Download, Upload, RotateCcw, RotateCw } from 'lucide-react';
+import type { StudioEngine } from '../../lib/studio/engine';
+import type { AIAssist } from '../../lib/studio/ai/AIAssist';
+import type { BrushSettings, ToolId, RGBA, RectN } from '../../lib/studio/types';
+import { MANGA_PALETTE } from '../../lib/studio/color';
+import { makeView, type View } from '../../lib/studio/view';
+import {
+  exportPNG,
+  exportLayerPNG,
+  exportRegionPNG,
+  loadImageFromBlob,
+  imageToBuffer,
+} from '../../lib/studio/io';
+import { createTools } from '../../lib/studio/tools/registry';
+import type { PointerSample } from '../../lib/studio/tools/Tool';
+import { Toolbar } from './Toolbar';
+import { CanvasStage } from './CanvasStage';
+import { ColorPanel } from './ColorPanel';
+import { BrushControls } from './BrushControls';
+import { LayerPanel } from './LayerPanel';
+import { PanelTools } from './PanelTools';
+import { AIAssistPanel } from './AIAssistPanel';
+import { ToneControls } from './ToneControls';
+import { MangaRulers } from './MangaRulers';
+import { TextControls } from './TextControls';
+import { ToolOptions } from './ToolOptions';
+
+export interface StudioProps {
+  engine: StudioEngine;
+  ai: AIAssist;
+  aiKind?: 'ONNX' | 'Heuristic';
+  onSave: () => void | Promise<void>;
+  onClose: () => void;
+  onSaveRegions?: (frames: RectN[]) => void;
+  saving?: boolean;
+  title?: string;
+}
+
+export function Studio({
+  engine,
+  ai,
+  aiKind = 'Heuristic',
+  onSave,
+  onClose,
+  onSaveRegions,
+  saving,
+  title,
+}: StudioProps) {
+  const [tool, setTool] = useState<ToolId>('brush');
+  const [settings, setSettings] = useState<BrushSettings>({
+    tool: 'brush',
+    size: 18,
+    opacity: 1,
+    flow: 1,
+    hardness: 0.8,
+    spacing: 0.1,
+    stabilize: 0.3,
+    pressureSize: true,
+    pressureOpacity: true,
+  });
+  const [color, setColor] = useState<RGBA>({ r: 0, g: 0, b: 0, a: 255 });
+  const [tolerance, setTolerance] = useState(24);
+  const [bubbleType, setBubbleType] = useState<'round' | 'spiky' | 'thought'>('round');
+  const [lineWidth, setLineWidth] = useState(3);
+  const [palette, setPalette] = useState(MANGA_PALETTE);
+  const [recent, setRecent] = useState<string[]>([]);
+  const [view, setView] = useState<View>(makeView({ zoom: 1 }));
+  const [version, setVersion] = useState(0);
+  const [pendingFrames, setPendingFrames] = useState<RectN[]>([]);
+  const [exportOpen, setExportOpen] = useState(false);
+
+  // Refs to keep tool getters reading latest state
+  const settingsRef = useRef(settings);
+  const colorRef = useRef(color);
+  const toleranceRef = useRef(tolerance);
+  const bubbleRef = useRef(bubbleType);
+  const lineWidthRef = useRef(lineWidth);
+  const aiRef = useRef(ai);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  useEffect(() => {
+    colorRef.current = color;
+  }, [color]);
+
+  useEffect(() => {
+    toleranceRef.current = tolerance;
+  }, [tolerance]);
+
+  useEffect(() => {
+    bubbleRef.current = bubbleType;
+  }, [bubbleType]);
+
+  useEffect(() => {
+    lineWidthRef.current = lineWidth;
+  }, [lineWidth]);
+
+  useEffect(() => {
+    aiRef.current = ai;
+  }, [ai]);
+
+  // Create tools once
+  const tools = useRef(
+    createTools({
+      getSettings: () => settingsRef.current,
+      getColor: () => colorRef.current,
+      setColor: (c) => {
+        setColor(c);
+        setRecent((r) => {
+          const hex = `#${c.r.toString(16).padStart(2, '0')}${c.g
+            .toString(16)
+            .padStart(2, '0')}${c.b.toString(16).padStart(2, '0')}`;
+          return [hex, ...r.filter((x) => x !== hex)].slice(0, 5);
+        });
+      },
+      getTolerance: () => toleranceRef.current,
+      getBubbleType: () => bubbleRef.current,
+      getLineWidth: () => lineWidthRef.current,
+      onFrame: (r) => setPendingFrames((f) => [...f, r]),
+      aiSegment: async (px, w, h, pt) => {
+        try {
+          const mask = await aiRef.current.segment(px, w, h, pt);
+          engine.setSelection(mask);
+        } catch (err) {
+          console.error('[Studio] ai-select error:', err);
+        }
+      },
+    })
+  ).current;
+
+  // Subscribe to engine changes
+  useEffect(() => {
+    const unsubscribe = engine.onChange(() => setVersion((v) => v + 1));
+    return unsubscribe;
+  }, [engine]);
+
+  // Pointer event handlers
+  const handlePointerDown = (s: PointerSample) => {
+    if (tool === 'pan') return;
+    const activeTool = tools[tool];
+    activeTool?.onDown(s, engine);
+  };
+
+  const handlePointerMove = (s: PointerSample) => {
+    if (tool === 'pan') return;
+    const activeTool = tools[tool];
+    activeTool?.onMove(s, engine);
+  };
+
+  const handlePointerUp = (s: PointerSample) => {
+    if (tool === 'pan') return;
+    const activeTool = tools[tool];
+    activeTool?.onUp(s, engine);
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+
+      // Undo/Redo
+      if (mod && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        engine.undo();
+      } else if (
+        (mod && e.shiftKey && e.key === 'z') ||
+        (mod && e.key === 'y')
+      ) {
+        e.preventDefault();
+        engine.redo();
+      }
+
+      // Copy/Paste
+      if (mod && e.key === 'c') {
+        e.preventDefault();
+        engine.copySelection();
+      } else if (mod && e.key === 'v') {
+        e.preventDefault();
+        engine.paste();
+      }
+
+      // Deselect
+      if (mod && e.key === 'd') {
+        e.preventDefault();
+        engine.clearSelection();
+      }
+
+      // Tool shortcuts
+      if (e.key === 'b' || e.key === 'B') setTool('brush');
+      if (e.key === 'e' || e.key === 'E') setTool('eraser');
+      if (e.key === 'g' || e.key === 'G') setTool('bucket');
+      if (e.key === 'i' || e.key === 'I') setTool('eyedropper');
+      if (e.key === 't' || e.key === 'T') setTool('text');
+
+      // Size shortcuts
+      if (e.key === '[') {
+        e.preventDefault();
+        setSettings((s) => ({ ...s, size: Math.max(1, s.size - 2) }));
+      } else if (e.key === ']') {
+        e.preventDefault();
+        setSettings((s) => ({ ...s, size: s.size + 2 }));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [engine, tool]);
+
+  // Handle Space for pan
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        setTool('pan');
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setTool('brush');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  const handleAddSwatch = (hex: string) => {
+    setPalette((p) => [hex, ...p.filter((x) => x !== hex)].slice(0, 10));
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const img = await loadImageFromBlob(file);
+      engine.addLayer('raster', 'Imported');
+      const activeId = engine.doc.activeLayerId;
+      if (!activeId) return;
+      const buf = imageToBuffer(
+        img,
+        img.naturalWidth,
+        img.naturalHeight,
+        engine.doc.width,
+        engine.doc.height
+      );
+      engine.setBuffer(activeId, buf);
+      engine.requestRender();
+    } catch (err) {
+      console.error('Import failed:', err);
+    }
+  };
+
+  const handleExportFull = async () => {
+    try {
+      const blob = await exportPNG(engine);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${title || 'export'}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+    }
+  };
+
+  const handleExportLayer = async () => {
+    const activeId = engine.doc.activeLayerId;
+    if (!activeId) return;
+    try {
+      const blob = await exportLayerPNG(engine, activeId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${title || 'export'}-layer.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+    }
+  };
+
+  const selectionRect = (): RectN | null => {
+    const m = engine.selectionMask;
+    if (!m) return null;
+    const w = engine.doc.width;
+    const h = engine.doc.height;
+    let minx = w,
+      miny = h,
+      maxx = -1,
+      maxy = -1;
+    for (let p = 0; p < m.length; p++) {
+      if (m[p]) {
+        const x = p % w;
+        const y = (p / w) | 0;
+        if (x < minx) minx = x;
+        if (x > maxx) maxx = x;
+        if (y < miny) miny = y;
+        if (y > maxy) maxy = y;
+      }
+    }
+    if (maxx < 0) return null;
+    return {
+      x: minx / w,
+      y: miny / h,
+      width: (maxx - minx + 1) / w,
+      height: (maxy - miny + 1) / h,
+    };
+  };
+
+  const handleExportRegion = async () => {
+    const rect = selectionRect();
+    if (rect) {
+      try {
+        const blob = await exportRegionPNG(engine, rect);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${title || 'export'}-region.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('Export region failed:', err);
+      }
+    } else {
+      // No selection, export full image
+      handleExportFull();
+    }
+  };
+
+  const handleSaveRegions = () => {
+    if (onSaveRegions && pendingFrames.length > 0) {
+      onSaveRegions(pendingFrames);
+      setPendingFrames([]);
+    }
+  };
+
+  const cursor = tools[tool]?.cursor ?? 'crosshair';
+
+  return (
+    <div className="flex h-full bg-surface text-ink" data-role="studio">
+      {/* Left toolbar */}
+      <Toolbar tool={tool} onTool={setTool} />
+
+      {/* Center canvas */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top bar */}
+        <div className="flex items-center justify-between gap-4 px-4 py-2 bg-surface-alt border-b border-line">
+          <div className="flex items-center gap-4">
+            <span className="font-mono text-sm text-ink-soft">
+              {title || 'Studio'}
+            </span>
+            <span className="text-xs text-ink-soft">
+              {(view.zoom * 100).toFixed(0)}%
+            </span>
+            <div
+              className="px-2 py-1 text-xs font-mono bg-surface border border-line rounded text-ink-soft"
+              aria-label="ai-status"
+            >
+              AI: {aiKind}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Undo/Redo */}
+            <button
+              onClick={() => engine.undo()}
+              title="Undo (Ctrl+Z)"
+              className="p-2 hover:bg-surface rounded transition-colors"
+              aria-label="Undo"
+            >
+              <RotateCcw size={18} />
+            </button>
+            <button
+              onClick={() => engine.redo()}
+              title="Redo (Ctrl+Shift+Z)"
+              className="p-2 hover:bg-surface rounded transition-colors"
+              aria-label="Redo"
+            >
+              <RotateCw size={18} />
+            </button>
+
+            {/* Export menu */}
+            <div className="relative">
+              <button
+                onClick={() => setExportOpen(!exportOpen)}
+                className="px-3 py-2 text-xs font-mono uppercase rounded hover:bg-surface flex items-center gap-1"
+                aria-label="Export menu"
+              >
+                <Download size={16} />
+                <ChevronDown size={14} />
+              </button>
+              {exportOpen && (
+                <div className="absolute right-0 top-full mt-1 bg-surface-alt border border-line rounded shadow-lg z-50">
+                  <button
+                    onClick={() => {
+                      handleExportFull();
+                      setExportOpen(false);
+                    }}
+                    className="block w-full text-left px-3 py-2 text-xs hover:bg-surface"
+                  >
+                    Export Full
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleExportLayer();
+                      setExportOpen(false);
+                    }}
+                    className="block w-full text-left px-3 py-2 text-xs hover:bg-surface"
+                  >
+                    Export Layer
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleExportRegion();
+                      setExportOpen(false);
+                    }}
+                    className="block w-full text-left px-3 py-2 text-xs hover:bg-surface"
+                  >
+                    Export Region
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Import */}
+            <label className="px-3 py-2 text-xs font-mono uppercase rounded hover:bg-surface flex items-center gap-1 cursor-pointer">
+              <Upload size={16} />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImport}
+                className="hidden"
+                aria-label="Import image"
+              />
+            </label>
+
+            {/* Save regions button */}
+            {pendingFrames.length > 0 && (
+              <button
+                onClick={handleSaveRegions}
+                className="px-3 py-2 text-xs font-mono uppercase rounded bg-accent text-ink hover:opacity-90"
+                aria-label="Save regions"
+              >
+                Lưu khung ({pendingFrames.length})
+              </button>
+            )}
+
+            {/* Save button */}
+            <button
+              onClick={() => onSave()}
+              disabled={saving}
+              className="px-3 py-2 text-xs font-mono uppercase rounded bg-accent text-ink hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+              aria-label="Save"
+            >
+              {saving && <span className="animate-spin">⟳</span>}
+              Lưu
+            </button>
+
+            {/* Close button */}
+            <button
+              onClick={onClose}
+              className="px-3 py-2 text-xs font-mono uppercase rounded hover:bg-surface"
+              aria-label="Close"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+
+        {/* Canvas with checkerboard background */}
+        <div
+          className="flex-1 overflow-hidden"
+          style={{
+            backgroundImage:
+              'repeating-conic-gradient(#e5e5e5 0% 25%, transparent 0% 50%)',
+            backgroundSize: '20px 20px',
+          }}
+        >
+          <CanvasStage
+            engine={engine}
+            view={view}
+            onViewChange={setView}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            cursor={cursor}
+          />
+        </div>
+      </div>
+
+      {/* Right dock with collapsible panels */}
+      <div className="w-72 flex flex-col gap-0 bg-surface border-l border-line overflow-y-auto">
+        {/* Color Panel */}
+        <div className="border-b border-line">
+          <ColorPanel
+            color={color}
+            onColor={setColor}
+            palette={palette}
+            onAddSwatch={handleAddSwatch}
+            recent={recent}
+          />
+        </div>
+
+        {/* Brush Controls */}
+        <div className="border-b border-line">
+          <BrushControls
+            settings={settings}
+            onChange={setSettings}
+          />
+        </div>
+
+        {/* Tool Options */}
+        {(tool === 'bucket' || tool === 'wand' || tool === 'bubble' || tool === 'line') && (
+          <ToolOptions
+            tool={tool}
+            tolerance={tolerance}
+            onToleranceChange={setTolerance}
+            bubbleType={bubbleType}
+            onBubbleTypeChange={setBubbleType}
+            lineWidth={lineWidth}
+            onLineWidthChange={setLineWidth}
+          />
+        )}
+
+        {/* Layer Panel */}
+        <div className="border-b border-line">
+          <LayerPanel engine={engine} version={version} />
+        </div>
+
+        {/* Contextual panels */}
+        {(tool === 'panel' || tool === 'bucket') && (
+          <div className="border-b border-line">
+            <PanelTools
+              engine={engine}
+              onFrames={(frames) => setPendingFrames((f) => [...f, ...frames])}
+            />
+          </div>
+        )}
+
+        {tool === 'tone' && (
+          <div className="border-b border-line">
+            <ToneControls engine={engine} />
+          </div>
+        )}
+
+        {(tool === 'panel' || tool === 'text' || tool === 'bubble') && (
+          <div className="border-b border-line">
+            <MangaRulers engine={engine} color={color} version={version} />
+          </div>
+        )}
+
+        {tool === 'text' && (
+          <div className="border-b border-line">
+            <TextControls engine={engine} version={version} />
+          </div>
+        )}
+
+        {/* AI Assist Panel */}
+        <div className="border-b border-line">
+          <AIAssistPanel
+            engine={engine}
+            ai={ai}
+            onPanels={(frames) => setPendingFrames((f) => [...f, ...frames])}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
