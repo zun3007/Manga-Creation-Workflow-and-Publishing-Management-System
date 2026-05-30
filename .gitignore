@@ -60,3 +60,6 @@ CLAUDE.local.md
 .cache/
 .temp/
 tmp/
+
+# ───────────────── Brainstorm visual companion (superpowers) ─────────────────
+.superpowers/
