@@ -15,6 +15,7 @@ import { ChaptersModule } from './chapters/chapters.module';
 import { PagesModule } from './pages/pages.module';
 import { RegionsModule } from './regions/regions.module';
 import { TasksModule } from './tasks/tasks.module';
+import { SubmissionsModule } from './submissions/submissions.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { TasksModule } from './tasks/tasks.module';
     PagesModule,
     RegionsModule,
     TasksModule,
+    SubmissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
