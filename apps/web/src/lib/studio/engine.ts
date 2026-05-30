@@ -213,6 +213,16 @@ export class StudioEngine {
     this.pushSwap(id, before, 'Screentone'); this.emit();
   }
 
+  strokeLines(segs: import('./lines').Seg[], color: RGBA, width: number) {
+    const id = this.activeWritable(); if (!id) return;
+    const before = this.ensureBuffer(id).slice(); const buf = this.ensureBuffer(id); const w=this.doc.width, h=this.doc.height;
+    for (const s of segs) {
+      const dist = Math.hypot(s.x1-s.x0, s.y1-s.y0); const n = Math.max(1, Math.floor(dist));
+      for (let i=0;i<=n;i++){ const t=i/n; this.wasm.brushStamp(buf, w, h, s.x0+(s.x1-s.x0)*t, s.y0+(s.y1-s.y0)*t, width/2, 1, color, 1); }
+    }
+    this.restoreOutside(id, before); this.pushSwap(id, before, 'Lines'); this.emit();
+  }
+
   undo() { this.history.undo(); }
 
   redo() { this.history.redo(); }
