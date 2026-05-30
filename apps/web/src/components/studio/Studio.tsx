@@ -29,6 +29,7 @@ import { ToolOptions } from './ToolOptions';
 export interface StudioProps {
   engine: StudioEngine;
   ai: AIAssist;
+  aiKind?: 'ONNX' | 'Heuristic';
   onSave: () => void | Promise<void>;
   onClose: () => void;
   onSaveRegions?: (frames: RectN[]) => void;
@@ -39,6 +40,7 @@ export interface StudioProps {
 export function Studio({
   engine,
   ai,
+  aiKind = 'Heuristic',
   onSave,
   onClose,
   onSaveRegions,
@@ -348,6 +350,12 @@ export function Studio({
             <span className="text-xs text-ink-soft">
               {(view.zoom * 100).toFixed(0)}%
             </span>
+            <div
+              className="px-2 py-1 text-xs font-mono bg-surface border border-line rounded text-ink-soft"
+              aria-label="ai-status"
+            >
+              AI: {aiKind}
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

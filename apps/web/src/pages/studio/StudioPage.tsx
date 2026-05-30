@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import wasmUrl from '@manga/canvas-wasm/inkforge.wasm?url';
 import { InkforgeWasm } from '@manga/canvas-wasm';
@@ -8,6 +8,10 @@ import { useAuth } from '../../lib/auth';
 import { Studio } from '../../components/studio/Studio';
 import { StudioEngine } from '../../lib/studio/engine';
 import { HeuristicAI } from '../../lib/studio/ai/heuristic';
+import { modelExists } from '../../lib/studio/ai/onnx/runtime';
+import { MODELS } from '../../lib/studio/ai/onnx/models';
+import { OnnxAI } from '../../lib/studio/ai/onnx/OnnxAI';
+import type { AIAssist } from '../../lib/studio/ai/AIAssist';
 import { createDocument } from '../../lib/studio/document';
 import { deserializeDoc, loadImageFromBlob, imageToBuffer, serializeDoc, exportPNG } from '../../lib/studio/io';
 import type { RectN } from '../../lib/studio/types';
@@ -18,7 +22,8 @@ export default function StudioPage() {
   const navigate = useNavigate(); const { user } = useAuth();
   const [engine, setEngine] = useState<StudioEngine | null>(null);
   const [saving, setSaving] = useState(false); const [error, setError] = useState('');
-  const aiRef = useRef(new HeuristicAI());
+  const [ai, setAi] = useState<AIAssist | null>(null);
+  const [aiKind, setAiKind] = useState<'ONNX' | 'Heuristic'>('Heuristic');
 
   useEffect(() => { let alive = true; (async () => {
     try {
@@ -34,7 +39,14 @@ export default function StudioPage() {
         eng = new StudioEngine(doc, wasm);
         eng.setBuffer(doc.activeLayerId!, imageToBuffer(img, w, h, w, h));
       }
-      if (alive) setEngine(eng);
+      // Select AI based on model availability
+      const hasModel = await modelExists(MODELS.panels);
+      const selectedAi = hasModel ? new OnnxAI() : new HeuristicAI();
+      if (alive) {
+        setEngine(eng);
+        setAi(selectedAi);
+        setAiKind(hasModel ? 'ONNX' : 'Heuristic');
+      }
     } catch (e) { console.error(e); if (alive) setError('Không mở được Studio.'); }
   })(); return () => { alive = false; }; }, [id]);
 
@@ -57,8 +69,8 @@ export default function StudioPage() {
   }
 
   if (error) return <div className="grid h-screen place-items-center bg-bg text-ink">{error}</div>;
-  if (!engine) return <div className="grid h-screen place-items-center bg-bg text-ink font-mono text-xs uppercase tracking-wider animate-pulse">Đang mở Studio…</div>;
+  if (!engine || !ai) return <div className="grid h-screen place-items-center bg-bg text-ink font-mono text-xs uppercase tracking-wider animate-pulse">Đang mở Studio…</div>;
   return <div data-role={user ? roleScope(user.role) : 'mangaka'} className="h-screen bg-bg">
-    <Studio engine={engine} ai={aiRef.current} onSave={onSave} onSaveRegions={onSaveRegions} onClose={() => navigate(-1)} saving={saving} title={`Trang ${id}`} />
+    <Studio engine={engine} ai={ai} aiKind={aiKind} onSave={onSave} onSaveRegions={onSaveRegions} onClose={() => navigate(-1)} saving={saving} title={`Trang ${id}`} />
   </div>;
 }
