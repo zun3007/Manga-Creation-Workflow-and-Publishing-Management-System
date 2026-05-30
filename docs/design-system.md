@@ -1,75 +1,141 @@
-# Frontend Design System — "Inkframe"
+# Frontend Design System — Sakura Multi-Role
 
-Aesthetic, tokens, and component rules for the manga workflow UI. This is the single
-source of truth for frontend look & feel. Follow it across sessions — don't invent new
-patterns.
+Aesthetic, tokens, and component rules for the manga-studio workflow UI. **One component library, five role-based skins.** This is the single source of truth for frontend look & feel. Follow it across sessions — don't invent new patterns.
 
 ## Aesthetic direction
-**"Inkframe" — a manga-studio editorial aesthetic.** Ink on warm paper, screentone /
-halftone texture, manga-panel framing, and a single hanko-red accent (the editor's stamp).
-Refined, artful, print-inspired — designed **for mangaka**. Light "paper" theme is primary.
 
-Avoid generic SaaS / AI looks: no Inter/Roboto/Arial, no purple-on-white gradients, no
-flat material cards, no emoji icons.
+**Sakura Base + Per-Role Theming.** A light, pastel manga aesthetic with soft borders, soft shadows, and generous spacing — readable and friendly. Each of the five roles (Mangaka, Assistant, Tantou Editor, Editorial Board, Admin) gets a distinct color palette and density while sharing the same components and layouts.
 
-## Principles
-1. **Ink on paper** — warm paper background, near-black ink, high contrast, generous margins.
-2. **Panels, not cards** — content framed like manga panels: thick ink border + hard offset shadow (no soft blur).
-3. **One bold accent** — hanko vermilion for emphasis / CTA / active state only. Restraint elsewhere.
-4. **Texture = atmosphere** — subtle paper grain + halftone dots; never flat fills.
-5. **Typographic drama** — large elegant serif display; clean gothic body; mono for metadata/labels.
-6. **Motion with intent** — one orchestrated staggered page-load; hover lifts; ink-reveal transitions. Respect `prefers-reduced-motion`.
+- ✅ **Soft, pastel, readable:** thin borders (`1–1.5px`), soft shadows (`0 2px 8px` rgba), rounded corners, generous padding.
+- ✅ **Role-aware skins:** one `AppShell` component sets `data-role={user.role}` at the root; CSS scopes override semantic tokens per role; utilities re-skin without code duplication.
+- ✅ **Manga spirit, light weight:** serif display (Shippori Mincho), gothic body, mono for labels — no generic SaaS look.
 
-## Color tokens (CSS variables)
+## Token architecture (Tailwind v4 CSS-first)
+
+Semantic tokens are plain CSS custom properties, overridden per role under `[data-role="…"]` scopes:
+
 ```css
-:root {
-  --paper:   #F4F1EA;  --paper-2: #ECE7DB;  --paper-3: #E2DCCD;
-  --ink:     #15120F;  --ink-2:   #3A352F;  --ink-3:   #6B645B;
-  --vermilion: #E0271C; --vermilion-2: #B71E16;
-  --sumi:  #243044;   /* secondary cool ink — info / in-progress */
-  --jade:  #3C7A52;   /* success / approved / active */
-  --amber: #C8861E;   /* warning / at-risk / revision */
-  --line:  #15120F;   /* panel borders = ink */
+/* ← Default = Mangaka "Sakura Studio" ← */
+:root, [data-role="mangaka"] {
+  --app-bg: #FBF7F4;
+  --app-surface: #FFFFFF;
+  --app-ink: #4A4039;
+  --app-ink-soft: #8A8078;
+  --app-line: #ECE2DA;
+  --app-accent: #E58A86;      /* coral */
+  --app-accent-2: #A8C8E0;    /* sky */
+  --app-radius: 12px;
+  --app-shadow: 0 2px 8px rgba(180,150,140,.12);
+  --app-density: 1;           /* row padding multiplier */
+}
+[data-role="assistant"] {     /* Atelier — cool work-desk */
+  --app-bg: #F4F7FA;
+  --app-ink: #3E454C;
+  --app-line: #E1E8ED;
+  --app-accent: #5BA0B8;
+  --app-accent-2: #7FC9B0;
+  --app-shadow: 0 2px 8px rgba(120,150,170,.14);
+  --app-density: .9;
+}
+[data-role="tantou_editor"] {  /* Red-Pencil Desk */
+  --app-bg: #F7F4EF;
+  --app-surface: #FFFDF9;
+  --app-ink: #403A33;
+  --app-line: #E4DBCD;
+  --app-accent: #B5564A;      /* brick */
+  --app-accent-2: #A8946F;    /* tan */
+  --app-density: .9;
+}
+[data-role="editorial_board"] { /* Boardroom */
+  --app-bg: #F3F3F8;
+  --app-ink: #39373F;
+  --app-line: #E2E1EC;
+  --app-accent: #6E63A8;      /* indigo */
+  --app-accent-2: #7E9AD0;    /* slate-blue */
+  --app-density: .85;
+}
+[data-role="admin"] {         /* Console — utilitarian, dark-ready */
+  --app-bg: #EEF1F4;
+  --app-ink: #2E343B;
+  --app-line: #D7DEE5;
+  --app-accent: #3B82C4;      /* blue */
+  --app-accent-2: #64748B;    /* slate */
+  --app-radius: 6px;
+  --app-shadow: none;
+  --app-density: .8;
 }
 ```
-**Status → color:** `APPROVED/ACTIVE/PUBLISHED → jade` · `IN_PROGRESS/SUBMITTED/REVIEWING → sumi` · `REVISION_REQUIRED/AT_RISK → amber` · `REJECTED/CANCELLED → vermilion` · `DRAFT/RAW → ink-3`.
 
-## Typography (Google Fonts — distinctive, on-theme)
-- **Display** (headings, hero, big numbers): `"Shippori Mincho", serif` — elegant Japanese print serif.
-- **Body / UI**: `"Zen Kaku Gothic New", sans-serif` — clean, characterful gothic.
-- **Mono** (labels, tags, IDs, metadata): `"Spline Sans Mono", monospace` — uppercase, letter-spaced.
+The `@theme inline` block maps these plain properties to semantic utilities:
+```css
+@theme inline {
+  --color-bg: var(--app-bg);
+  --color-surface: var(--app-surface);
+  --color-ink: var(--app-ink);
+  --color-ink-soft: var(--app-ink-soft);
+  --color-line: var(--app-line);
+  --color-accent: var(--app-accent);
+  --color-accent-2: var(--app-accent-2);
+  
+  /* Global status colors (NOT overridden per role) */
+  --color-ok: #5E9A72;        /* approved / active / published */
+  --color-info: #5B8FBE;      /* in-progress / submitted / reviewing */
+  --color-warn: #D49A52;      /* revision-required / at-risk */
+  --color-danger: #D0746B;    /* rejected / cancelled */
+  --color-muted: #9A8F84;     /* draft / raw */
 
-Scale: hero display 3–5rem; h1 ~2rem; body ~0.95rem; mono labels ~0.72rem uppercase `tracking-[0.18em]`.
+  --font-display: "Shippori Mincho", serif;
+  --font-sans: "Zen Kaku Gothic New", system-ui, sans-serif;
+  --font-mono: "Spline Sans Mono", ui-monospace, monospace;
+}
+```
 
-## Texture & effects
-- **Paper grain**: fixed SVG `feTurbulence` overlay at ~3–4% opacity.
-- **Halftone**: `radial-gradient` dot-pattern utility (`.halftone`) for headers/accents.
-- **Panel**: `2px solid var(--ink)`; hard shadow `6px 6px 0 var(--ink)`; hover → `translate(-2px,-2px)` + shadow `8px 8px 0`.
-- **Speed lines**: `repeating-linear-gradient` accent behind hero numbers / section breaks.
+**How utilities re-skin:** `bg-surface` emits `background: var(--color-surface)` → points to `var(--app-surface)` → resolves to `#FFFFFF` under `:root` or `#FFFDF9` under `[data-role="tantou_editor"]`. No component-level overrides needed.
 
-## Components to build
-| Component | Spec |
-|---|---|
-| `Button` | `.btn-ink` (ink fill, paper text, hard shadow), `.btn-vermilion` (CTA), `.btn-ghost` (ink outline). |
-| `Input` | paper bg, 2px ink underline, mono uppercase label; focus → vermilion underline. |
-| `Panel` | framed manga panel; optional corner "page-number" tab. |
-| `Stamp` (badge) | hanko-style status stamp — rounded-rect, colored border, mono uppercase. |
-| `Sidebar` | vertical "studio" nav, ink on `--paper-2`, active = vermilion tab. |
-| `Progress` | chapter completion as ink bar with halftone fill. |
+## Per-role palette table
+
+| Role | Theme | BG | Surface | Accent | Accent-2 | Radius | Shadow | Density | Signature |
+|---|---|---|---|---|---|---|---|---|---|
+| **Mangaka** | Sakura Studio | `#FBF7F4` | `#FFF` | coral `#E58A86` | sky `#A8C8E0` | 12px | soft | 1.0 | warm, serif display, screentone whisper |
+| **Assistant** | Atelier | `#F4F7FA` | `#FFF` | teal `#5BA0B8` | mint `#7FC9B0` | 12px | soft | 0.9 | cool, progress rings, busy visual |
+| **Tantou Editor** | Red-Pencil Desk | `#F7F4EF` | `#FFFDF9` | brick `#B5564A` | tan `#A8946F` | 12px | soft | 0.9 | editorial, annotation pills, paper-like |
+| **Editorial Board** | Boardroom | `#F3F3F8` | `#FFF` | indigo `#6E63A8` | slate-blue `#7E9AD0` | 12px | soft | 0.85 | formal, vote bars, ranked lists |
+| **Admin** | Console | `#EEF1F4` | `#FFF` | blue `#3B82C4` | slate `#64748B` | 6px | none | 0.8 | utilitarian, data tables, status dots, mono |
+
+Status colors are global (no per-role override) to ensure meaning is consistent across the studio.
+
+## Typography (Google Fonts)
+
+- **Display/Serif:** `"Shippori Mincho", serif` — h1, h2, large numbers, panels titles. Admin uses mono headings instead.
+- **Body/Gothic:** `"Zen Kaku Gothic New", sans-serif` — UI text, labels, navigation.
+- **Mono:** `"Spline Sans Mono", monospace` — IDs, metadata, status codes; always uppercase + `tracking-wider`.
+
+Scale: display 2–3rem, h1 ~1.5rem, body ~0.95rem, mono ~0.72rem uppercase.
+
+## Component rules (token-driven)
+
+All components use semantic utilities (`bg-surface`, `text-ink`, `border-line`, `text-accent`, etc.) — never hardcode a role's palette. Examples:
+
+- **Panel/Card:** `bg-surface border border-line rounded-[var(--app-radius)]` + `shadow-[var(--app-shadow)]`. No hard shadows or black borders.
+- **Button (accent variant):** `bg-accent text-white` + `rounded-[calc(var(--app-radius)*0.66)]` + soft hover (e.g., `brightness-95`).
+- **Stamp (status pill):** `bg-{ok|info|warn|danger|muted}/15 text-{ok|info|warn|danger|muted}` + `rounded-full`, mono uppercase label.
+- **Input:** `bg-surface border border-line rounded-[calc(var(--app-radius)*0.6)]` + focus → `border-accent`, mono label above.
+- **Sidebar/Nav:** `bg-surface border-r border-line` + active item `bg-accent/12 text-accent`.
+- **Progress bar:** track `bg-bg border border-line`, fill `bg-accent`.
+
+**Soft borders + soft shadows everywhere.** Never `border-2`, never `6px 6px 0`, never hard blacks or offsets.
 
 ## Motion
+
 - Library: **framer-motion** (React).
 - Page load: stagger children `0.06s`, fade + slide-up `12px`.
-- Hover: panels lift; buttons grow shadow; nav underline ink-draw.
-- Always gate behind `prefers-reduced-motion`.
+- Hover: panels brighten, buttons shift slightly, nav highlight glides.
+- **Always gate behind `prefers-reduced-motion`.**
 
-## Stack notes
-React 19 + Vite + TypeScript + **Tailwind CSS v4** + custom CSS for the distinctive bits
-(grain, halftone, panel shadows) + framer-motion + lucide-react (line icons, restyled).
-Custom components — no generic component-kit theme (would dilute the aesthetic).
+## Implementation notes
 
-**Tailwind v4 is CSS-first.** Design tokens live in `@theme` inside `index.css` as
-`--color-*`, `--font-*`, `--shadow-*` (these generate `bg-*` / `text-*` / `font-*` / `shadow-*`
-utilities). There is **no `tailwind.config.js` or `postcss.config.js`** — the `@tailwindcss/vite`
-plugin handles everything, and `@import "tailwindcss";` replaces the old `@tailwind` directives.
-Custom component classes (`.panel`, `.btn`, `.stamp`, `.halftone`…) reference `var(--color-*)`.
+**Tailwind v4 is CSS-first.** No `tailwind.config.js` or `postcss.config.js`. All tokens live in CSS (`@theme inline` and `[data-role="…"]` scopes in `src/styles/theme.css`). The `@tailwindcss/vite` plugin processes this at build time.
+
+Components live in `apps/web/src/components/ui/` and use the semantic utilities + the shared `var(--app-*)` properties. The `AppShell` component (in `apps/web/src/components/app/AppShell.tsx`) wraps the app and sets `data-role={roleScope(user.role)}` from the JWT, causing all child utilities to re-skin automatically.
+
+**For future role skins:** only modify the per-role CSS block in `theme.css`; no component code changes needed.
