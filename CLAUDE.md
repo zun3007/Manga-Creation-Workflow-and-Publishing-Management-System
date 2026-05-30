@@ -26,9 +26,9 @@ dev/
 ├─ apps/api         NestJS 11 + TypeScript + mysql2 + Passport (JWT + Google OAuth)
 ├─ packages/shared  @manga/shared — Role enum + auth DTOs (single source of truth)
 ├─ db/              docker-compose.yml (MySQL 8 on :3308) + schema + seed
-├─ pnpm-workspace.yaml, package.json (workspace root + scripts)
-└─ docs/            knowledge base (below) + docs/SWP391/ (given course material)
+└─ pnpm-workspace.yaml, package.json (workspace root + scripts)
 ```
+> `docs/` and `demo/` live at the **repo root** (siblings of `dev/`), not inside `dev/`. `demo/` is reference-only.
 
 ## How to run
 
@@ -46,7 +46,7 @@ dev/
 - UTF-8: SQL declares `SET NAMES utf8mb4`; mysql2 pool uses `charset: 'utf8mb4'`.
 - JWT bakes the user name at issue-time → re-login after a re-seed.
 
-## Conventions (summary — full detail in `docs/conventions.md`)
+## Conventions (summary — full detail in `docs/architecture.md`)
 - TypeScript everywhere. Shared enums/types live in `packages/shared`; never duplicate status enums.
 - One backend module per domain (Auth, Series, Chapter, Page, Task, Submission, Review, Publishing, Ranking…) — mirrors NFR-30.
 - Validate input on both FE and BE; consistent JSON error shape; RBAC guards on every protected route.
