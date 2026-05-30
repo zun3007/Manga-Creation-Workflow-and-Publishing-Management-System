@@ -1,7 +1,8 @@
-import type { AIAssist } from './AIAssist';
+import type { AIAssist, Point } from './AIAssist';
 import type { RectN } from '../types';
 import type { StudioEngine } from '../engine';
 import { MANGA_PALETTE, hexToRgb } from '../color';
+import { wandMask } from '../selection';
 
 const isInkAt = (px: Uint8ClampedArray, i: number) => {
   const o = i * 4;
@@ -114,11 +115,15 @@ export function autoColorize(eng: StudioEngine): void {
 }
 
 export class HeuristicAI implements AIAssist {
-  detectPanels(px: Uint8ClampedArray, w: number, h: number, minAreaFrac = 0.02): RectN[] {
+  async detectPanels(px: Uint8ClampedArray, w: number, h: number, minAreaFrac = 0.02): Promise<RectN[]> {
     return detectPanels(px, w, h, minAreaFrac);
   }
 
-  colorize(eng: StudioEngine): void {
+  async segment(px: Uint8ClampedArray, w: number, h: number, point: Point): Promise<Uint8Array> {
+    return wandMask(px, w, h, Math.floor(point.x), Math.floor(point.y), 24);
+  }
+
+  async colorize(eng: StudioEngine): Promise<void> {
     autoColorize(eng);
   }
 }

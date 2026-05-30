@@ -9,16 +9,24 @@ export interface AIAssistPanelProps {
 }
 
 export function AIAssistPanel({ engine, ai, onPanels }: AIAssistPanelProps) {
-  const handleColorize = () => {
-    ai.colorize(engine);
+  const handleColorize = async () => {
+    try {
+      await ai.colorize(engine);
+    } catch (err) {
+      console.warn('[AIAssistPanel] colorize error:', err);
+    }
   };
 
-  const handleDetectPanels = () => {
-    const composite = engine.composite();
-    const w = engine.doc.width;
-    const h = engine.doc.height;
-    const panels = ai.detectPanels(composite, w, h);
-    onPanels(panels);
+  const handleDetectPanels = async () => {
+    try {
+      const composite = engine.composite();
+      const w = engine.doc.width;
+      const h = engine.doc.height;
+      const panels = await ai.detectPanels(composite, w, h);
+      onPanels(panels);
+    } catch (err) {
+      console.warn('[AIAssistPanel] detectPanels error:', err);
+    }
   };
 
   return (
