@@ -1,0 +1,38 @@
+import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { Role } from '@manga/shared';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { DashboardService } from './dashboard.service';
+
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.MANGAKA)
+@Controller('dashboard')
+export class DashboardController {
+  constructor(private readonly dashboard: DashboardService) {}
+
+  @Get('summary')
+  summary(@Req() req: any) {
+    return this.dashboard.summary(req.user.id);
+  }
+
+  @Get('series')
+  series(@Req() req: any) {
+    return this.dashboard.series(req.user.id);
+  }
+
+  @Get('tasks')
+  tasks(@Req() req: any) {
+    return this.dashboard.tasks(req.user.id);
+  }
+
+  @Get('submissions')
+  submissions(@Req() req: any) {
+    return this.dashboard.submissions(req.user.id);
+  }
+
+  @Get('notifications')
+  notifications(@Req() req: any) {
+    return this.dashboard.notifications(req.user.id);
+  }
+}

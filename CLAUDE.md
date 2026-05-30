@@ -19,36 +19,54 @@ After any meaningful change or decision, **update `docs/STATUS.md`**.
 - **Auth:** JWT, role-based. 5 roles: `MANGAKA`, `ASSISTANT`, `TANTOU_EDITOR`, `EDITORIAL_BOARD`, `ADMIN`.
 - **Repo:** monorepo (npm/pnpm workspaces).
 
-## Monorepo layout (planned — not scaffolded yet)
+## Monorepo layout (built in `dev/`)
 ```
-apps/web         React + Vite frontend
-apps/api         NestJS backend
-packages/shared  shared TS types, enums, DTOs (single source for the ~12 status enums)
-docs/            our knowledge base (below) + docs/SWP391/ (given course material)
+dev/
+├─ apps/web         React 19 + Vite 8 + TypeScript + Tailwind v4 (pastel multi-role)
+├─ apps/api         NestJS 11 + TypeScript + mysql2 + Passport (JWT + Google OAuth)
+├─ packages/shared  @manga/shared — Role enum + auth DTOs (single source of truth)
+├─ db/              docker-compose.yml (MySQL 8 on :3308) + schema + seed
+└─ pnpm-workspace.yaml, package.json (workspace root + scripts)
 ```
+> `docs/` and `demo/` live at the **repo root** (siblings of `dev/`), not inside `dev/`. `demo/` is reference-only.
 
 ## How to run
-_TBD — fill in when scaffolded (web dev server, api dev server, DB setup, seed)._
 
-## Conventions (summary — full detail in `docs/conventions.md`)
+1. **Install:** `cd dev && pnpm install`
+2. **Database:** `pnpm db:up` (Docker MySQL 8 on 3308; loads schema + seed on first run)
+3. **API:** `pnpm dev:api` (NestJS on 3000, or `pnpm -F api build && node apps/api/dist/main.js` for prod)
+4. **Web:** `pnpm dev:web` (Vite on 5173, proxies /api to 3000)
+
+**Seeded login:** `dungminer69@gmail.com` / `Dung123456@` (MANGAKA role)
+
+**Notes:**
+- pnpm 11 requires `allowBuilds` map in `pnpm-workspace.yaml` for native deps — auto-managed, or run binaries directly.
+- TypeScript 6 requires explicit `rootDir`; drop `baseUrl` if no `paths`.
+- Tailwind v4 is CSS-first (`@theme` in CSS, no `tailwind.config.js`).
+- UTF-8: SQL declares `SET NAMES utf8mb4`; mysql2 pool uses `charset: 'utf8mb4'`.
+- JWT bakes the user name at issue-time → re-login after a re-seed.
+
+## Conventions (summary — full detail in `docs/architecture.md`)
 - TypeScript everywhere. Shared enums/types live in `packages/shared`; never duplicate status enums.
 - One backend module per domain (Auth, Series, Chapter, Page, Task, Submission, Review, Publishing, Ranking…) — mirrors NFR-30.
 - Validate input on both FE and BE; consistent JSON error shape; RBAC guards on every protected route.
 
-## Frontend design style
-- Single source of truth: `docs/design-system.md` (+ auto-loaded `.claude/rules/frontend.md` when editing `*.tsx`).
-- Keep components consistent across sessions — follow the design system, don't invent new patterns.
+## Frontend design style (Sakura Multi-Role)
+- Light, pastel, manga-friendly. One component set; five role-based skins via semantic tokens + `[data-role="…"]` CSS scopes.
+- **Single source of truth:** `docs/design-system.md` (+ auto-loaded `.claude/rules/frontend.md` when editing `*.tsx`).
+- **AppShell sets `data-role={user.role}`** at the root; components use semantic utilities (`bg-surface`, `text-accent`, `border-line`) that resolve per role.
+- Keep components role-agnostic — never hardcode a role's palette inside a component.
+- Follow the design system exactly; don't invent new visual patterns or token names.
 
 ## Doc map
 | Need | Read |
 |---|---|
 | What's done / what's next | `docs/STATUS.md` |
 | Project context | `docs/overview.md` |
-| Architecture | `docs/architecture.md` _(planned)_ |
-| Entities + status machines + business rules | `docs/domain-model.md` _(planned)_ |
-| Coding conventions / API shape | `docs/conventions.md` _(planned)_ |
-| Frontend design system | `docs/design-system.md` _(planned)_ |
-| Sprint plan / FR→sprint / Definition of Done | `docs/roadmap.md` _(planned)_ |
+| Architecture (monorepo, auth, theming flow) | `docs/architecture.md` |
+| Entities + status machines + business rules | `docs/domain-model.md` |
+| Frontend design system (Sakura multi-role tokens) | `docs/design-system.md` |
+| Sprint plan / FR→sprint / Definition of Done | `docs/roadmap.md` |
 | Given (course) docs — reference only | `docs/SWP391/` |
 
 ## Working agreements

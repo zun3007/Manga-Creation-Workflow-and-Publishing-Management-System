@@ -3,50 +3,104 @@
 > **AI: read this first on every re-entry.** Update it after any meaningful change or decision.
 > Keep it short and current. Older detail belongs in the per-topic docs.
 
-- **Last updated:** 2026-05-28
-- **Current phase:** Working **demo** (`demo/`) on the **latest** stack — auth (local + Google) + Mangaka dashboard. Main app still un-scaffolded.
-- **Last fix (2026-05-28):** `demo/api` build silently produced empty `dist/` → `nest start` failed with `Cannot find module 'dist/main'`. Root cause: `nest-cli.json:deleteOutDir=true` wipes `dist/` but `tsconfig.build.tsbuildinfo` (TS incremental cache) lived at root, survived the wipe, made tsc skip emit. Fix: added `"tsBuildInfoFile": "./dist/.tsbuildinfo"` to `demo/api/tsconfig.json` so the cache is wiped together with `dist/`. Verified: `node dist/main.js` boots Nest, all routes mapped, listening on :3000/api.
-- **Calendar:** Week ~2 of 10 (project runs 2026-05-18 → 2026-07-26).
+- **Last updated:** 2026-05-30
+- **Current phase:** **Sprint 1 COMPLETE** — `dev/` monorepo scaffolded, Sakura multi-role design system live, auth + RBAC working, Mangaka dashboard re-themed, docs rewritten.
+- **Next phase:** Sprint 2 — Production pipeline (Series Proposal → Task → Submission → Mangaka Review).
+- **Calendar:** Week 2 of 10 (project runs 2026-05-18 → 2026-07-26). Sprint 1 window was 2026-05-30 → 2026-06-13 (target).
+- **Key fact:** The real app is `dev/` (not `demo/`). `demo/` stays as reference, no longer maintained.
 
 ---
 
-## ✅ Done
-- Read & synthesized all given docs in `docs/SWP391/` (schema, 101 FR + 46 NFR, ~154 business rules, sprint/timeline).
-- AI-context docs: `CLAUDE.md`, `.gitignore`, `docs/overview.md`, `docs/STATUS.md`.
-- Frontend design system **"Inkframe"** (manga-studio editorial): `docs/design-system.md` + `.claude/rules/frontend.md`.
-- **Demo built, modernized to latest, and verified** (`demo/`, see `demo/README.md`):
-  - **Stack (latest, resolved via `pnpm add`):** Web = React 19 + Vite 8 + **Tailwind v4** (CSS-first `@theme`, `@tailwindcss/vite`) + react-router 7 + framer-motion 12 + lucide 1 + TypeScript 6. API = NestJS 11 + TS 6 + mysql2 + Passport.
-  - MySQL 8 via Docker (port 3307), utf8mb4, auto-loads `db/01-schema.sql` + `db/02-seed.sql` (fake data incl. `dungminer69@gmail.com` / `Dung123456@`, MANGAKA).
-  - Auth verified: email/password (bcrypt+JWT) ✓, **Google OAuth LIVE** ✓ (`/api/auth/google` 302 → Google with real client_id; creds in `demo/api/.env`, gitignored).
-  - Dashboard verified in browser (Tailwind v4): design intact, Vietnamese renders correctly, seeded data shows.
+## ✅ Sprint 1 Complete — Foundation
+
+### Monorepo & Stack
+- ✅ **`dev/` monorepo scaffolded** on latest stable: React 19 + Vite 8 + Tailwind v4 (CSS-first) + react-router 7 + framer-motion 12 + lucide-react · NestJS 11 + Passport + mysql2 · MySQL 8 Docker on :3308 (container `manga-dev-mysql`, volume isolated) · pnpm workspaces (Node 20+, TypeScript 6).
+- ✅ **Monorepo structure:** `dev/apps/{web,api}`, `dev/packages/shared` (@manga/shared), `dev/db` (schema + seed + docker-compose).
+- ✅ **`@manga/shared` single source:** Role enum + auth DTOs (LoginDto, AuthUser, JwtPayload). Emits CommonJS for NestJS; Vite aliases for web. Tests pass (vitest).
+
+### Design System & Theming
+- ✅ **Sakura multi-role design system** (light, pastel, readable) — replaces heavy Inkframe:
+  - Semantic tokens (--color-bg, --color-surface, --color-ink, --color-accent, --color-line) + global status colors (ok/info/warn/danger/muted).
+  - Per-role skins: Mangaka (Sakura Studio coral), Assistant (Atelier teal), Tantou Editor (Red-Pencil Desk brick), Editorial Board (Boardroom indigo), Admin (Console blue).
+  - `@theme inline` maps utilities; `[data-role="…"]` overrides plain CSS properties; components use semantic utilities only (no hardcoded hex).
+  - `AppShell` sets `data-role={roleScope(user.role)}` from JWT → entire app re-skins automatically.
+- ✅ **Token-driven components:** Panel, Button (accent/soft/ghost), Stamp, Input, Avatar, Progress, Sidebar. All use `rounded-[var(--app-radius)]`, `shadow-[var(--app-shadow)]`, etc. Soft borders + soft shadows everywhere.
+- ✅ **Fonts:** Shippori Mincho (display), Zen Kaku Gothic New (body), Spline Sans Mono (mono); admin uses mono headings.
+
+### Auth & RBAC
+- ✅ **JWT auth:** email/password (bcryptjs) + Google OAuth; seeded user `dungminer69@gmail.com` / `Dung123456@` (MANGAKA). JWT payload: `{sub, email, name, role}`, 7-day expiry.
+- ✅ **RolesGuard + @Roles decorator:** validates user.role against protected routes. Unit tests cover valid/invalid transitions.
+- ✅ **Role-routed AppShell:** protected routes check `useAuth()`, redirect to `/login` if no token. Login page pre-skins to Mangaka (default). AuthCallback handles OAuth.
+
+### Mangaka Dashboard
+- ✅ **API endpoints:** `/dashboard/summary`, `/series`, `/tasks`, `/submissions`, `/notifications` (protected by JwtAuthGuard). Data aggregated from seeded schema.
+- ✅ **Frontend re-theme:** Dashboard.tsx uses token utilities (no hard shadows/borders), pastel colors, soft Stamps for status, framer-motion stagger (reduced-motion aware). Vietnamese labels + `vi-VN` date formatting. Removed heavy grain/halftone.
+
+### Docs Rewritten
+- ✅ **`docs/design-system.md`** — Sakura multi-role architecture, token list, per-role palette table, component rules.
+- ✅ **`.claude/rules/frontend.md`** — hard rules: semantic tokens, role theming at shell, soft shadows/borders only, fonts, icons.
+- ✅ **`docs/roadmap.md`** — 3-sprint plan (S1 done, S2 production, S3 publishing/admin), FR→sprint mapping, DoD per sprint.
+- ✅ **`docs/architecture.md`** — monorepo layout, multi-role theming flow, module-per-domain list, build/run, conventions.
+- ✅ **`docs/domain-model.md`** — entity clusters (Users, Series, Production, Publishing, Support), status enums (TBD-from-SQL in S2), business rules sampling.
+- ✅ **`CLAUDE.md`** updated: `dev/` layout, 3-sprint baseline, how-to-run steps, pnpm gotchas.
+- ✅ **`docs/STATUS.md`** updated: Sprint 1 closed, phase set to S2, next-up clarified.
+
+### Verification
+- ✅ `pnpm db:up` boots MySQL, loads schema + seed.
+- ✅ `pnpm dev:api` (or build + node dist/main.js) boots NestJS on 3000; routes listed; health check returns 200.
+- ✅ `pnpm dev:web` boots Vite on 5173; proxies /api to 3000.
+- ✅ Login flow: enter credentials → JWT signed + stored → redirect to dashboard → AppShell sets data-role → dashboard renders pastel.
+- ✅ Role re-sking: `data-role` swap in devtools changes accent/bg/shadows instantly (proves one shell, many skins).
+- ✅ `pnpm test` passes (shared Role enum tests, api RolesGuard tests).
+- ✅ `pnpm build` produces web/dist (Vite) + api/dist/main.js (NestJS).
+
+### Git
+- ✅ Branch `dev/sprint1-foundation` (all work committed, squash-ready for PR to `development`).
 
 ## 🔄 In progress
-- (nothing active — demo complete on latest stack; awaiting next direction)
+- (none)
 
-## ⏭️ Next up
-1. Real app architecture: `docs/architecture.md` (monorepo `apps/web`+`apps/api`+`packages/shared`), `docs/domain-model.md`, `docs/conventions.md`.
-2. `docs/roadmap.md` (reconcile 3-group vs 5-sprint; map 101 FR → sprints; Definition of Done).
-3. Scaffold the real monorepo (likely promote/replace the demo). Use `pnpm add` / `create vite@latest` / `nest new` — do NOT hand-pin versions.
+## ⏭️ Sprint 2 — Production Pipeline
+
+**Scope:** Series Proposal → Series → Chapter → Page → Region → Task → Submission → Mangaka Review.
+
+**High-level tasks:**
+1. **Status enums:** Extract from `docs/domain-model.md` + `docs/SWP391/sql-script.sql`; code into `@manga/shared` (ProposalStatus, SeriesStatus, ChapterStatus, PageStatus, TaskStatus, SubmissionStatus, ManuscriptStatus, etc.). Add unit tests (vitest).
+2. **NestJS modules (CRUD + state machines):** Series, Chapter, Page, Region, Task, Submission, with service-layer transition validation + RBAC guards.
+3. **Web pages:** ProposalForm, SeriesList, ChapterForm, PageWorkspace (canvas + region selection), TaskList, SubmissionReview.
+4. **Dashboards:** TANTOU_EDITOR task queue, EDITORIAL_BOARD approval list.
+5. **Notifications:** Basic pub/sub on key transitions (task assigned, submission ready, approval requested).
+6. **Database:** Extend schema if needed (e.g., Annotation polymorphism details).
+
+**Definition of Done:** Create a series proposal end-to-end → board approve → series created → chapter created → page uploaded → region selected → task assigned → assistant submits → mangaka approves. All state machines honored, RBAC enforced, API + web tests pass.
 
 ## ❓ Open decisions
-- **ORM:** Prisma vs TypeORM vs raw mysql2 (demo uses **mysql2**). Decide for the real app.
-- **Workspace tool:** npm vs pnpm (pnpm has the build-script quirk below).
-- **File storage:** local disk (MVP) → object storage later (NFR-29).
-- **Testing strategy:** Jest (api) + Vitest/RTL (web)? E2E?
+- **ORM:** raw mysql2 (S1 + S2) vs Prisma/TypeORM (consider at S2 kickoff when persistence grows). Current call: stay on mysql2 for MVP.
+- **File storage:** local disk (MVP) → S3/object storage (NFR-29, S3+).
+- **Email delivery:** stubs (S1+S2) → real SMTP (S3, production).
+- **Session persistence:** in-memory JWT (S1) → localStorage + secure cookies (S2+, production).
 
 ## 🧭 Decisions log
 | Date | Decision | Why |
 |---|---|---|
-| 2026-05-28 | Stack = React+Vite+TS / NestJS+TS / MySQL, no Next.js | Internal tool; team chose Node+React; NestJS fits 101 FR + RBAC |
-| 2026-05-28 | Frontend aesthetic = "Inkframe" (ink-on-paper manga editorial) | "Art-forward, for mangaka" brief |
-| 2026-05-28 | Demo data layer = raw mysql2 (not an ORM) | Lowest-risk for the demo; doesn't lock the real app's ORM |
-| 2026-05-28 | **Modernized demo to latest majors** (React 19 / Vite 8 / Tailwind v4 / NestJS 11 / TS 6) via `pnpm add` | Per Dũng: use latest + correct method, not hand-pinned-from-memory versions |
+| 2026-05-28 | Stack = React+Vite+TS / NestJS+TS / MySQL 8, no Next.js | Internal tool; NestJS + RBAC fit 101 FR; pnpm workspaces for monorepo. |
+| 2026-05-28 | **Modernized to latest majors** (React 19 / Vite 8 / Tailwind v4 / NestJS 11 / TS 6) via `pnpm add @latest` | Per Dũng: use latest + correct method, never hand-pin from memory. |
+| 2026-05-30 | **Sakura multi-role design system** (pastel, per-role skins via tokens) replaces Inkframe | User feedback: Inkframe heavy + hard to read. Sakura = light + readable + maintains manga spirit. |
+| 2026-05-30 | **`dev/` is the real app** (demo stays as reference, not maintained) | Fresh monorepo on latest stack; cleaner starting point. |
+| 2026-05-30 | **3-sprint baseline** (S1 Foundation, S2 Production, S3 Review/Publish/Admin) replaces 5-sprint plan | More realistic scope for 10-week window; allows focus on MVP spine. |
+| 2026-05-30 | **Single-source `@manga/shared`** (Role enum + status enums) with CJS emit for API, Vite alias for web | Eliminates enum duplication; RBAC + theming both trust one Role source. |
+| 2026-05-30 | **Data layer = raw mysql2 + future ORM decision** (no Prisma/TypeORM in S1) | Lowest risk S1; real app can migrate to ORM at S2/S3 with clear schema. |
 
-## ⚠️ Deviations / gotchas (carry into the real app)
-- **Always resolve versions with `pnpm add <pkg>@latest`** (or `create vite@latest` / `nest new`), never hand-write versions from memory — they go stale. Verify against current docs.
-- **pnpm 10/11 blocks dependency build scripts** → `pnpm start` / `pnpm dev` / `pnpm exec` abort with `ERR_PNPM_IGNORED_BUILDS`. Fixes: `pnpm approve-builds` once, OR run binaries directly (`node dist/main.js`, `./node_modules/.bin/vite`). esbuild works anyway (binary via optional dep).
-- **TypeScript 6.0** is stricter: requires explicit `rootDir`; `baseUrl` is deprecated (remove it if no `paths`).
-- **Tailwind v4** = CSS-first: `@import "tailwindcss";` + `@theme { --color-*; --font-*; --shadow-* }` in CSS, `@tailwindcss/vite` plugin. **No `tailwind.config.js`, no `postcss.config.js`, no `@tailwind` directives.**
-- **UTF-8:** SQL files declare `SET NAMES utf8mb4;` (docker-entrypoint loads via latin1 otherwise → mojibake); mysql2 pool uses `charset: 'utf8mb4'`. JWT bakes the name at issue-time → re-login after a re-seed.
-- **Schema gap:** demo `User` adds `google_id` + `auth_provider` and makes `password_hash` nullable. Fold into real schema if keeping Google login.
-- **TS incremental + `deleteOutDir`:** when `nest-cli.json` has `deleteOutDir: true` AND `tsconfig.json` has `incremental: true`, the `.tsbuildinfo` MUST live inside `outDir` (`"tsBuildInfoFile": "./dist/.tsbuildinfo"`), else `dist/` is wiped but the stale buildinfo makes tsc skip emit → empty `dist/` → `Cannot find module 'dist/main'`. Carry this into the real `apps/api`.
+## ⚠️ Gotchas to carry into future sprints
+
+These are lessons learned in S1; S2+ must avoid them:
+
+- **Always resolve versions with `pnpm add <pkg>@latest`** (or `create vite@latest` / `nest new`), never hand-write versions from memory — they go stale. Verify against official docs via WebFetch/WebSearch.
+- **pnpm 11 build-script gate:** blocks dependency build scripts → write `allowBuilds: { "@nestjs/core": true, … }` to `pnpm-workspace.yaml`. (Old `onlyBuiltDependencies` list is ignored; don't use it.)
+- **TypeScript 6** is stricter: requires explicit `rootDir` in tsconfig; `baseUrl` deprecated if no `paths`. Drop `baseUrl` for simplicity.
+- **Tailwind v4 CSS-first:** No `tailwind.config.js` / `postcss.config.js` / `@tailwind` directives. Use `@import "tailwindcss";` + `@theme inline { … }` in CSS. The `@tailwindcss/vite` plugin handles everything.
+- **UTF-8 everywhere:** SQL declare `SET NAMES utf8mb4;`; mysql2 pool use `charset: 'utf8mb4'`. Otherwise emoji/CJK → mojibake.
+- **TS incremental + deleteOutDir:** nest-cli.json `deleteOutDir: true` + tsconfig `incremental: true` = **MUST have `"tsBuildInfoFile": "./dist/.tsbuildinfo"`** in tsconfig.json. Otherwise `dist/` is wiped but stale buildinfo survives → tsc skips emit → empty dist/ → Cannot find module 'dist/main'. This bit us hard in S1.
+- **JWT bakes name at issue-time:** after a DB re-seed, users must re-login (JWT carries old name). Document for QA.
+- **`@manga/shared` dual consumption:** the package **emits CommonJS dist** (`build` = `tsc -p tsconfig.json`, `module: Node16`, **no** `type:module`) because the NestJS API `require()`s the `Role` enum at runtime — the build must EMIT, not `--noEmit`. The Vite **dev** server can't resolve named imports from a linked CJS package, so `vite.config.ts` aliases `@manga/shared` → its TS source. Both paths expose the same `Role`/DTOs. (TS6 gotcha: `moduleResolution: node10`/`node` is deprecated → use `Node16`.)
+- **ValidationPipe deps:** NestJS global `ValidationPipe` crashes on boot unless `class-validator` + `class-transformer` are installed.
