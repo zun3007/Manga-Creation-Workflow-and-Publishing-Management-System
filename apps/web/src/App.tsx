@@ -5,6 +5,13 @@ import { AuthProvider } from "./lib/auth";
 import Login from "./pages/Login";
 import AuthCallback from "./pages/AuthCallback";
 import Dashboard from "./pages/mangaka/Dashboard";
+import Proposals from "./pages/mangaka/Proposals";
+import SeriesList from "./pages/mangaka/SeriesList";
+import SeriesDetail from "./pages/mangaka/SeriesDetail";
+import ChapterWorkspace from "./pages/mangaka/ChapterWorkspace";
+import ReviewQueue from "./pages/mangaka/ReviewQueue";
+import BoardProposals from "./pages/board/Proposals";
+import AssistantTasks from "./pages/assistant/Tasks";
 import { AppShell } from "./components/app/AppShell";
 
 function Splash() {
@@ -32,6 +39,76 @@ function AppRoutes() {
           <Protected>
             <AppShell>
               <Dashboard />
+            </AppShell>
+          </Protected>
+        }
+      />
+      <Route
+        path="/proposals"
+        element={
+          <Protected>
+            <AppShell>
+              <Proposals />
+            </AppShell>
+          </Protected>
+        }
+      />
+      <Route
+        path="/series"
+        element={
+          <Protected>
+            <AppShell>
+              <SeriesList />
+            </AppShell>
+          </Protected>
+        }
+      />
+      <Route
+        path="/series/:id"
+        element={
+          <Protected>
+            <AppShell>
+              <SeriesDetail />
+            </AppShell>
+          </Protected>
+        }
+      />
+      <Route
+        path="/series/:seriesId/chapters/:chapterId"
+        element={
+          <Protected>
+            <AppShell>
+              <ChapterWorkspace />
+            </AppShell>
+          </Protected>
+        }
+      />
+      <Route
+        path="/review"
+        element={
+          <Protected>
+            <AppShell>
+              <ReviewQueue />
+            </AppShell>
+          </Protected>
+        }
+      />
+      <Route
+        path="/board/proposals"
+        element={
+          <Protected>
+            <AppShell>
+              <BoardProposals />
+            </AppShell>
+          </Protected>
+        }
+      />
+      <Route
+        path="/my-tasks"
+        element={
+          <Protected>
+            <AppShell>
+              <AssistantTasks />
             </AppShell>
           </Protected>
         }
