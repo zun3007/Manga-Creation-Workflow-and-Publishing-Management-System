@@ -10,7 +10,7 @@ import { AppShell } from "./components/app/AppShell";
 function Splash() {
   return (
     <div className="grid h-full place-items-center bg-bg text-ink">
-      <div className="font-mono text-xs uppercase tracking-wider animate-pulse">Inkframe — đang tải…</div>
+      <div className="font-mono text-xs uppercase tracking-wider animate-pulse">Manga Studio — đang tải…</div>
     </div>
   );
 }

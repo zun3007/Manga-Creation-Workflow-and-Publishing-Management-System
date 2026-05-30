@@ -36,7 +36,7 @@ export default function Login() {
 
   useEffect(() => {
     if (params.get("error") === "google_not_configured") {
-      setError("Google OAuth chưa cấu hình — xem demo/README.md để thêm credentials.");
+      setError("Google OAuth chưa cấu hình — xem dev/README.md để thêm credentials.");
     }
   }, [params]);
 
@@ -64,15 +64,9 @@ export default function Login() {
           transition={{ duration: 0.5 }}
           className="relative hidden overflow-hidden bg-ink p-12 text-surface lg:flex lg:flex-col lg:justify-between"
         >
-          {/* ink moon */}
-          <motion.div
-            initial={{ scale: 0.7, opacity: 0 }}
-            animate={{ scale: 1, opacity: 0.5 }}
-            transition={{ duration: 0.9, ease: "easeOut" }}
-            className="halftone-v absolute -right-24 -top-24 h-[28rem] w-[28rem] rounded-full bg-ink-soft/30"
-          />
-          {/* speed-lines wedge */}
-          <div className="speed-lines absolute -bottom-10 -left-10 h-72 w-72 rotate-12 opacity-[0.12]" />
+          {/* soft accent glow (Sakura) */}
+          <div className="absolute -right-24 -top-24 h-[28rem] w-[28rem] rounded-full bg-accent/20 blur-3xl" />
+          <div className="absolute -bottom-16 -left-16 h-72 w-72 rounded-full bg-accent-2/20 blur-3xl" />
 
           <div className="relative z-10 flex items-center gap-3">
             <span className="grid h-9 w-9 place-items-center border-2 border-accent text-accent font-display text-xl">
@@ -88,7 +82,7 @@ export default function Login() {
               transition={{ delay: 0.15, duration: 0.6 }}
               className="font-display text-7xl leading-[0.95] tracking-tight text-surface"
             >
-              Ink<span className="text-accent">frame</span>
+              Manga<span className="text-accent">Studio</span>
             </motion.h1>
             <motion.p
               initial={{ y: 16, opacity: 0 }}
@@ -125,7 +119,7 @@ export default function Login() {
                 墨
               </span>
               <span className="font-display text-2xl text-ink">
-                Ink<span className="text-accent">frame</span>
+                Manga<span className="text-accent">Studio</span>
               </span>
             </div>
 
