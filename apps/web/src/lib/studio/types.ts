@@ -40,3 +40,9 @@ export interface BrushSettings {
 }
 
 export interface RectN { x:number; y:number; width:number; height:number } // normalized 0..1
+
+export interface LayerDocManifest {
+  version: 1;
+  doc: DocumentData;
+  layerImages: Record<string /*layerId*/, string /*uploads url*/>;
+}
