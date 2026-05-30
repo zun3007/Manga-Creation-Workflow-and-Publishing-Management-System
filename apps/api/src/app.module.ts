@@ -9,6 +9,7 @@ import { SeedModule } from './seed/seed.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ProposalsModule } from './proposals/proposals.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     DashboardModule,
     UploadsModule,
     NotificationsModule,
+    ProposalsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
