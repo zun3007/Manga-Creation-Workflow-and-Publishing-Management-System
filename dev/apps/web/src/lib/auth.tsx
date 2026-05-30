@@ -32,7 +32,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: data.role,
         avatarUrl: data.avatarUrl ?? null,
       });
-    } catch {
+    } catch (err) {
+      console.error("[auth] /auth/me failed; clearing session", err);
       clearToken();
       setUser(null);
     }

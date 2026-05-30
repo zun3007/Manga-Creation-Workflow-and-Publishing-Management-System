@@ -13,11 +13,16 @@ export default function AuthCallback() {
     ran.current = true;
     const token = params.get("token");
     (async () => {
-      if (token) {
+      if (!token) {
+        navigate("/login?error=google_not_configured", { replace: true });
+        return;
+      }
+      try {
         await loginWithToken(token);
         navigate("/", { replace: true });
-      } else {
-        navigate("/login?error=google_not_configured", { replace: true });
+      } catch (err) {
+        console.error("[auth] Google callback failed", err);
+        navigate("/login?error=google_auth_failed", { replace: true });
       }
     })();
   }, [params, navigate, loginWithToken]);

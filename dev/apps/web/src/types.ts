@@ -1,11 +1,4 @@
-export interface User {
-  id: number;
-  email: string;
-  name: string;
-  role: string;
-  avatarUrl: string | null;
-  authProvider?: string;
-}
+// Auth user shape lives in @manga/shared (AuthUser) — don't duplicate it here.
 
 export interface Summary {
   totalSeries: number;

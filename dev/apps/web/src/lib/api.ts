@@ -15,4 +15,17 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// On an expired/invalid token, clear the session and bounce to login.
+// Skip when already on /login so a failed login attempt doesn't redirect-loop.
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (error?.response?.status === 401 && !location.pathname.startsWith("/login")) {
+      clearToken();
+      location.href = "/login?error=session_expired";
+    }
+    return Promise.reject(error);
+  },
+);
+
 export const googleLoginUrl = `${API_URL}/auth/google`;
