@@ -76,26 +76,35 @@ export default function Dashboard() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [notifs, setNotifs] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    setError(false);
+    try {
+      const [s, se, t, su, n] = await Promise.all([
+        api.get('/dashboard/summary'),
+        api.get('/dashboard/series'),
+        api.get('/dashboard/tasks'),
+        api.get('/dashboard/submissions'),
+        api.get('/dashboard/notifications'),
+      ]);
+      setSummary(s.data);
+      setSeries(se.data);
+      setTasks(t.data);
+      setSubmissions(su.data);
+      setNotifs(n.data);
+    } catch (e) {
+      // Surface the failure instead of silently showing an empty dashboard.
+      console.error('Dashboard load failed', e);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [s, se, t, su, n] = await Promise.all([
-          api.get('/dashboard/summary'),
-          api.get('/dashboard/series'),
-          api.get('/dashboard/tasks'),
-          api.get('/dashboard/submissions'),
-          api.get('/dashboard/notifications'),
-        ]);
-        setSummary(s.data);
-        setSeries(se.data);
-        setTasks(t.data);
-        setSubmissions(su.data);
-        setNotifs(n.data);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    load();
   }, []);
 
   // Vietnamese names: address by the given name = last token (e.g. "Nguyễn Tiến Dũng" → "Dũng")
@@ -134,6 +143,13 @@ export default function Dashboard() {
           <span className="font-mono text-xs uppercase tracking-wider animate-pulse text-ink-soft">
             Đang dựng studio…
           </span>
+        </div>
+      ) : error ? (
+        <div className="grid h-[60vh] place-items-center p-8">
+          <Panel className="p-6 text-center">
+            <p className="text-ink">Không tải được dữ liệu studio.</p>
+            <Button className="mt-4" onClick={load}>Thử lại</Button>
+          </Panel>
         </div>
       ) : (
         <MV
