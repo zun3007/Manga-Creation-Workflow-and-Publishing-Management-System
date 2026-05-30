@@ -7,6 +7,13 @@
       "runtimeArgs": ["node_modules/vite/bin/vite.js"],
       "cwd": "dev/apps/web",
       "port": 5173
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["dist/main.js"],
+      "cwd": "dev/apps/api",
+      "port": 3000
     }
   ]
 }
