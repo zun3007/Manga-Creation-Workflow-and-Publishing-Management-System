@@ -10,6 +10,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ProposalsModule } from './proposals/proposals.module';
+import { GenresModule } from './genres/genres.module';
 import { SeriesModule } from './series/series.module';
 import { ChaptersModule } from './chapters/chapters.module';
 import { PagesModule } from './pages/pages.module';
@@ -28,6 +29,7 @@ import { SubmissionsModule } from './submissions/submissions.module';
     UploadsModule,
     NotificationsModule,
     ProposalsModule,
+    GenresModule,
     SeriesModule,
     ChaptersModule,
     PagesModule,

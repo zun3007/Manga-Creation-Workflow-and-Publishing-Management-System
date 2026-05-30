@@ -73,6 +73,12 @@ export interface Proposal {
   proposedFrequency?: Frequency;
   genres?: string;
   mangaka?: string;
+  mangakaUserId?: number;
+  mangakaName?: string;
+  reviewDueDate?: string | null;
+  submittedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SeriesItem {
