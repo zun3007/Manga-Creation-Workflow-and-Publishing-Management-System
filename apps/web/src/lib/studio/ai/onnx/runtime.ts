@@ -13,7 +13,4 @@ export async function createSession(url: string): Promise<ort.InferenceSession> 
     (typeof navigator !== 'undefined' && 'gpu' in navigator) ? ['webgpu', 'wasm'] : ['wasm'];
   return ort.InferenceSession.create(url, { executionProviders: eps });
 }
-export async function modelExists(url: string): Promise<boolean> {
-  try { const r = await fetch(url, { method: 'HEAD' }); return r.ok; } catch { return false; }
-}
 export { ort };

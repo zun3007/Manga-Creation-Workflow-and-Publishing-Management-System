@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { modelExists } from './runtime';
+import { modelExists } from './available';
 describe('ort runtime', () => {
   it('modelExists is false when fetch fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('no')));

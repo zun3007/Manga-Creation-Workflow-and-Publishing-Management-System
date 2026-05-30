@@ -8,9 +8,8 @@ import { useAuth } from '../../lib/auth';
 import { Studio } from '../../components/studio/Studio';
 import { StudioEngine } from '../../lib/studio/engine';
 import { HeuristicAI } from '../../lib/studio/ai/heuristic';
-import { modelExists } from '../../lib/studio/ai/onnx/runtime';
+import { modelExists } from '../../lib/studio/ai/onnx/available';
 import { MODELS } from '../../lib/studio/ai/onnx/models';
-import { OnnxAI } from '../../lib/studio/ai/onnx/OnnxAI';
 import type { AIAssist } from '../../lib/studio/ai/AIAssist';
 import { createDocument } from '../../lib/studio/document';
 import { loadImageFromBlob, imageToBuffer, exportPNG } from '../../lib/studio/io';
@@ -33,7 +32,9 @@ export default function StudioRegionPage() {
       if (task?.pageImage) { try { const img = await loadImageFromBlob(await (await fetch(task.pageImage)).blob()); eng.setBuffer(doc.activeLayerId!, imageToBuffer(img, img.naturalWidth, img.naturalHeight, w, h)); } catch { /* draw on blank */ } }
       // Select AI based on model availability
       const hasModel = await modelExists(MODELS.panels);
-      const selectedAi = hasModel ? new OnnxAI() : new HeuristicAI();
+      let selectedAi: AIAssist;
+      if (hasModel) { const { OnnxAI } = await import('../../lib/studio/ai/onnx/OnnxAI'); selectedAi = new OnnxAI(); }
+      else { selectedAi = new HeuristicAI(); }
       if (alive) {
         setEngine(eng);
         setAi(selectedAi);
