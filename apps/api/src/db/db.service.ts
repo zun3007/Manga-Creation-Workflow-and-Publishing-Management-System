@@ -34,6 +34,11 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
     return rows[0] ?? null;
   }
 
+  async insert(sql: string, params: any[] = []): Promise<number> {
+    const [result] = await this.pool.query(sql, params);
+    return (result as any).insertId as number;
+  }
+
   async onModuleDestroy() {
     await this.pool?.end();
   }

@@ -7,6 +7,16 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { SeedModule } from './seed/seed.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { UploadsModule } from './uploads/uploads.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { ProposalsModule } from './proposals/proposals.module';
+import { GenresModule } from './genres/genres.module';
+import { SeriesModule } from './series/series.module';
+import { ChaptersModule } from './chapters/chapters.module';
+import { PagesModule } from './pages/pages.module';
+import { RegionsModule } from './regions/regions.module';
+import { TasksModule } from './tasks/tasks.module';
+import { SubmissionsModule } from './submissions/submissions.module';
 
 @Module({
   imports: [
@@ -16,6 +26,16 @@ import { DashboardModule } from './dashboard/dashboard.module';
     UsersModule,
     SeedModule,
     DashboardModule,
+    UploadsModule,
+    NotificationsModule,
+    ProposalsModule,
+    GenresModule,
+    SeriesModule,
+    ChaptersModule,
+    PagesModule,
+    RegionsModule,
+    TasksModule,
+    SubmissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

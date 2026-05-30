@@ -1,0 +1,7 @@
+export enum PageStatus {
+  RAW = "RAW",
+  ASSIGNED = "ASSIGNED",
+  IN_PROGRESS = "IN_PROGRESS",
+  REVIEWING = "REVIEWING",
+  COMPLETED = "COMPLETED",
+}
