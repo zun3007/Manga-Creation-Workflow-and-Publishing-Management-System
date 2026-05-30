@@ -4,7 +4,7 @@ import * as mysql from 'mysql2/promise';
 
 @Injectable()
 export class DbService implements OnModuleInit, OnModuleDestroy {
-  private pool: mysql.Pool;
+  private pool!: mysql.Pool;
   private readonly logger = new Logger('DbService');
 
   constructor(private readonly config: ConfigService) {}

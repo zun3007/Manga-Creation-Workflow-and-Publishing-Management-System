@@ -4,8 +4,9 @@
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
-    "dev:web": "pnpm -F web dev",
-    "dev:api": "pnpm -F api start:dev",
+    "build:shared": "pnpm -F @manga/shared build",
+    "dev:web": "pnpm build:shared && pnpm -F web dev",
+    "dev:api": "pnpm build:shared && pnpm -F api start:dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "db:up": "docker compose -f db/docker-compose.yml up -d",
