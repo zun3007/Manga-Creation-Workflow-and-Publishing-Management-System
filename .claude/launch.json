@@ -5,7 +5,7 @@
       "name": "web",
       "runtimeExecutable": "node",
       "runtimeArgs": ["node_modules/vite/bin/vite.js"],
-      "cwd": "demo/web",
+      "cwd": "dev/apps/web",
       "port": 5173
     }
   ]
