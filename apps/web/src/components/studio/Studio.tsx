@@ -8,6 +8,7 @@ import { makeView, type View } from '../../lib/studio/view';
 import {
   exportPNG,
   exportLayerPNG,
+  exportRegionPNG,
   loadImageFromBlob,
   imageToBuffer,
 } from '../../lib/studio/io';
@@ -23,6 +24,7 @@ import { AIAssistPanel } from './AIAssistPanel';
 import { ToneControls } from './ToneControls';
 import { MangaRulers } from './MangaRulers';
 import { TextControls } from './TextControls';
+import { ToolOptions } from './ToolOptions';
 
 export interface StudioProps {
   engine: StudioEngine;
@@ -56,9 +58,9 @@ export function Studio({
     pressureOpacity: true,
   });
   const [color, setColor] = useState<RGBA>({ r: 0, g: 0, b: 0, a: 255 });
-  const [tolerance] = useState(24);
-  const [bubbleType] = useState<'round' | 'spiky' | 'thought'>('round');
-  const [lineWidth] = useState(3);
+  const [tolerance, setTolerance] = useState(24);
+  const [bubbleType, setBubbleType] = useState<'round' | 'spiky' | 'thought'>('round');
+  const [lineWidth, setLineWidth] = useState(3);
   const [palette, setPalette] = useState(MANGA_PALETTE);
   const [recent, setRecent] = useState<string[]>([]);
   const [view, setView] = useState<View>(makeView({ zoom: 1 }));
@@ -273,9 +275,52 @@ export function Studio({
     }
   };
 
+  const selectionRect = (): RectN | null => {
+    const m = engine.selectionMask;
+    if (!m) return null;
+    const w = engine.doc.width;
+    const h = engine.doc.height;
+    let minx = w,
+      miny = h,
+      maxx = -1,
+      maxy = -1;
+    for (let p = 0; p < m.length; p++) {
+      if (m[p]) {
+        const x = p % w;
+        const y = (p / w) | 0;
+        if (x < minx) minx = x;
+        if (x > maxx) maxx = x;
+        if (y < miny) miny = y;
+        if (y > maxy) maxy = y;
+      }
+    }
+    if (maxx < 0) return null;
+    return {
+      x: minx / w,
+      y: miny / h,
+      width: (maxx - minx + 1) / w,
+      height: (maxy - miny + 1) / h,
+    };
+  };
+
   const handleExportRegion = async () => {
-    // For now, just export full image if no selection
-    handleExportFull();
+    const rect = selectionRect();
+    if (rect) {
+      try {
+        const blob = await exportRegionPNG(engine, rect);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${title || 'export'}-region.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('Export region failed:', err);
+      }
+    } else {
+      // No selection, export full image
+      handleExportFull();
+    }
   };
 
   const handleSaveRegions = () => {
@@ -453,6 +498,19 @@ export function Studio({
             onChange={setSettings}
           />
         </div>
+
+        {/* Tool Options */}
+        {(tool === 'bucket' || tool === 'wand' || tool === 'bubble' || tool === 'line') && (
+          <ToolOptions
+            tool={tool}
+            tolerance={tolerance}
+            onToleranceChange={setTolerance}
+            bubbleType={bubbleType}
+            onBubbleTypeChange={setBubbleType}
+            lineWidth={lineWidth}
+            onLineWidthChange={setLineWidth}
+          />
+        )}
 
         {/* Layer Panel */}
         <div className="border-b border-line">
