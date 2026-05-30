@@ -10,6 +10,8 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ProposalsModule } from './proposals/proposals.module';
+import { SeriesModule } from './series/series.module';
+import { ChaptersModule } from './chapters/chapters.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { ProposalsModule } from './proposals/proposals.module';
     UploadsModule,
     NotificationsModule,
     ProposalsModule,
+    SeriesModule,
+    ChaptersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
