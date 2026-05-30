@@ -12,6 +12,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ProposalsModule } from './proposals/proposals.module';
 import { SeriesModule } from './series/series.module';
 import { ChaptersModule } from './chapters/chapters.module';
+import { PagesModule } from './pages/pages.module';
+import { RegionsModule } from './regions/regions.module';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { ChaptersModule } from './chapters/chapters.module';
     ProposalsModule,
     SeriesModule,
     ChaptersModule,
+    PagesModule,
+    RegionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
