@@ -3,8 +3,8 @@
 > **AI: read this first on every re-entry.** Update it after any meaningful change or decision.
 > Keep it short and current. Older detail belongs in the per-topic docs.
 
-- **Last updated:** 2026-05-28
-- **Current phase:** Working **demo** (`demo/`) on the **latest** stack — auth (local + Google) + Mangaka dashboard. Main app still un-scaffolded.
+- **Last updated:** 2026-05-30
+- **Current phase:** **Task 7 complete:** Web app auth flow + role-routed shell (`dev/apps/web`). Login page re-themed to Inkframe tokens. AppShell sets `data-role` from JWT to skin the entire UI per role.
 - **Last fix (2026-05-28):** `demo/api` build silently produced empty `dist/` → `nest start` failed with `Cannot find module 'dist/main'`. Root cause: `nest-cli.json:deleteOutDir=true` wipes `dist/` but `tsconfig.build.tsbuildinfo` (TS incremental cache) lived at root, survived the wipe, made tsc skip emit. Fix: added `"tsBuildInfoFile": "./dist/.tsbuildinfo"` to `demo/api/tsconfig.json` so the cache is wiped together with `dist/`. Verified: `node dist/main.js` boots Nest, all routes mapped, listening on :3000/api.
 - **Calendar:** Week ~2 of 10 (project runs 2026-05-18 → 2026-07-26).
 
@@ -14,6 +14,14 @@
 - Read & synthesized all given docs in `docs/SWP391/` (schema, 101 FR + 46 NFR, ~154 business rules, sprint/timeline).
 - AI-context docs: `CLAUDE.md`, `.gitignore`, `docs/overview.md`, `docs/STATUS.md`.
 - Frontend design system **"Inkframe"** (manga-studio editorial): `docs/design-system.md` + `.claude/rules/frontend.md`.
+- **Task 7:** Web app auth flow + role-routed shell (`dev/apps/web/src/`):
+  - `lib/api.ts` (axios + Bearer token intercept), `lib/auth.tsx` (AuthProvider + useAuth hook).
+  - `pages/Login.tsx` (centered card, re-themed to Inkframe tokens using Panel/Button/Input + motion).
+  - `pages/AuthCallback.tsx` (reads `?token=...` from Google OAuth callback, stores via auth context).
+  - `components/app/nav.ts` (nav items per role).
+  - `components/app/AppShell.tsx` (wraps children, sets `data-role={roleScope(user.role)}` to skin entire UI).
+  - `App.tsx` (BrowserRouter + protected routes, AuthProvider wrapper).
+  - **Build verified:** `pnpm build` passes tsc + vite build.
 - **Demo built, modernized to latest, and verified** (`demo/`, see `demo/README.md`):
   - **Stack (latest, resolved via `pnpm add`):** Web = React 19 + Vite 8 + **Tailwind v4** (CSS-first `@theme`, `@tailwindcss/vite`) + react-router 7 + framer-motion 12 + lucide 1 + TypeScript 6. API = NestJS 11 + TS 6 + mysql2 + Passport.
   - MySQL 8 via Docker (port 3307), utf8mb4, auto-loads `db/01-schema.sql` + `db/02-seed.sql` (fake data incl. `dungminer69@gmail.com` / `Dung123456@`, MANGAKA).
@@ -21,12 +29,12 @@
   - Dashboard verified in browser (Tailwind v4): design intact, Vietnamese renders correctly, seeded data shows.
 
 ## 🔄 In progress
-- (nothing active — demo complete on latest stack; awaiting next direction)
+- (Task 7 complete; Task 8 = Mangaka dashboard placeholder)
 
 ## ⏭️ Next up
-1. Real app architecture: `docs/architecture.md` (monorepo `apps/web`+`apps/api`+`packages/shared`), `docs/domain-model.md`, `docs/conventions.md`.
-2. `docs/roadmap.md` (reconcile 3-group vs 5-sprint; map 101 FR → sprints; Definition of Done).
-3. Scaffold the real monorepo (likely promote/replace the demo). Use `pnpm add` / `create vite@latest` / `nest new` — do NOT hand-pin versions.
+1. **Task 8:** Mangaka dashboard (replace DashboardPlaceholder in App.tsx with real page). Outline: series list + chapter list + status filters. Use UI components from `src/components/ui/`.
+2. Real app architecture docs: `docs/architecture.md` (monorepo structure), `docs/domain-model.md`, `docs/conventions.md`.
+3. Build-out dashboard for other roles (Task 9+).
 
 ## ❓ Open decisions
 - **ORM:** Prisma vs TypeORM vs raw mysql2 (demo uses **mysql2**). Decide for the real app.
