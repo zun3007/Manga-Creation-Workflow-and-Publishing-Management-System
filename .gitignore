@@ -63,3 +63,10 @@ tmp/
 
 # ───────────────── Brainstorm visual companion (superpowers) ─────────────────
 .superpowers/
+
+# ───────────────── Local-only: AI workflow + project meta (not pushed to the app repo) ─────────────────
+# These are working aids, not part of the deliverable app. Kept on disk, never committed.
+/CLAUDE.md
+/.claude/
+/docs/
+/demo/
