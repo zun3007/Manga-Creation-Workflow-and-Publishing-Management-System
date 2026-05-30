@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# AI model assets (local-only, acquired per docs/MODELS.md — large + licensed)
+public/models/
