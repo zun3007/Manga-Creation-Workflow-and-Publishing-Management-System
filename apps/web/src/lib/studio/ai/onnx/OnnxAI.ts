@@ -6,7 +6,7 @@ import { createSession, ort } from './runtime';
 import { MODELS } from './models';
 import { rgbaToNchwLetterboxed } from './image';
 import { decodeYolo } from './yolo';
-import { maskToSelection } from './sam';
+import { maskToSelectionCropped } from './sam';
 
 const TARGET = 640;
 
@@ -49,8 +49,8 @@ export class OnnxAI implements AIAssist {
     try {
       // Dynamic import to lazy-load samClient (and worker/ort only when segment is used)
       const { segment } = await import('./samClient');
-      const { mask, lw, lh } = await segment(px, w, h, point);
-      return maskToSelection(mask, lw, lh, w, h);
+      const { mask, lw, lh, sw, sh } = await segment(px, w, h, point);
+      return maskToSelectionCropped(mask, lw, lh, sw, sh, 1024, w, h);
     } catch (e) {
       console.warn('[OnnxAI] segment fallback:', e);
       return this.fallback.segment(px, w, h, point);

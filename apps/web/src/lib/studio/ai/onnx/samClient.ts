@@ -16,6 +16,8 @@ interface SegmentResponse {
   mask?: Float32Array;
   lw?: number;
   lh?: number;
+  sw?: number;
+  sh?: number;
   error?: string;
 }
 
@@ -34,7 +36,7 @@ export async function segment(
   w: number,
   h: number,
   point: Point
-): Promise<{ mask: Float32Array; lw: number; lh: number }> {
+): Promise<{ mask: Float32Array; lw: number; lh: number; sw: number; sh: number }> {
   return new Promise((resolve, reject) => {
     const w_ = getWorker();
     let timeoutId: NodeJS.Timeout | null = null;
@@ -49,7 +51,7 @@ export async function segment(
       } else if (!e.data.mask || e.data.lw === undefined || e.data.lh === undefined) {
         reject(new Error('SAM segment returned incomplete data'));
       } else {
-        resolve({ mask: e.data.mask, lw: e.data.lw, lh: e.data.lh });
+        resolve({ mask: e.data.mask, lw: e.data.lw, lh: e.data.lh, sw: e.data.sw ?? e.data.lw, sh: e.data.sh ?? e.data.lh });
       }
     };
 

@@ -3,8 +3,7 @@
 
 import { createSession, ort } from './runtime';
 import { MODELS } from './models';
-import { rgbaToNchwLetterboxed } from './image';
-import { pointToSamCoords } from './sam';
+import { hwcLetterbox, pointToSamCoords } from './sam';
 import type { Point } from '../AIAssist';
 
 interface SegmentRequest {
@@ -20,6 +19,8 @@ interface SegmentResponse {
   mask?: Float32Array;
   lw?: number;
   lh?: number;
+  sw?: number; // scaled content width within the 1024 letterbox (for crop-mapping)
+  sh?: number;
   error?: string;
 }
 
@@ -52,8 +53,8 @@ async function encodeImage(rgba: Uint8ClampedArray, w: number, h: number): Promi
   }
 
   const encoder = await getEncoderSession();
-  const { data } = rgbaToNchwLetterboxed(rgba, w, h, 1024);
-  const input = new ort.Tensor('float32', data, [1, 3, 1024, 1024]);
+  const { data } = hwcLetterbox(rgba, w, h, 1024);
+  const input = new ort.Tensor('float32', data, [1024, 1024, 3]); // samexporter MobileSAM encoder: HWC, normalizes internally
 
   // Read encoder input/output names defensively
   const inputName = encoder.inputNames[0];
@@ -115,7 +116,7 @@ async function decodeSegment(
 
   // orig_im_size: [1, 2] = [1024, 1024] (NCHW padding size, not original doc size)
   if (inputNames.includes('orig_im_size')) {
-    inputs['orig_im_size'] = new ort.Tensor('float32', new Float32Array([1024, 1024]), [1, 2]);
+    inputs['orig_im_size'] = new ort.Tensor('float32', new Float32Array([1024, 1024]), [2]);
   }
 
   const out = await decoder.run(inputs);
@@ -155,8 +156,10 @@ self.onmessage = async (e: MessageEvent<SegmentRequest>) => {
 
   try {
     const embedding = await encodeImage(rgba, w, h);
+    const scale = 1024 / Math.max(w, h);
+    const sw = Math.max(1, Math.round(w * scale)), sh = Math.max(1, Math.round(h * scale));
     const { mask, lw, lh } = await decodeSegment(embedding, w, h, point);
-    self.postMessage({ ok: true, mask, lw, lh } as SegmentResponse);
+    self.postMessage({ ok: true, mask, lw, lh, sw, sh } as SegmentResponse);
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     console.error('[sam.worker] error:', error);
