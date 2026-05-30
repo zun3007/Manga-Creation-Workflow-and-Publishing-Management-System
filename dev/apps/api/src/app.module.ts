@@ -6,6 +6,7 @@ import { DbModule } from './db/db.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { SeedModule } from './seed/seed.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { SeedModule } from './seed/seed.module';
     AuthModule,
     UsersModule,
     SeedModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

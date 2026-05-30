@@ -4,6 +4,7 @@ import { useAuth } from "./lib/auth";
 import { AuthProvider } from "./lib/auth";
 import Login from "./pages/Login";
 import AuthCallback from "./pages/AuthCallback";
+import Dashboard from "./pages/mangaka/Dashboard";
 import { AppShell } from "./components/app/AppShell";
 
 function Splash() {
@@ -20,15 +21,6 @@ function Protected({ children }: { children: ReactNode }) {
   return user ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
-function DashboardPlaceholder() {
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold text-ink">Tổng quan</h1>
-      <p className="text-ink-soft mt-2">Dashboard sẽ được thêm ở bước kế.</p>
-    </div>
-  );
-}
-
 function AppRoutes() {
   return (
     <Routes>
@@ -39,7 +31,7 @@ function AppRoutes() {
         element={
           <Protected>
             <AppShell>
-              <DashboardPlaceholder />
+              <Dashboard />
             </AppShell>
           </Protected>
         }
