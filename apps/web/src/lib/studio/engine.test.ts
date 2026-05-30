@@ -84,4 +84,15 @@ describe('StudioEngine', () => {
     expect(out[(0*4+1)*4]).toBe(255);   // (x=1,y=0) now red
     expect(out[(0*4+0)*4+3]).toBe(0);   // (x=0,y=0) shifted away → transparent
   });
+  it('applyTone converts a flat gray fill into a dot pattern (mix of opaque + transparent)', async () => {
+    const wasm = await InkforgeWasm.load(wasmBytes as BufferSource);
+    const doc = createDocument({ width: 24, height: 24, background: 'transparent' });
+    const eng = new StudioEngine(doc, wasm);
+    // fill active layer with 50% coverage (alpha 128)
+    const buf = eng.getBuffer(doc.activeLayerId!); for (let i=0;i<buf.length;i+=4){ buf[i]=0; buf[i+1]=0; buf[i+2]=0; buf[i+3]=128; }
+    eng.applyTone(6, 0, { r:0,g:0,b:0 });
+    let opaque=0, clear=0;
+    for (let i=3;i<buf.length;i+=4){ if (buf[i]>200) opaque++; else if (buf[i]<40) clear++; }
+    expect(opaque).toBeGreaterThan(0); expect(clear).toBeGreaterThan(0);
+  });
 });

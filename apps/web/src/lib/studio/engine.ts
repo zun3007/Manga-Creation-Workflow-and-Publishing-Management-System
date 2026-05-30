@@ -205,6 +205,14 @@ export class StudioEngine {
     this.ensureBuffer(id).set(out); this.pushSwap(id, before, horizontal?'Flip H':'Flip V'); this.emit();
   }
 
+  applyTone(cell:number, angleDeg:number, color:{r:number;g:number;b:number}) {
+    const id = this.activeWritable(); if (!id) return;
+    const before = this.ensureBuffer(id).slice();
+    this.wasm.halftone(this.ensureBuffer(id), this.doc.width, this.doc.height, cell, angleDeg, color);
+    this.restoreOutside(id, before);
+    this.pushSwap(id, before, 'Screentone'); this.emit();
+  }
+
   undo() { this.history.undo(); }
 
   redo() { this.history.redo(); }
