@@ -190,6 +190,21 @@ export class StudioEngine {
     }
   }
 
+  /** Re-render the active layer as `before` transformed by matrix m (live preview; commit via commitStroke). */
+  previewTransform(before: Uint8ClampedArray, m: import('./transform').Affine) {
+    const id = this.doc.activeLayerId; if (!id) return;
+    const out = this.wasm.transform(before, this.doc.width, this.doc.height, this.doc.width, this.doc.height, m);
+    this.ensureBuffer(id).set(out); this.emit();
+  }
+  flipActiveLayer(horizontal: boolean) {
+    const id = this.activeWritable(); if (!id) return;
+    const before = this.ensureBuffer(id).slice();
+    const w = this.doc.width, h = this.doc.height;
+    const m: import('./transform').Affine = horizontal ? [-1,0,0,1,w,0] : [1,0,0,-1,0,h];
+    const out = this.wasm.transform(before, w, h, w, h, m);
+    this.ensureBuffer(id).set(out); this.pushSwap(id, before, horizontal?'Flip H':'Flip V'); this.emit();
+  }
+
   undo() { this.history.undo(); }
 
   redo() { this.history.redo(); }

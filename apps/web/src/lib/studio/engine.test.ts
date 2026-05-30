@@ -73,4 +73,15 @@ describe('StudioEngine', () => {
     eng.invertSelection();
     expect(Array.from(eng.selectionMask!)).toEqual([0, 255]);
   });
+  it('previewTransform translates layer content', async () => {
+    const wasm = await InkforgeWasm.load(wasmBytes as BufferSource);
+    const doc = createDocument({ width: 4, height: 4, background: 'transparent' });
+    const eng = new StudioEngine(doc, wasm);
+    eng.bucketFill(0, 0, { r:255,g:0,b:0,a:255 }, 0); // floodFill from (0,0) over an all-transparent layer fills the whole 4x4 red
+    const before = eng.getBuffer(doc.activeLayerId!).slice();
+    eng.previewTransform(before, [1,0,0,1,1,0]); // shift content +1 in x
+    const out = eng.composite();
+    expect(out[(0*4+1)*4]).toBe(255);   // (x=1,y=0) now red
+    expect(out[(0*4+0)*4+3]).toBe(0);   // (x=0,y=0) shifted away → transparent
+  });
 });
