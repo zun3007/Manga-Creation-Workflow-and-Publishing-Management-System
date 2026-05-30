@@ -7,6 +7,8 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { SeedModule } from './seed/seed.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { UploadsModule } from './uploads/uploads.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { DashboardModule } from './dashboard/dashboard.module';
     UsersModule,
     SeedModule,
     DashboardModule,
+    UploadsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
