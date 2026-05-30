@@ -86,6 +86,8 @@ export class StudioEngine {
 
   renameLayer(id: string, name: string) { this.doc = updateLayer(this.doc, id, { name }); this.emit(); }
 
+  setLayerText(id: string, text: import('./types').TextData) { this.doc = updateLayer(this.doc, id, { text }); this.emit(); }
+
   duplicateLayer(id: string) {
     const i = this.doc.layers.findIndex(l => l.id === id); if (i < 0) return;
     const src = this.doc.layers[i]; this.doc = addLayer(this.doc, src.kind, `${src.name} copy`);
