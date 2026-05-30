@@ -1,0 +1,14 @@
+{
+  "name": "manga-workflow",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev:web": "pnpm -F web dev",
+    "dev:api": "pnpm -F api start:dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "db:up": "docker compose -f db/docker-compose.yml up -d",
+    "db:down": "docker compose -f db/docker-compose.yml down"
+  }
+}
