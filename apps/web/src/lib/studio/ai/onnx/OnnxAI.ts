@@ -6,6 +6,7 @@ import { createSession, ort } from './runtime';
 import { MODELS } from './models';
 import { rgbaToNchwLetterboxed } from './image';
 import { decodeYolo } from './yolo';
+import { maskToSelection } from './sam';
 
 const TARGET = 640;
 
@@ -45,8 +46,15 @@ export class OnnxAI implements AIAssist {
   }
 
   async segment(px: Uint8ClampedArray, w: number, h: number, point: Point): Promise<Uint8Array> {
-    // Implemented in Task 6 (MobileSAM); until then delegate to heuristic
-    return this.fallback.segment(px, w, h, point);
+    try {
+      // Dynamic import to lazy-load samClient (and worker/ort only when segment is used)
+      const { segment } = await import('./samClient');
+      const { mask, lw, lh } = await segment(px, w, h, point);
+      return maskToSelection(mask, lw, lh, w, h);
+    } catch (e) {
+      console.warn('[OnnxAI] segment fallback:', e);
+      return this.fallback.segment(px, w, h, point);
+    }
   }
 
   async colorize(engine: StudioEngine): Promise<void> {

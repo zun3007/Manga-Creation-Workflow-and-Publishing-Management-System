@@ -76,6 +76,7 @@ export function Studio({
   const toleranceRef = useRef(tolerance);
   const bubbleRef = useRef(bubbleType);
   const lineWidthRef = useRef(lineWidth);
+  const aiRef = useRef(ai);
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -97,6 +98,10 @@ export function Studio({
     lineWidthRef.current = lineWidth;
   }, [lineWidth]);
 
+  useEffect(() => {
+    aiRef.current = ai;
+  }, [ai]);
+
   // Create tools once
   const tools = useRef(
     createTools({
@@ -115,6 +120,14 @@ export function Studio({
       getBubbleType: () => bubbleRef.current,
       getLineWidth: () => lineWidthRef.current,
       onFrame: (r) => setPendingFrames((f) => [...f, r]),
+      aiSegment: async (px, w, h, pt) => {
+        try {
+          const mask = await aiRef.current.segment(px, w, h, pt);
+          engine.setSelection(mask);
+        } catch (err) {
+          console.error('[Studio] ai-select error:', err);
+        }
+      },
     })
   ).current;
 

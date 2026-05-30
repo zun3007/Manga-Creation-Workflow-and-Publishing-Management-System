@@ -1,4 +1,4 @@
-import { Brush, Pencil, Pen, Eraser, Wind, Highlighter, Droplet, Zap, Eye, Wand2, Move, Expand, Type, MessageCircle, LayoutGrid, Grid3X3, Minus, Hand } from 'lucide-react';
+import { Brush, Pencil, Pen, Eraser, Wind, Highlighter, Droplet, Zap, Eye, Wand2, Move, Expand, Type, MessageCircle, LayoutGrid, Grid3X3, Minus, Hand, Sparkles } from 'lucide-react';
 import type { ToolId } from '../../lib/studio/types';
 
 export interface ToolbarProps {
@@ -33,6 +33,7 @@ const TOOL_GROUPS: { label: string; tools: { id: ToolId; icon: React.ReactNode; 
       { id: 'select-ellipse', icon: <Grid3X3 size={20} />, title: 'Ellipse Select' },
       { id: 'lasso', icon: <Wand2 size={20} />, title: 'Lasso' },
       { id: 'wand', icon: <Wand2 size={20} />, title: 'Magic Wand' },
+      { id: 'ai-select', icon: <Sparkles size={20} />, title: 'AI Select' },
       { id: 'move', icon: <Move size={20} />, title: 'Move' },
       { id: 'transform', icon: <Expand size={20} />, title: 'Transform' },
     ],

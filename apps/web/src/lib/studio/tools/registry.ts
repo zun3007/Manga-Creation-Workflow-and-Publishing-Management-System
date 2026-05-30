@@ -18,6 +18,7 @@ export interface ToolDeps {
   getBubbleType: () => 'round' | 'spiky' | 'thought';
   getLineWidth: () => number;
   onFrame: (r: RectN) => void;
+  aiSegment?: (px: Uint8ClampedArray, w: number, h: number, point: { x: number; y: number }) => Promise<void>;
 }
 
 class EyedropperTool implements Tool {
@@ -32,6 +33,28 @@ class EyedropperTool implements Tool {
     const c = eng.composite();
     const o = (Math.floor(e.y) * eng.doc.width + Math.floor(e.x)) * 4;
     this.setColor({ r: c[o], g: c[o + 1], b: c[o + 2], a: 255 });
+  }
+
+  onMove() {}
+
+  onUp() {}
+}
+
+class AiSelectTool implements Tool {
+  id: ToolId = 'ai-select';
+  private aiSegment: (px: Uint8ClampedArray, w: number, h: number, point: { x: number; y: number }) => Promise<void>;
+
+  constructor(aiSegment: (px: Uint8ClampedArray, w: number, h: number, point: { x: number; y: number }) => Promise<void>) {
+    this.aiSegment = aiSegment;
+  }
+
+  onDown(e: { x: number; y: number }, eng: StudioEngine) {
+    const px = eng.composite();
+    const w = eng.doc.width;
+    const h = eng.doc.height;
+    this.aiSegment(px, w, h, { x: e.x, y: e.y }).catch(err => {
+      console.error('[AiSelectTool] segment error:', err);
+    });
   }
 
   onMove() {}
@@ -63,6 +86,7 @@ export function createTools(d: ToolDeps): Partial<Record<ToolId, Tool>> {
     line: new LineTool(d.getColor, d.getLineWidth),
     text: new TextTool(),
     bubble: new BubbleTool(d.getBubbleType),
+    'ai-select': d.aiSegment ? new AiSelectTool(d.aiSegment) : new WandTool(d.getTolerance),
     // 'pan' is handled by CanvasStage directly (no Tool dispatch)
   };
 }

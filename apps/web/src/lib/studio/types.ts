@@ -7,7 +7,7 @@ export type ToolId =
   | 'brush'|'pencil'|'ink'|'eraser'|'airbrush'|'marker'
   | 'bucket'|'gradient'|'eyedropper'
   | 'select-rect'|'select-ellipse'|'lasso'|'wand'|'move'|'transform'
-  | 'text'|'bubble'|'panel'|'tone'|'line'|'pan';
+  | 'text'|'bubble'|'panel'|'tone'|'line'|'pan'|'ai-select';
 
 export interface RGBA { r:number; g:number; b:number; a:number } // 0..255
 
