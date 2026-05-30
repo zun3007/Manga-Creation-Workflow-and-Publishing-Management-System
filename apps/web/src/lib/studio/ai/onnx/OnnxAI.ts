@@ -58,6 +58,16 @@ export class OnnxAI implements AIAssist {
   }
 
   async colorize(engine: StudioEngine): Promise<void> {
-    return this.fallback.colorize(engine);
+    try {
+      // Lazy-load colorizeClient only when colorize is invoked
+      const { colorize } = await import('./colorizeClient');
+      const colored = await colorize(engine.composite(), engine.doc.width, engine.doc.height);
+      engine.addLayer('raster', 'AI Color');
+      engine.setBuffer(engine.doc.activeLayerId!, colored);
+      engine.requestRender();
+    } catch (e) {
+      console.warn('[OnnxAI] colorize fallback:', e);
+      return this.fallback.colorize(engine);
+    }
   }
 }
