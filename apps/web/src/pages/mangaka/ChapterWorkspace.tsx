@@ -184,6 +184,11 @@ export default function ChapterWorkspace() {
 
         {/* Right: Canvas and regions */}
         <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+          {selectedPageId && (
+            <div className="flex justify-end">
+              <Button onClick={() => navigate(`/studio/page/${selectedPageId}`)}>🎨 Mở Studio</Button>
+            </div>
+          )}
           <div className="flex-1 overflow-auto border border-line rounded-[var(--app-radius)] bg-surface p-4">
             {selectedPageId ? (
               <PageCanvas

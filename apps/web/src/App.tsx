@@ -12,6 +12,8 @@ import ChapterWorkspace from "./pages/mangaka/ChapterWorkspace";
 import ReviewQueue from "./pages/mangaka/ReviewQueue";
 import BoardProposals from "./pages/board/Proposals";
 import AssistantTasks from "./pages/assistant/Tasks";
+import StudioPage from "./pages/studio/StudioPage";
+import StudioRegionPage from "./pages/studio/StudioRegionPage";
 import { AppShell } from "./components/app/AppShell";
 
 function Splash() {
@@ -113,6 +115,8 @@ function AppRoutes() {
           </Protected>
         }
       />
+      <Route path="/studio/page/:pageId" element={<Protected><StudioPage /></Protected>} />
+      <Route path="/studio/region/:taskId" element={<Protected><StudioRegionPage /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
