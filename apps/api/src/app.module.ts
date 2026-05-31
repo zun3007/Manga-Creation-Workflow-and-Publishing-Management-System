@@ -19,6 +19,8 @@ import { TasksModule } from './tasks/tasks.module';
 import { SubmissionsModule } from './submissions/submissions.module';
 import { StudioModule } from './studio/studio.module';
 import { AdminModule } from './admin/admin.module';
+import { RankingsModule } from './rankings/rankings.module';
+import { DecisionsModule } from './decisions/decisions.module';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { AdminModule } from './admin/admin.module';
     SubmissionsModule,
     StudioModule,
     AdminModule,
+    RankingsModule,
+    DecisionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
