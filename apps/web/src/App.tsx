@@ -11,6 +11,7 @@ import SeriesDetail from "./pages/mangaka/SeriesDetail";
 import ChapterWorkspace from "./pages/mangaka/ChapterWorkspace";
 import ReviewQueue from "./pages/mangaka/ReviewQueue";
 import BoardProposals from "./pages/board/Proposals";
+import BoardSeries from "./pages/board/Series";
 import AssistantTasks from "./pages/assistant/Tasks";
 import StudioPage from "./pages/studio/StudioPage";
 import StudioRegionPage from "./pages/studio/StudioRegionPage";
@@ -104,6 +105,16 @@ function AppRoutes() {
           <Protected>
             <AppShell>
               <BoardProposals />
+            </AppShell>
+          </Protected>
+        }
+      />
+      <Route
+        path="/board/series"
+        element={
+          <Protected>
+            <AppShell>
+              <BoardSeries />
             </AppShell>
           </Protected>
         }

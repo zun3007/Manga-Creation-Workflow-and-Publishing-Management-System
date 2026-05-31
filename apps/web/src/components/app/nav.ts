@@ -20,6 +20,7 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   [Role.EDITORIAL_BOARD]: [
     { label: "Tổng quan", to: "/", icon: LayoutDashboard },
     { label: "Duyệt đề xuất", to: "/board/proposals", icon: FileText },
+    { label: "Phân công BT", to: "/board/series", icon: BookOpen },
   ],
   [Role.ADMIN]: [
     { label: "Tổng quan", to: "/", icon: LayoutDashboard },
