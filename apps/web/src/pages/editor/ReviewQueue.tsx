@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import type { EditorChapter } from "../../types";
 import { api } from "../../lib/api";
 import { Panel } from "../../components/ui/Panel";
@@ -6,6 +7,7 @@ import { Button } from "../../components/ui/Button";
 import { EmptyState } from "../../components/ui/EmptyState";
 
 export default function ReviewQueue() {
+  const navigate = useNavigate();
   const [chapters, setChapters] = useState<EditorChapter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -113,6 +115,13 @@ export default function ReviewQueue() {
                 {/* Action buttons */}
                 {revisingId !== chapter.id && (
                   <div className="flex flex-col gap-2 min-w-max">
+                    <Button
+                      variant="soft"
+                      onClick={() => navigate(`/editor/review/${chapter.id}`)}
+                      disabled={submitting}
+                    >
+                      Xem & duyệt
+                    </Button>
                     <Button
                       variant="accent"
                       onClick={() => decide(chapter.id, "APPROVE")}

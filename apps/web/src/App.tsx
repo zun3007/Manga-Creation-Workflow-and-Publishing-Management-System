@@ -12,10 +12,12 @@ import ChapterWorkspace from "./pages/mangaka/ChapterWorkspace";
 import ReviewQueue from "./pages/mangaka/ReviewQueue";
 import BoardProposals from "./pages/board/Proposals";
 import BoardSeries from "./pages/board/Series";
+import BoardRankings from "./pages/board/Rankings";
 import AssistantTasks from "./pages/assistant/Tasks";
 import StudioPage from "./pages/studio/StudioPage";
 import StudioRegionPage from "./pages/studio/StudioRegionPage";
 import EditorReviewQueue from "./pages/editor/ReviewQueue";
+import EditorChapterReview from "./pages/editor/ChapterReview";
 import AdminConsole from "./pages/admin/Console";
 import NotFound from "./pages/NotFound";
 import { AppShell } from "./components/app/AppShell";
@@ -120,6 +122,16 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/board/rankings"
+        element={
+          <Protected>
+            <AppShell>
+              <BoardRankings />
+            </AppShell>
+          </Protected>
+        }
+      />
+      <Route
         path="/my-tasks"
         element={
           <Protected>
@@ -137,6 +149,16 @@ function AppRoutes() {
           <Protected>
             <AppShell>
               <EditorReviewQueue />
+            </AppShell>
+          </Protected>
+        }
+      />
+      <Route
+        path="/editor/review/:chapterId"
+        element={
+          <Protected>
+            <AppShell>
+              <EditorChapterReview />
             </AppShell>
           </Protected>
         }
