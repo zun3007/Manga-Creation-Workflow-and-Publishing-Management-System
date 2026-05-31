@@ -4,7 +4,7 @@ import { useAuth } from "./lib/auth";
 import { AuthProvider } from "./lib/auth";
 import Login from "./pages/Login";
 import AuthCallback from "./pages/AuthCallback";
-import Dashboard from "./pages/mangaka/Dashboard";
+import Dashboard from "./pages/Dashboard";
 import Proposals from "./pages/mangaka/Proposals";
 import SeriesList from "./pages/mangaka/SeriesList";
 import SeriesDetail from "./pages/mangaka/SeriesDetail";
@@ -14,6 +14,9 @@ import BoardProposals from "./pages/board/Proposals";
 import AssistantTasks from "./pages/assistant/Tasks";
 import StudioPage from "./pages/studio/StudioPage";
 import StudioRegionPage from "./pages/studio/StudioRegionPage";
+import EditorReviewQueue from "./pages/editor/ReviewQueue";
+import AdminConsole from "./pages/admin/Console";
+import NotFound from "./pages/NotFound";
 import { AppShell } from "./components/app/AppShell";
 
 function Splash() {
@@ -117,7 +120,36 @@ function AppRoutes() {
       />
       <Route path="/studio/page/:pageId" element={<Protected><StudioPage /></Protected>} />
       <Route path="/studio/region/:taskId" element={<Protected><StudioRegionPage /></Protected>} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route
+        path="/editor/review"
+        element={
+          <Protected>
+            <AppShell>
+              <EditorReviewQueue />
+            </AppShell>
+          </Protected>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <Protected>
+            <AppShell>
+              <AdminConsole />
+            </AppShell>
+          </Protected>
+        }
+      />
+      <Route
+        path="*"
+        element={
+          <Protected>
+            <AppShell>
+              <NotFound />
+            </AppShell>
+          </Protected>
+        }
+      />
     </Routes>
   );
 }
