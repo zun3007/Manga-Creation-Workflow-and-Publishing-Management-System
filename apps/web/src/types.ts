@@ -8,6 +8,7 @@ import type {
   RegionType,
   TaskStatus,
   SubmissionStatus,
+  Role,
 } from "@manga/shared";
 
 export interface Summary {
@@ -149,4 +150,26 @@ export interface SubmissionItem {
   task?: string;
   assistant?: string;
   assistantAvatar?: string | null;
+}
+
+// Sprint 5 — editor review queue + admin console
+export interface EditorChapter {
+  id: number;
+  number: number;
+  title: string;
+  status: ChapterStatus;
+  deadline: string | null;
+  seriesId: number;
+  series: string;
+  pages: number;
+}
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  name: string;
+  role: Role;
+  isActivated: number | boolean;
+  authProvider: string;
+  createdAt: string;
 }

@@ -1,0 +1,99 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../lib/auth';
+import { api } from '../lib/api';
+import { Panel } from '../components/ui/Panel';
+import MangakaDashboard from './mangaka/Dashboard';
+
+function StatCard({ label, value }: { label: string; value: number | string }) {
+  return (
+    <Panel className="p-5">
+      <div className="font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft">
+        {label}
+      </div>
+      <div className="mt-1 text-3xl text-ink">{value}</div>
+    </Panel>
+  );
+}
+
+const CFG: Record<
+  string,
+  { title: string; cards: [string, string][]; cta?: { to: string; label: string } }
+> = {
+  ASSISTANT: {
+    title: 'Tổng quan trợ lý',
+    cards: [
+      ['Được giao', 'assigned'],
+      ['Đang làm', 'inProgress'],
+      ['Đã nộp', 'submitted'],
+      ['Cần sửa', 'revisions'],
+    ],
+    cta: { to: '/my-tasks', label: 'Việc của tôi' },
+  },
+  TANTOU_EDITOR: {
+    title: 'Tổng quan biên tập',
+    cards: [
+      ['Chương chờ duyệt', 'chaptersToReview'],
+      ['Series phụ trách', 'managedSeries'],
+    ],
+    cta: { to: '/editor/review', label: 'Duyệt chương' },
+  },
+  EDITORIAL_BOARD: {
+    title: 'Tổng quan hội đồng',
+    cards: [
+      ['Đề xuất chờ duyệt', 'proposalsToReview'],
+      ['Đang xem xét', 'underReview'],
+    ],
+    cta: { to: '/board/proposals', label: 'Duyệt đề xuất' },
+  },
+  ADMIN: {
+    title: 'Tổng quan hệ thống',
+    cards: [
+      ['Người dùng', 'users'],
+      ['Hoạ sĩ', 'mangaka'],
+      ['Trợ lý', 'assistants'],
+      ['Series', 'series'],
+      ['Chương', 'chapters'],
+      ['Đề xuất', 'proposals'],
+    ],
+    cta: { to: '/admin', label: 'Quản trị' },
+  },
+};
+
+function RoleDashboard({ role }: { role: string }) {
+  const [s, setS] = useState<Record<string, number> | null>(null);
+
+  useEffect(() => {
+    api
+      .get('/dashboard/summary')
+      .then((r) => setS(r.data))
+      .catch(() => setS({}));
+  }, []);
+
+  const c = CFG[role] ?? CFG.ASSISTANT;
+
+  return (
+    <div className="p-8">
+      <h1 className="text-3xl text-ink mb-6">{c.title}</h1>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {c.cards.map(([label, key]) => (
+          <StatCard key={key} label={label} value={s?.[key] ?? 0} />
+        ))}
+      </div>
+      {c.cta && (
+        <Link
+          to={c.cta.to}
+          className="mt-6 inline-block rounded bg-accent px-4 py-2 text-white"
+        >
+          {c.cta.label} →
+        </Link>
+      )}
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  const { user } = useAuth();
+  if (user?.role === 'MANGAKA') return <MangakaDashboard />;
+  return <RoleDashboard role={user?.role ?? 'ASSISTANT'} />;
+}
