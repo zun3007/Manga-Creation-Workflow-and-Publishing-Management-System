@@ -3,6 +3,7 @@ import { vi, describe, it, expect, beforeEach } from "vitest";
 
 const mockGet = vi.fn();
 const mockPatch = vi.fn();
+const mockNavigate = vi.fn();
 
 vi.mock("../../lib/api", () => ({
   api: {
@@ -11,12 +12,21 @@ vi.mock("../../lib/api", () => ({
   },
 }));
 
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 import ReviewQueue from "./ReviewQueue";
 
 describe("ReviewQueue", () => {
   beforeEach(() => {
     mockGet.mockClear();
     mockPatch.mockClear();
+    mockNavigate.mockClear();
   });
 
   it("lists a chapter and approves it", async () => {
