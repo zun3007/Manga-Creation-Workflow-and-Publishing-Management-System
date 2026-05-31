@@ -1,0 +1,13 @@
+export enum AnnotationTargetType {
+  PAGE = "PAGE",
+  MANUSCRIPT = "MANUSCRIPT",
+  SUBMISSION = "SUBMISSION",
+}
+
+export enum AnnotationCategory {
+  CONTENT_ISSUE = "CONTENT_ISSUE",
+  DIALOGUE_ISSUE = "DIALOGUE_ISSUE",
+  SCRIPT_ISSUE = "SCRIPT_ISSUE",
+  VISUAL_ISSUE = "VISUAL_ISSUE",
+  GENERAL = "GENERAL",
+}

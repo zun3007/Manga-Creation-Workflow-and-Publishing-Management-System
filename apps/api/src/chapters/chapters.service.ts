@@ -112,6 +112,15 @@ export class ChaptersService {
       chapterId,
     ]);
 
+    if (status === ChapterStatus.PUBLISHED) {
+      await this.db.query(
+        `INSERT INTO \`Publication_Schedule\` (chapter_id, release_date, publish_status, scheduled_by_user_id, published_at)
+         VALUES (?, NOW(), 'PUBLISHED', ?, NOW())
+         ON DUPLICATE KEY UPDATE publish_status='PUBLISHED', published_at=NOW()`,
+        [chapterId, userId],
+      );
+    }
+
     return this.findOne(chapterId);
   }
 
