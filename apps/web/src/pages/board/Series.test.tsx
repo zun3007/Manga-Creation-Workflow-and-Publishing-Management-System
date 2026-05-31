@@ -17,6 +17,7 @@ vi.mock("../../lib/api", () => ({
 
 describe("BoardSeries", () => {
   beforeEach(() => {
+    vi.stubGlobal("confirm", () => true);
     mockGet.mockClear();
     mockPut.mockClear();
     mockDelete.mockClear();

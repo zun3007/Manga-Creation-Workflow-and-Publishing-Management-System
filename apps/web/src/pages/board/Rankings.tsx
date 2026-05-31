@@ -90,6 +90,12 @@ export default function BoardRankings() {
       return;
     }
 
+    if (decision.type === "CANCEL" || decision.type === "HIATUS") {
+      if (!window.confirm("Xác nhận quyết định này cho series? Hành động sẽ đổi trạng thái series.")) {
+        return;
+      }
+    }
+
     setBusy(true);
     setActionError("");
     try {
@@ -226,7 +232,7 @@ export default function BoardRankings() {
     return (
       <div className="p-8">
         <h1 className="text-3xl text-ink mb-6">Xếp hạng & Quyết định</h1>
-        <Panel className="p-4 text-red-600 bg-red-50 border-red-200">
+        <Panel className="p-4 bg-danger/10 border-danger/20 text-danger">
           {error}
         </Panel>
       </div>
@@ -239,20 +245,21 @@ export default function BoardRankings() {
 
       {/* Action Error */}
       {actionError && (
-        <Panel className="mb-6 p-4 text-red-600 bg-red-50 border-red-200">
+        <Panel className="mb-6 p-4 bg-danger/10 border-danger/20 text-danger">
           {actionError}
         </Panel>
       )}
 
       {/* Section 1: Leaderboard */}
-      <Panel className="mb-8 overflow-x-auto">
+      <Panel className="mb-8">
         <div className="p-6 border-b border-line">
           <h2 className="text-lg font-semibold text-ink">Bảng xếp hạng</h2>
         </div>
         {rankings.length === 0 ? (
           <EmptyState title="Chưa có dữ liệu xếp hạng." />
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line bg-bg">
                 <th className="p-4 text-left font-semibold text-ink">Hạng</th>
@@ -360,7 +367,8 @@ export default function BoardRankings() {
                 );
               })}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </Panel>
 

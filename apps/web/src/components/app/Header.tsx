@@ -33,7 +33,7 @@ export function Header({ title }: HeaderProps) {
 
         <div className="flex items-center gap-2">
           {user.avatarUrl && <Avatar url={user.avatarUrl} name={user.name} />}
-          <div className="flex flex-col">
+          <div className="hidden sm:flex flex-col">
             <div className="text-sm font-semibold text-ink">{user.name}</div>
             <div className="text-xs text-ink-soft">{roleLabel(user.role)}</div>
           </div>

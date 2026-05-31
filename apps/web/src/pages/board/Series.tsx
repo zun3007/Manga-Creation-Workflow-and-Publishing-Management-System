@@ -58,6 +58,10 @@ export default function BoardSeries() {
     try {
       if (value === "") {
         // Unassign
+        if (!window.confirm("Bỏ gán biên tập khỏi series này?")) {
+          setSavingId(null);
+          return;
+        }
         await api.delete(`/series/${seriesId}/editor`);
         setRows((prev) =>
           prev.map((row) =>
@@ -106,7 +110,7 @@ export default function BoardSeries() {
     return (
       <div className="p-8">
         <h1 className="text-3xl text-ink mb-6">Phân công biên tập</h1>
-        <Panel className="p-4 text-red-600 bg-red-50 border-red-200">
+        <Panel className="p-4 bg-danger/10 border-danger/20 text-danger">
           {error}
         </Panel>
       </div>
@@ -119,7 +123,7 @@ export default function BoardSeries() {
 
       {/* Action Error */}
       {actionError && (
-        <Panel className="mb-6 p-4 text-red-600 bg-red-50 border-red-200">
+        <Panel className="mb-6 p-4 bg-danger/10 border-danger/20 text-danger">
           {actionError}
         </Panel>
       )}

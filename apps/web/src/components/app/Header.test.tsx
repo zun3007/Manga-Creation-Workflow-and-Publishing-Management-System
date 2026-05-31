@@ -46,7 +46,7 @@ describe("Header", () => {
         <Header />
       </MemoryRouter>
     );
-    const notificationsBtn = await screen.findByLabelText("notifications");
+    const notificationsBtn = await screen.findByLabelText(/notifications/);
     expect(notificationsBtn).toBeTruthy();
   });
 

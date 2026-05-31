@@ -210,7 +210,7 @@ export default function SeriesDetail() {
                   value={formDeadline}
                   onChange={(e) => setFormDeadline(e.target.value)}
                   disabled={submitting}
-                  className="w-full rounded-[calc(var(--app-radius)*0.6)] border border-line bg-surface px-3 py-2 text-ink outline-none transition focus:border-accent"
+                  className="w-full rounded-[calc(var(--app-radius)*0.6)] border border-line bg-surface px-3 py-2 text-ink outline-none transition focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </label>
             </div>

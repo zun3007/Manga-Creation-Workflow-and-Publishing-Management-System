@@ -227,7 +227,7 @@ export default function ChapterReview() {
       </div>
 
       {error && (
-        <Panel className="mb-6 p-4 text-red-600 bg-red-50 border-red-200">
+        <Panel className="mb-6 p-4 bg-danger/10 border-danger/20 text-danger">
           {error}
         </Panel>
       )}
@@ -240,7 +240,7 @@ export default function ChapterReview() {
           <div className="space-y-6">
             {pages.map((page) => (
               <Panel key={page.id} className="p-6">
-                <div className="flex gap-6">
+                <div className="flex flex-col lg:flex-row gap-6">
                   {/* Left: Image with click handler */}
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-semibold text-ink-soft mb-4">
@@ -257,41 +257,61 @@ export default function ChapterReview() {
                         onClick={(e) => handleImageClick(e, page.id)}
                       />
 
+                      {/* Button to add annotation via keyboard */}
+                      <div className="mt-2">
+                        <Button
+                          variant="soft"
+                          onClick={() =>
+                            setFormState({
+                              pageId: page.id,
+                              x: 50,
+                              y: 50,
+                            })
+                          }
+                          disabled={submitting}
+                        >
+                          Thêm góp ý
+                        </Button>
+                      </div>
+
                       {/* Render annotation markers */}
                       {(annotationsByPageId[page.id] || [])
                         .filter((a) => a.x !== null && a.y !== null)
                         .map((annot, idx) => (
-                          <div
+                          <button
                             key={annot.id || idx}
+                            type="button"
+                            aria-label={`Góp ý: ${annot.context}`}
                             className="absolute w-6 h-6 bg-accent text-white rounded-full flex items-center justify-center text-xs font-bold cursor-pointer hover:brightness-95 transition"
                             style={{
                               left: `${annot.x}%`,
                               top: `${annot.y}%`,
                               transform: "translate(-50%, -50%)",
                             }}
-                            title={annot.context}
                             onClick={() => {
                               // Could expand to show detail
                             }}
                           >
                             {idx + 1}
-                          </div>
+                          </button>
                         ))}
                     </div>
 
                     {/* Inline annotation form if this page is selected */}
                     {formState?.pageId === page.id && (
                       <div className="mt-4 p-4 bg-bg rounded border border-line">
-                        <label className="block text-sm font-semibold text-ink mb-2">
+                        <label htmlFor="annot-category" className="block text-sm font-semibold text-ink mb-2">
                           Loại góp ý
                         </label>
                         <select
+                          id="annot-category"
                           value={formCategory}
                           onChange={(e) =>
                             setFormCategory(
                               e.target.value as Annotation["category"]
                             )
                           }
+                          disabled={submitting}
                           className="w-full rounded border border-line bg-surface p-2 text-ink focus:outline-none focus:ring-2 focus:ring-accent mb-3"
                         >
                           {categoryOptions.map((cat) => (
@@ -301,12 +321,14 @@ export default function ChapterReview() {
                           ))}
                         </select>
 
-                        <label className="block text-sm font-semibold text-ink mb-2">
+                        <label htmlFor="annot-context" className="block text-sm font-semibold text-ink mb-2">
                           Nội dung góp ý
                         </label>
                         <textarea
+                          id="annot-context"
                           value={formContext}
                           onChange={(e) => setFormContext(e.target.value)}
+                          disabled={submitting}
                           className="w-full rounded border border-line bg-surface p-2 text-ink placeholder-ink-soft focus:outline-none focus:ring-2 focus:ring-accent mb-3"
                           rows={3}
                           placeholder="Nhập nội dung góp ý..."
@@ -333,7 +355,7 @@ export default function ChapterReview() {
                   </div>
 
                   {/* Right: Annotations list */}
-                  <div className="w-80 shrink-0">
+                  <div className="w-full lg:w-80 lg:shrink-0">
                     <h3 className="text-sm font-semibold text-ink-soft mb-3">
                       Góp ý ({(annotationsByPageId[page.id] || []).length})
                     </h3>

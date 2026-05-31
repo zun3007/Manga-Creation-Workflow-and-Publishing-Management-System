@@ -20,6 +20,18 @@ export function NotificationsBell() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    // Handle Escape key to close dropdown
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isOpen]);
+
   async function loadNotifications() {
     try {
       const res = await api.get<AppNotification[]>("/notifications");
@@ -56,7 +68,7 @@ export function NotificationsBell() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        aria-label="notifications"
+        aria-label={unreadCount > 0 ? `notifications (${unreadCount} chưa đọc)` : "notifications"}
         className="relative p-2 text-ink hover:text-accent transition-colors"
       >
         <Bell className="h-5 w-5" />

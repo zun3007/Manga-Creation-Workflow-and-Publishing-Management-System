@@ -15,6 +15,7 @@ vi.mock("../../lib/api", () => ({
 
 describe("Console", () => {
   beforeEach(() => {
+    vi.stubGlobal("confirm", () => true);
     mockGet.mockClear();
     mockPatch.mockClear();
 

@@ -40,6 +40,15 @@ export default function Console() {
   async function save(id: number, patch: Partial<AdminUser>) {
     setSavingId(id);
     setActionError("");
+
+    // Confirm on deactivate
+    if (patch.isActivated === false) {
+      if (!window.confirm("Khoá (vô hiệu hoá) người dùng này?")) {
+        setSavingId(null);
+        return;
+      }
+    }
+
     try {
       await api.patch(`/admin/users/${id}`, patch);
       setUsers((prev) =>
@@ -68,7 +77,7 @@ export default function Console() {
     return (
       <div className="p-8">
         <h1 className="text-3xl text-ink mb-6">Quản trị hệ thống</h1>
-        <Panel className="p-4 text-red-600 bg-red-50 border-red-200">
+        <Panel className="p-4 bg-danger/10 border-danger/20 text-danger">
           {error}
         </Panel>
       </div>
@@ -102,7 +111,7 @@ export default function Console() {
 
       {/* Action Error */}
       {actionError && (
-        <Panel className="mb-6 p-4 text-red-600 bg-red-50 border-red-200">
+        <Panel className="mb-6 p-4 bg-danger/10 border-danger/20 text-danger">
           {actionError}
         </Panel>
       )}

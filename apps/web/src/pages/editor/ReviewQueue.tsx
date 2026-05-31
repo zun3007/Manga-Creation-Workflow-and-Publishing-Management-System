@@ -11,6 +11,7 @@ export default function ReviewQueue() {
   const [chapters, setChapters] = useState<EditorChapter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [revisingId, setRevisingId] = useState<number | null>(null);
   const [feedbackText, setFeedbackText] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -39,6 +40,7 @@ export default function ReviewQueue() {
     feedback?: string
   ) {
     setSubmitting(true);
+    setActionError("");
     try {
       await api.patch(`/chapters/${id}/editor-review`, {
         decision,
@@ -50,7 +52,7 @@ export default function ReviewQueue() {
       setFeedbackText("");
     } catch (e) {
       console.error("Failed to submit review decision", e);
-      alert("Không thể lưu quyết định. Vui lòng thử lại.");
+      setActionError("Không thể lưu quyết định. Vui lòng thử lại.");
     } finally {
       setSubmitting(false);
     }
@@ -70,8 +72,14 @@ export default function ReviewQueue() {
       <h1 className="text-2xl mb-6 text-ink">Duyệt chương</h1>
 
       {error && (
-        <Panel className="mb-6 p-4 text-red-600 bg-red-50 border-red-200">
+        <Panel className="mb-6 p-4 bg-danger/10 border-danger/20 text-danger">
           {error}
+        </Panel>
+      )}
+
+      {actionError && (
+        <Panel className="mb-6 p-4 bg-danger/10 border-danger/20 text-danger">
+          {actionError}
         </Panel>
       )}
 
@@ -149,6 +157,7 @@ export default function ReviewQueue() {
                   <textarea
                     value={feedbackText}
                     onChange={(e) => setFeedbackText(e.target.value)}
+                    disabled={submitting}
                     className="w-full rounded border border-line bg-bg p-2 text-ink placeholder-ink-soft focus:outline-none focus:ring-2 focus:ring-accent"
                     rows={4}
                     placeholder="Nhập phản hồi chi tiết..."

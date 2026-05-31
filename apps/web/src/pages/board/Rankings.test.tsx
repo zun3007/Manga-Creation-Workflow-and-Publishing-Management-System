@@ -14,6 +14,7 @@ vi.mock("../../lib/api", () => ({
 
 describe("BoardRankings", () => {
   beforeEach(() => {
+    vi.stubGlobal("confirm", () => true);
     mockGet.mockClear();
     mockPost.mockClear();
 
