@@ -10,5 +10,6 @@ export * from "./enums/notification";
 export * from "./enums/vote";
 export * from "./enums/decision";
 export * from "./enums/annotation";
+export * from "./enums/dispute";
 export * from "./enums/transitions";
 export * from "./dto/auth";

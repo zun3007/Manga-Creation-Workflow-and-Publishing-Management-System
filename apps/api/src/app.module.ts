@@ -22,6 +22,8 @@ import { AdminModule } from './admin/admin.module';
 import { RankingsModule } from './rankings/rankings.module';
 import { DecisionsModule } from './decisions/decisions.module';
 import { AnnotationsModule } from './annotations/annotations.module';
+import { EarningsModule } from './earnings/earnings.module';
+import { DisputesModule } from './disputes/disputes.module';
 
 @Module({
   imports: [
@@ -46,6 +48,8 @@ import { AnnotationsModule } from './annotations/annotations.module';
     RankingsModule,
     DecisionsModule,
     AnnotationsModule,
+    EarningsModule,
+    DisputesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

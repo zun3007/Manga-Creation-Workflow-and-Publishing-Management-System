@@ -3,6 +3,7 @@ import { ChapterStatus } from "./chapter";
 import { PageStatus } from "./page";
 import { TaskStatus } from "./task";
 import { SubmissionStatus } from "./submission";
+import { EarningDisputeStatus } from "./dispute";
 
 export const PROPOSAL_TRANSITIONS: Record<ProposalStatus, ProposalStatus[]> = {
   [ProposalStatus.DRAFT]: [ProposalStatus.SUBMITTED],
@@ -42,6 +43,13 @@ export const SUBMISSION_TRANSITIONS: Record<SubmissionStatus, SubmissionStatus[]
   [SubmissionStatus.REVISION_REQUIRED]: [],
   [SubmissionStatus.APPROVED]: [],
   [SubmissionStatus.REJECTED]: [],
+};
+
+export const EARNING_DISPUTE_TRANSITIONS: Record<EarningDisputeStatus, EarningDisputeStatus[]> = {
+  [EarningDisputeStatus.OPEN]: [EarningDisputeStatus.UNDER_REVIEW, EarningDisputeStatus.RESOLVED, EarningDisputeStatus.REJECTED],
+  [EarningDisputeStatus.UNDER_REVIEW]: [EarningDisputeStatus.RESOLVED, EarningDisputeStatus.REJECTED],
+  [EarningDisputeStatus.RESOLVED]: [],
+  [EarningDisputeStatus.REJECTED]: [],
 };
 
 export function canTransition<T extends string>(map: Record<T, T[]>, from: T, to: T): boolean {

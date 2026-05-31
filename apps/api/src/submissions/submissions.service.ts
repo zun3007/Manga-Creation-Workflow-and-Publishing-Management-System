@@ -207,6 +207,16 @@ export class SubmissionsService {
       [newTaskStatus, row.task_id],
     );
 
+    // Accrue earnings to assistant profile
+    if (decision === 'APPROVED') {
+      await this.db.query(
+        `UPDATE \`Assistant_Profile\`
+         SET total_earnings = total_earnings + COALESCE((SELECT payment_amount FROM \`Task\` WHERE task_id = ?), 0)
+         WHERE user_id = ?`,
+        [row.task_id, row.assistant_user_id],
+      );
+    }
+
     // Send notification to assistant
     if (decision === 'APPROVED') {
       await this.notifications.notify(
