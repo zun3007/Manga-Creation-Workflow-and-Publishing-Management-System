@@ -5,7 +5,45 @@ import { DbService } from '../db/db.service';
 export class DashboardService {
   constructor(private readonly db: DbService) {}
 
-  async summary(userId: number) {
+  async summary(userId: number, role: string) {
+    if (role === 'MANGAKA') return this.mangakaSummary(userId);
+    if (role === 'ASSISTANT') return this.db.queryOne(
+      `SELECT
+        (SELECT COUNT(*) FROM \`Task\` WHERE assignee_user_id = ? AND task_status = 'ASSIGNED') AS assigned,
+        (SELECT COUNT(*) FROM \`Task\` WHERE assignee_user_id = ? AND task_status = 'IN_PROGRESS') AS inProgress,
+        (SELECT COUNT(*) FROM \`Task\` WHERE assignee_user_id = ? AND task_status = 'SUBMITTED') AS submitted,
+        (SELECT COUNT(*) FROM \`Task\` WHERE assignee_user_id = ? AND task_status = 'REVISION_REQUIRED') AS revisions,
+        (SELECT COALESCE(total_earnings,0) FROM \`Assistant_Profile\` WHERE user_id = ?) AS totalEarnings,
+        (SELECT COUNT(*) FROM \`Notification\` WHERE recipient_user_id = ? AND is_read = 0) AS unreadNotifications`,
+      [userId, userId, userId, userId, userId, userId]);
+    if (role === 'TANTOU_EDITOR') return this.db.queryOne(
+      `SELECT
+        (SELECT COUNT(*) FROM \`Chapter\` c JOIN \`Series_Tantou_Editor\` ste ON ste.series_id = c.series_id
+           WHERE ste.editor_user_id = ? AND ste.unassigned_at IS NULL AND c.chapter_status = 'READY_FOR_EDITOR_REVIEW') AS chaptersToReview,
+        (SELECT COUNT(DISTINCT series_id) FROM \`Series_Tantou_Editor\` WHERE editor_user_id = ? AND unassigned_at IS NULL) AS managedSeries,
+        (SELECT COUNT(*) FROM \`Notification\` WHERE recipient_user_id = ? AND is_read = 0) AS unreadNotifications`,
+      [userId, userId, userId]);
+    if (role === 'EDITORIAL_BOARD') return this.db.queryOne(
+      `SELECT
+        (SELECT COUNT(*) FROM \`Series_Proposal\` WHERE proposal_status = 'SUBMITTED') AS proposalsToReview,
+        (SELECT COUNT(*) FROM \`Series_Proposal\` WHERE proposal_status = 'UNDER_REVIEW') AS underReview,
+        (SELECT COUNT(*) FROM \`Notification\` WHERE recipient_user_id = ? AND is_read = 0) AS unreadNotifications`,
+      [userId]);
+    // ADMIN
+    return this.db.queryOne(
+      `SELECT
+        (SELECT COUNT(*) FROM \`User\`) AS users,
+        (SELECT COUNT(*) FROM \`User\` WHERE role='MANGAKA') AS mangaka,
+        (SELECT COUNT(*) FROM \`User\` WHERE role='ASSISTANT') AS assistants,
+        (SELECT COUNT(*) FROM \`User\` WHERE role='TANTOU_EDITOR') AS editors,
+        (SELECT COUNT(*) FROM \`Series\`) AS series,
+        (SELECT COUNT(*) FROM \`Chapter\`) AS chapters,
+        (SELECT COUNT(*) FROM \`Series_Proposal\`) AS proposals,
+        (SELECT COUNT(*) FROM \`Notification\` WHERE recipient_user_id = ? AND is_read = 0) AS unreadNotifications`,
+      [userId]);
+  }
+
+  private async mangakaSummary(userId: number) {
     const row = await this.db.queryOne(
       `SELECT
         (SELECT COUNT(*) FROM \`Series\` WHERE mangaka_user_id = ?) AS totalSeries,
