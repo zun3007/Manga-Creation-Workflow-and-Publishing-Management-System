@@ -16,6 +16,7 @@ import { Role } from '@manga/shared';
 import { ChaptersService } from './chapters.service';
 import { CreateChapterDto } from './dto/create-chapter.dto';
 import { ChapterStatusDto } from './dto/chapter-status.dto';
+import { EditorReviewDto } from './dto/editor-review.dto';
 
 @Controller('chapters')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -42,5 +43,21 @@ export class ChaptersController {
     @Req() req: any,
   ) {
     return this.service.setStatus(+id, req.user.id, dto.status);
+  }
+
+  @Get('review-queue')
+  @Roles(Role.TANTOU_EDITOR)
+  async reviewQueue(@Req() req: any) {
+    return this.service.reviewQueue(req.user.id);
+  }
+
+  @Patch(':id/editor-review')
+  @Roles(Role.TANTOU_EDITOR)
+  async editorReview(
+    @Param('id') id: string,
+    @Body() dto: EditorReviewDto,
+    @Req() req: any,
+  ) {
+    return this.service.editorReview(+id, req.user.id, dto.decision, dto.feedback);
   }
 }
