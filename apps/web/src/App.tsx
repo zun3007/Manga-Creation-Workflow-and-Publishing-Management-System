@@ -14,11 +14,13 @@ import BoardProposals from "./pages/board/Proposals";
 import BoardSeries from "./pages/board/Series";
 import BoardRankings from "./pages/board/Rankings";
 import AssistantTasks from "./pages/assistant/Tasks";
+import AssistantEarnings from "./pages/assistant/Earnings";
 import StudioPage from "./pages/studio/StudioPage";
 import StudioRegionPage from "./pages/studio/StudioRegionPage";
 import EditorReviewQueue from "./pages/editor/ReviewQueue";
 import EditorChapterReview from "./pages/editor/ChapterReview";
 import AdminConsole from "./pages/admin/Console";
+import AdminDisputes from "./pages/admin/Disputes";
 import NotFound from "./pages/NotFound";
 import { AppShell } from "./components/app/AppShell";
 
@@ -141,6 +143,16 @@ function AppRoutes() {
           </Protected>
         }
       />
+      <Route
+        path="/earnings"
+        element={
+          <Protected>
+            <AppShell>
+              <AssistantEarnings />
+            </AppShell>
+          </Protected>
+        }
+      />
       <Route path="/studio/page/:pageId" element={<Protected><StudioPage /></Protected>} />
       <Route path="/studio/region/:taskId" element={<Protected><StudioRegionPage /></Protected>} />
       <Route
@@ -169,6 +181,16 @@ function AppRoutes() {
           <Protected>
             <AppShell>
               <AdminConsole />
+            </AppShell>
+          </Protected>
+        }
+      />
+      <Route
+        path="/admin/disputes"
+        element={
+          <Protected>
+            <AppShell>
+              <AdminDisputes />
             </AppShell>
           </Protected>
         }

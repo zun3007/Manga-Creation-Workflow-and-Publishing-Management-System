@@ -1,5 +1,5 @@
 import { Role } from "@manga/shared";
-import { LayoutDashboard, FileText, BookOpen, ListChecks, Inbox, Shield, Trophy } from "lucide-react";
+import { LayoutDashboard, FileText, BookOpen, ListChecks, Inbox, Shield, Trophy, CircleDollarSign, Scale } from "lucide-react";
 import type { NavItem } from "../ui/Sidebar";
 
 export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
@@ -12,6 +12,7 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   [Role.ASSISTANT]: [
     { label: "Tổng quan", to: "/", icon: LayoutDashboard },
     { label: "Việc của tôi", to: "/my-tasks", icon: ListChecks },
+    { label: "Thu nhập", to: "/earnings", icon: CircleDollarSign },
   ],
   [Role.TANTOU_EDITOR]: [
     { label: "Tổng quan", to: "/", icon: LayoutDashboard },
@@ -26,5 +27,6 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   [Role.ADMIN]: [
     { label: "Tổng quan", to: "/", icon: LayoutDashboard },
     { label: "Quản trị", to: "/admin", icon: Shield },
+    { label: "Khiếu nại", to: "/admin/disputes", icon: Scale },
   ],
 };
