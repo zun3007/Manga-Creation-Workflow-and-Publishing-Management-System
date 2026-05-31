@@ -244,29 +244,19 @@ export class DisputesService {
   }
 
   private async findOne(disputeId: number) {
-    return this.db.queryOne<{
-      dispute_id: number;
-      task_id: number;
-      assistant_user_id: number;
-      dispute_reason: string;
-      expected_amount: number | null;
-      dispute_status: string;
-      resolution_note: string | null;
-      resolved_by_user_id: number | null;
-      resolved_at: string | null;
-      created_at: string;
-    }>(
+    // Alias to the same camelCase shape as mine()/listAll() so callers (and POST response) get `id`.
+    return this.db.queryOne(
       `SELECT
-        dispute_id,
-        task_id,
-        assistant_user_id,
-        dispute_reason,
-        expected_amount,
-        dispute_status,
-        resolution_note,
-        resolved_by_user_id,
-        resolved_at,
-        created_at
+        dispute_id AS id,
+        task_id AS taskId,
+        assistant_user_id AS assistantUserId,
+        dispute_reason AS reason,
+        expected_amount AS expectedAmount,
+        dispute_status AS status,
+        resolution_note AS resolutionNote,
+        resolved_by_user_id AS resolvedByUserId,
+        resolved_at AS resolvedAt,
+        created_at AS createdAt
        FROM \`Earning_Dispute\`
        WHERE dispute_id = ?`,
       [disputeId],
