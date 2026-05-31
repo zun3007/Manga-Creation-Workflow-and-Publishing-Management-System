@@ -18,6 +18,7 @@ import { RegionsModule } from './regions/regions.module';
 import { TasksModule } from './tasks/tasks.module';
 import { SubmissionsModule } from './submissions/submissions.module';
 import { StudioModule } from './studio/studio.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { StudioModule } from './studio/studio.module';
     TasksModule,
     SubmissionsModule,
     StudioModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
