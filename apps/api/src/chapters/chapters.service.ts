@@ -196,6 +196,29 @@ export class ChaptersService {
     return this.findOne(chapterId);
   }
 
+  async editorPages(chapterId: number, editorId: number) {
+    // Verify the caller is the ACTIVE assigned editor of the chapter's series
+    const ok = await this.db.queryOne(
+      `SELECT c.chapter_id FROM \`Chapter\` c
+       JOIN \`Series_Tantou_Editor\` ste ON ste.series_id=c.series_id AND ste.unassigned_at IS NULL
+       WHERE c.chapter_id=? AND ste.editor_user_id=?`,
+      [chapterId, editorId],
+    );
+
+    if (!ok) {
+      throw new ForbiddenException('Bạn không phải biên tập phụ trách chương này');
+    }
+
+    // Return pages with current version details
+    return this.db.query(
+      `SELECT p.page_id AS id, p.page_number AS number, p.page_status AS status, pv.image_url AS imageUrl
+       FROM \`Page\` p
+       JOIN \`Page_Version\` pv ON pv.page_id=p.page_id AND pv.version_number=p.current_version
+       WHERE p.chapter_id=? ORDER BY p.page_number`,
+      [chapterId],
+    );
+  }
+
   private async findOne(chapterId: number) {
     return this.db.queryOne(
       `SELECT

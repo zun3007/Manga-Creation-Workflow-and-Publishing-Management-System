@@ -21,6 +21,7 @@ import { StudioModule } from './studio/studio.module';
 import { AdminModule } from './admin/admin.module';
 import { RankingsModule } from './rankings/rankings.module';
 import { DecisionsModule } from './decisions/decisions.module';
+import { AnnotationsModule } from './annotations/annotations.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { DecisionsModule } from './decisions/decisions.module';
     AdminModule,
     RankingsModule,
     DecisionsModule,
+    AnnotationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -51,6 +51,12 @@ export class ChaptersController {
     return this.service.reviewQueue(req.user.id);
   }
 
+  @Get(':id/pages')
+  @Roles(Role.TANTOU_EDITOR)
+  async editorPages(@Param('id') id: string, @Req() req: any) {
+    return this.service.editorPages(+id, req.user.id);
+  }
+
   @Patch(':id/editor-review')
   @Roles(Role.TANTOU_EDITOR)
   async editorReview(

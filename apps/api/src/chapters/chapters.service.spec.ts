@@ -74,3 +74,31 @@ describe('ChaptersService.setStatus', () => {
     );
   });
 });
+
+describe('ChaptersService.editorPages', () => {
+  it('returns pages when editor is assigned to the chapter series', async () => {
+    const db: any = {
+      queryOne: jest.fn().mockResolvedValueOnce({
+        chapter_id: 8,
+      }), // assignment lookup
+      query: jest.fn().mockResolvedValue([
+        { id: 1, number: 1, status: 'RAW', imageUrl: 'http://example.com/page1.jpg' },
+        { id: 2, number: 2, status: 'RAW', imageUrl: 'http://example.com/page2.jpg' },
+      ]),
+    };
+    const s = new ChaptersService(db, {} as any);
+    const result = await s.editorPages(8, 5);
+    expect(result).toHaveLength(2);
+    expect(result[0].id).toBe(1);
+    expect(result[1].id).toBe(2);
+  });
+
+  it('rejects with ForbiddenException when editor is not assigned', async () => {
+    const db: any = {
+      queryOne: jest.fn().mockResolvedValueOnce(null),
+      query: jest.fn(),
+    };
+    const s = new ChaptersService(db, {} as any);
+    await expect(s.editorPages(8, 5)).rejects.toThrow();
+  });
+});
