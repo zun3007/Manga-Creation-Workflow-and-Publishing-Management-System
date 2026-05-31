@@ -15,7 +15,8 @@ import { RankingsService } from './rankings.service';
 import { CreateVotePeriodDto } from './dto/create-vote-period.dto';
 import { CreateVoteDto } from './dto/create-vote.dto';
 
-@Controller('rankings')
+// No class-level prefix: routes are /vote-periods, /votes, /rankings (matches the web client + documented contract).
+@Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class RankingsController {
   constructor(private readonly service: RankingsService) {}
