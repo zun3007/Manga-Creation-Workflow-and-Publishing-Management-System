@@ -5,12 +5,21 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DbService } from '../db/db.service';
-import { ChapterStatus, CHAPTER_TRANSITIONS, canTransition } from '@manga/shared';
+import { NotificationsService } from '../notifications/notifications.service';
+import {
+  ChapterStatus,
+  CHAPTER_TRANSITIONS,
+  canTransition,
+  NotificationType,
+} from '@manga/shared';
 import { CreateChapterDto } from './dto/create-chapter.dto';
 
 @Injectable()
 export class ChaptersService {
-  constructor(private readonly db: DbService) {}
+  constructor(
+    private readonly db: DbService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async create(userId: number, dto: CreateChapterDto) {
     // Verify ownership of series
@@ -103,7 +112,111 @@ export class ChaptersService {
       chapterId,
     ]);
 
+    if (status === ChapterStatus.PUBLISHED) {
+      await this.db.query(
+        `INSERT INTO \`Publication_Schedule\` (chapter_id, release_date, publish_status, scheduled_by_user_id, published_at)
+         VALUES (?, NOW(), 'PUBLISHED', ?, NOW())
+         ON DUPLICATE KEY UPDATE publish_status='PUBLISHED', published_at=NOW()`,
+        [chapterId, userId],
+      );
+    }
+
     return this.findOne(chapterId);
+  }
+
+  async reviewQueue(editorId: number) {
+    return this.db.query(
+      `SELECT c.chapter_id AS id, c.chapter_number AS number, c.chapter_title AS title,
+              c.chapter_status AS status, c.deadline, s.series_id AS seriesId, s.title AS series,
+              (SELECT COUNT(*) FROM \`Page\` p WHERE p.chapter_id = c.chapter_id) AS pages
+       FROM \`Chapter\` c
+       JOIN \`Series\` s ON s.series_id = c.series_id
+       JOIN \`Series_Tantou_Editor\` ste ON ste.series_id = s.series_id
+       WHERE ste.editor_user_id = ? AND ste.unassigned_at IS NULL
+         AND c.chapter_status = 'READY_FOR_EDITOR_REVIEW'
+       ORDER BY c.deadline ASC`,
+      [editorId],
+    );
+  }
+
+  async editorReview(
+    chapterId: number,
+    editorId: number,
+    decision: 'APPROVE' | 'REVISE',
+    feedback?: string,
+  ) {
+    const row = await this.db.queryOne<{
+      chapter_id: number;
+      chapter_status: ChapterStatus;
+      series_id: number;
+      mangaka_user_id: number;
+      title: string;
+    }>(
+      `SELECT c.chapter_id, c.chapter_status, c.series_id, c.chapter_title AS title, s.mangaka_user_id
+       FROM \`Chapter\` c
+       JOIN \`Series\` s ON s.series_id = c.series_id
+       JOIN \`Series_Tantou_Editor\` ste ON ste.series_id = s.series_id AND ste.unassigned_at IS NULL
+       WHERE c.chapter_id = ? AND ste.editor_user_id = ?`,
+      [chapterId, editorId],
+    );
+
+    if (!row) {
+      throw new ForbiddenException(
+        'You are not the assigned editor for this chapter',
+      );
+    }
+
+    const target =
+      decision === 'APPROVE'
+        ? ChapterStatus.EDITOR_APPROVED
+        : ChapterStatus.IN_PROGRESS;
+
+    if (!canTransition(CHAPTER_TRANSITIONS, row.chapter_status, target)) {
+      throw new BadRequestException(
+        `Invalid transition ${row.chapter_status} → ${target}`,
+      );
+    }
+
+    await this.db.query(
+      `UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`,
+      [target, chapterId],
+    );
+
+    await this.notifications.notify(
+      row.mangaka_user_id,
+      NotificationType.REVIEW,
+      decision === 'APPROVE'
+        ? `Chương "${row.title}" đã được duyệt`
+        : `Chương "${row.title}" cần chỉnh sửa`,
+      feedback ?? '',
+      'Chapter',
+      chapterId,
+    );
+
+    return this.findOne(chapterId);
+  }
+
+  async editorPages(chapterId: number, editorId: number) {
+    // Verify the caller is the ACTIVE assigned editor of the chapter's series
+    const ok = await this.db.queryOne(
+      `SELECT c.chapter_id FROM \`Chapter\` c
+       JOIN \`Series_Tantou_Editor\` ste ON ste.series_id=c.series_id AND ste.unassigned_at IS NULL
+       WHERE c.chapter_id=? AND ste.editor_user_id=?`,
+      [chapterId, editorId],
+    );
+
+    if (!ok) {
+      throw new ForbiddenException('Bạn không phải biên tập phụ trách chương này');
+    }
+
+    // Return pages with current version details
+    return this.db.query(
+      `SELECT p.page_id AS id, p.page_number AS number, p.page_status AS status, pv.image_url AS imageUrl
+       FROM \`Page\` p
+       JOIN \`Page_Version\` pv ON pv.page_id=p.page_id AND pv.version_number=p.current_version
+       WHERE p.chapter_id=? ORDER BY p.page_number`,
+      [chapterId],
+    );
   }
 
   private async findOne(chapterId: number) {

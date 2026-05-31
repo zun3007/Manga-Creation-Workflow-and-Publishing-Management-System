@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   BookOpen,
@@ -6,7 +7,6 @@ import {
   Inbox,
   CheckSquare,
   AlertTriangle,
-  Bell,
   CalendarClock,
   CircleDollarSign,
 } from 'lucide-react';
@@ -70,6 +70,7 @@ function StatCard({
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [series, setSeries] = useState<Series[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -116,28 +117,9 @@ export default function Dashboard() {
     month: '2-digit',
     year: 'numeric',
   });
-  const unread = num(summary?.unreadNotifications);
 
   return (
     <>
-      {/* Topbar */}
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-line bg-bg/95 px-8 py-5 backdrop-blur">
-        <div>
-          <p className="font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft">{today}</p>
-          <h1 className="mt-1 text-3xl">
-            Konnichiwa, <span className="text-accent">{firstName}</span>
-          </h1>
-        </div>
-        <button className="relative grid h-11 w-11 place-items-center border border-line rounded-[var(--app-radius)] bg-surface transition hover:-translate-x-0.5 hover:-translate-y-0.5">
-          <Bell size={18} />
-          {unread > 0 && (
-            <span className="absolute -right-2 -top-2 grid h-5 min-w-5 place-items-center bg-danger px-1 font-mono text-[0.6rem] text-bg">
-              {unread}
-            </span>
-          )}
-        </button>
-      </header>
-
       {loading ? (
         <div className="grid h-[60vh] place-items-center">
           <span className="font-mono text-xs uppercase tracking-wider animate-pulse text-ink-soft">
@@ -158,6 +140,14 @@ export default function Dashboard() {
           animate="show"
           className="space-y-8 p-8"
         >
+          {/* Greeting */}
+          <div className="px-8 pt-8">
+            <p className="font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft">{today}</p>
+            <h1 className="mt-1 text-3xl">
+              Konnichiwa, <span className="text-accent">{firstName}</span>
+            </h1>
+          </div>
+
           {/* Stat strip */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
             <StatCard label="Series hoạt động" value={num(summary?.activeSeries)} Icon={BookOpen} />
@@ -253,7 +243,7 @@ export default function Dashboard() {
                           <p className="truncate text-sm font-semibold text-ink">{sub.task}</p>
                           <p className="font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft mt-0.5">{sub.assistant}</p>
                         </div>
-                        <Button className="px-3 py-1.5 text-xs">Duyệt</Button>
+                        <Button className="px-3 py-1.5 text-xs" onClick={() => navigate('/review')}>Duyệt</Button>
                       </div>
                     ))}
                     {submissions.length === 0 && (

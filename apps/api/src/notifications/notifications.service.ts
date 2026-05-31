@@ -39,4 +39,11 @@ export class NotificationsService {
       [id, userId],
     );
   }
+
+  async markAllRead(userId: number): Promise<void> {
+    await this.db.query(
+      `UPDATE \`Notification\` SET is_read = 1, read_at = NOW() WHERE recipient_user_id = ? AND is_read = 0`,
+      [userId],
+    );
+  }
 }

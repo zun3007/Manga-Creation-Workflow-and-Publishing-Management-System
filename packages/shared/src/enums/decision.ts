@@ -1,0 +1,6 @@
+export enum DecisionType {
+  CONTINUE = "CONTINUE",
+  CANCEL = "CANCEL",
+  CHANGE_FREQUENCY = "CHANGE_FREQUENCY",
+  HIATUS = "HIATUS",
+}

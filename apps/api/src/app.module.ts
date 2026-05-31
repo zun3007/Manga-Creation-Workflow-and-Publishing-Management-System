@@ -18,6 +18,12 @@ import { RegionsModule } from './regions/regions.module';
 import { TasksModule } from './tasks/tasks.module';
 import { SubmissionsModule } from './submissions/submissions.module';
 import { StudioModule } from './studio/studio.module';
+import { AdminModule } from './admin/admin.module';
+import { RankingsModule } from './rankings/rankings.module';
+import { DecisionsModule } from './decisions/decisions.module';
+import { AnnotationsModule } from './annotations/annotations.module';
+import { EarningsModule } from './earnings/earnings.module';
+import { DisputesModule } from './disputes/disputes.module';
 
 @Module({
   imports: [
@@ -38,6 +44,12 @@ import { StudioModule } from './studio/studio.module';
     TasksModule,
     SubmissionsModule,
     StudioModule,
+    AdminModule,
+    RankingsModule,
+    DecisionsModule,
+    AnnotationsModule,
+    EarningsModule,
+    DisputesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

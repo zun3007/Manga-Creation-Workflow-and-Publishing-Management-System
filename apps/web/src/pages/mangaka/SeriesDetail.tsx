@@ -6,9 +6,17 @@ import { Stamp } from "../../components/ui/Stamp";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import type { SeriesItem, ChapterItem } from "../../types";
+import type { ChapterStatus } from "@manga/shared";
 
 const fmtDate = (s: string | null) =>
   s ? new Date(s).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+
+// Mangaka lifecycle actions: maps current status to next status + label
+const NEXT: Record<string, { to: ChapterStatus; label: string } | undefined> = {
+  DRAFT: { to: "IN_PROGRESS" as ChapterStatus, label: "Bắt đầu vẽ" },
+  IN_PROGRESS: { to: "READY_FOR_EDITOR_REVIEW" as ChapterStatus, label: "Gửi duyệt biên tập" },
+  EDITOR_APPROVED: { to: "PUBLISHED" as ChapterStatus, label: "Xuất bản" },
+};
 
 export default function SeriesDetail() {
   const navigate = useNavigate();
@@ -25,6 +33,10 @@ export default function SeriesDetail() {
   const [formDeadline, setFormDeadline] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+
+  // Chapter lifecycle state
+  const [savingId, setSavingId] = useState<number | null>(null);
+  const [lifecycleError, setLifecycleError] = useState<{ chapterId: number; message: string } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -81,6 +93,26 @@ export default function SeriesDetail() {
 
   const handleSelectChapter = (chapterId: number) => {
     navigate(`/series/${seriesId}/chapters/${chapterId}`);
+  };
+
+  const handleUpdateChapterStatus = async (chapterId: number, newStatus: ChapterStatus) => {
+    setSavingId(chapterId);
+    setLifecycleError(null);
+    try {
+      await api.patch(`/chapters/${chapterId}/status`, { status: newStatus });
+      // Optimistic update: update the chapter's status in local state
+      setChapters((prev) =>
+        prev.map((ch) => (ch.id === chapterId ? { ...ch, status: newStatus } : ch))
+      );
+    } catch (e) {
+      console.error("Failed to update chapter status", e);
+      setLifecycleError({
+        chapterId,
+        message: "Không thể cập nhật trạng thái. Vui lòng thử lại.",
+      });
+    } finally {
+      setSavingId(null);
+    }
   };
 
   if (loading) {
@@ -178,7 +210,7 @@ export default function SeriesDetail() {
                   value={formDeadline}
                   onChange={(e) => setFormDeadline(e.target.value)}
                   disabled={submitting}
-                  className="w-full rounded-[calc(var(--app-radius)*0.6)] border border-line bg-surface px-3 py-2 text-ink outline-none transition focus:border-accent"
+                  className="w-full rounded-[calc(var(--app-radius)*0.6)] border border-line bg-surface px-3 py-2 text-ink outline-none transition focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </label>
             </div>
@@ -201,28 +233,56 @@ export default function SeriesDetail() {
             <Panel className="p-6 text-center text-ink-soft">Chưa có chương nào.</Panel>
           ) : (
             <div className="space-y-2">
-              {chapters.map((ch) => (
-                <button
-                  key={ch.id}
-                  onClick={() => handleSelectChapter(ch.id)}
-                  className="w-full text-left transition hover:-translate-x-0.5 hover:-translate-y-0.5"
-                >
-                  <Panel className="flex items-center justify-between gap-4 p-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold text-ink">
-                          Chương {ch.number}: {ch.title}
-                        </h3>
-                        <Stamp status={ch.status} />
-                      </div>
-                      <p className="font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft mt-1">
-                        {ch.pages} trang{ch.deadline ? ` · Hạn: ${fmtDate(ch.deadline)}` : ""}
-                      </p>
-                    </div>
-                    <div className="hidden sm:flex text-ink-soft font-mono text-xs">→</div>
-                  </Panel>
-                </button>
-              ))}
+              {chapters.map((ch) => {
+                const action = NEXT[ch.status];
+                const isError = lifecycleError?.chapterId === ch.id;
+
+                return (
+                  <div key={ch.id}>
+                    <button
+                      onClick={() => handleSelectChapter(ch.id)}
+                      className="w-full text-left transition hover:-translate-x-0.5 hover:-translate-y-0.5"
+                    >
+                      <Panel className="flex items-center justify-between gap-4 p-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-lg font-semibold text-ink">
+                              Chương {ch.number}: {ch.title}
+                            </h3>
+                            <Stamp status={ch.status} />
+                          </div>
+                          <p className="font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft mt-1">
+                            {ch.pages} trang{ch.deadline ? ` · Hạn: ${fmtDate(ch.deadline)}` : ""}
+                          </p>
+                        </div>
+                        <div className="hidden sm:flex items-center gap-4">
+                          {action ? (
+                            <Button
+                              variant="accent"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdateChapterStatus(ch.id, action.to);
+                              }}
+                              disabled={savingId === ch.id}
+                              className="whitespace-nowrap"
+                            >
+                              {savingId === ch.id ? "Đang cập nhật…" : action.label}
+                            </Button>
+                          ) : ch.status === "READY_FOR_EDITOR_REVIEW" ? (
+                            <span className="text-ink-soft font-mono text-xs">Đang chờ biên tập</span>
+                          ) : ch.status === "PUBLISHED" ? (
+                            <span className="text-ink-soft font-mono text-xs">Đã xuất bản</span>
+                          ) : null}
+                          <div className="text-ink-soft font-mono text-xs">→</div>
+                        </div>
+                      </Panel>
+                    </button>
+                    {isError && (
+                      <p className="text-danger text-sm px-4 py-2">{lifecycleError.message}</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>

@@ -36,6 +36,7 @@ export default function Tasks() {
 
   async function handleStartTask(task: TaskItem) {
     setSubmitting(true);
+    setError("");
     try {
       await api.patch(`/tasks/${task.id}/start`);
       // Update the task status in the local state
@@ -46,7 +47,7 @@ export default function Tasks() {
       );
     } catch (e) {
       console.error("Failed to start task", e);
-      alert("Không thể bắt đầu việc. Vui lòng thử lại.");
+      setError("Không thể bắt đầu việc. Vui lòng thử lại.");
     } finally {
       setSubmitting(false);
     }
@@ -81,7 +82,7 @@ export default function Tasks() {
       <h1 className="text-2xl mb-6">Việc của tôi</h1>
 
       {error && (
-        <Panel className="mb-6 p-4 text-red-600 bg-red-50 border-red-200">
+        <Panel className="mb-6 p-4 bg-danger/10 border-danger/20 text-danger">
           {error}
         </Panel>
       )}
