@@ -3,6 +3,7 @@ import type { StudioEngine } from '../../lib/studio/engine';
 import type { View } from '../../lib/studio/view';
 import { screenToDoc } from '../../lib/studio/view';
 import type { PointerSample } from '../../lib/studio/tools/Tool';
+import type { RectN } from '../../lib/studio/types';
 
 export interface CanvasStageProps {
   engine: StudioEngine;
@@ -16,18 +17,22 @@ export interface CanvasStageProps {
   panning?: boolean;
   /** Increment to re-fit the document to the viewport on demand. */
   fitToken?: number;
+  /** Non-destructive frame overlays (e.g. AI-detected panels), normalized 0..1. */
+  overlays?: RectN[];
 }
 
 export function CanvasStage(props: CanvasStageProps): ReactNode {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bitmapRef = useRef<HTMLCanvasElement | null>(null);
   const viewRef = useRef<View>(props.view);
+  const overlaysRef = useRef<RectN[] | undefined>(props.overlays);
   const fittedRef = useRef(false);
   const panDrag = useRef<{ id: number; x: number; y: number; panX: number; panY: number } | null>(null);
 
-  // Single source of truth: mirror the latest view into a ref so the
-  // engine-change render callback (registered once) never reads a stale view.
+  // Single source of truth: mirror the latest view/overlays into refs so the
+  // engine-change render callback (registered once) never reads stale values.
   viewRef.current = props.view;
+  overlaysRef.current = props.overlays;
 
   const ensureBitmap = () => {
     const { width, height } = props.engine.doc;
@@ -67,6 +72,26 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
     ctx.strokeStyle = 'rgba(0,0,0,0.35)';
     ctx.lineWidth = 1 / v.zoom;
     ctx.strokeRect(0, 0, w, h);
+
+    // Non-destructive frame overlays (AI-detected / pending panels).
+    const ov = overlaysRef.current;
+    if (ov && ov.length) {
+      ctx.save();
+      ctx.lineWidth = 2 / v.zoom;
+      ctx.textBaseline = 'top';
+      ctx.font = `${14 / v.zoom}px sans-serif`;
+      for (let i = 0; i < ov.length; i++) {
+        const o = ov[i];
+        const rx = o.x * w, ry = o.y * h, rw = o.width * w, rh = o.height * h;
+        ctx.fillStyle = 'rgba(255,90,95,0.12)';
+        ctx.fillRect(rx, ry, rw, rh);
+        ctx.strokeStyle = '#FF5A5F';
+        ctx.strokeRect(rx, ry, rw, rh);
+        ctx.fillStyle = '#FF5A5F';
+        ctx.fillText(String(i + 1), rx + 4 / v.zoom, ry + 4 / v.zoom);
+      }
+      ctx.restore();
+    }
     ctx.restore();
   }, [props.engine]);
 
@@ -93,6 +118,9 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
 
   // Repaint on external view changes.
   useEffect(() => { render(); }, [props.view, render]);
+
+  // Repaint when frame overlays change.
+  useEffect(() => { render(); }, [props.overlays, render]);
 
   // Resize to container; auto-fit once when the canvas first gets real dimensions.
   useEffect(() => {

@@ -551,6 +551,7 @@ export function Studio({
             onViewChange={setView}
             panning={tool === 'pan'}
             fitToken={fitToken}
+            overlays={pendingFrames}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
