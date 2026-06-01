@@ -23,6 +23,7 @@ import { LayerPanel } from './LayerPanel';
 import { PanelTools } from './PanelTools';
 import { AIAssistPanel } from './AIAssistPanel';
 import { ToneControls } from './ToneControls';
+import { EffectsPanel } from './EffectsPanel';
 import { MangaRulers } from './MangaRulers';
 import { TextControls } from './TextControls';
 import { ToolOptions } from './ToolOptions';
@@ -634,6 +635,12 @@ export function Studio({
         {tool === 'tone' && (
           <div className="border-b border-line">
             <ToneControls engine={engine} />
+          </div>
+        )}
+
+        {tool === 'line' && (
+          <div className="border-b border-line">
+            <EffectsPanel engine={engine} />
           </div>
         )}
 

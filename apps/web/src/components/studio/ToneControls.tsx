@@ -73,15 +73,28 @@ export function ToneControls({ engine }: ToneControlsProps) {
 
       {/* Info text */}
       <p className="text-xs text-ink-soft px-1">
-        Tone reads layer alpha as ink density. Fill or brush first.
+        Tone đọc alpha của layer làm độ đậm mực (網点). Tô/đổ màu vùng trước, rồi áp tone.
       </p>
+
+      {/* Density presets */}
+      <div className="flex gap-2">
+        {[{ l: 'Mịn', c: 4 }, { l: 'Vừa', c: 8 }, { l: 'Thô', c: 12 }].map((p) => (
+          <button
+            key={p.l}
+            onClick={() => { setCell(p.c); engine.applyTone(p.c, angleDeg, { r: 0, g: 0, b: 0 }); }}
+            className="flex-1 px-2 py-1 text-xs border border-line rounded text-ink hover:border-accent hover:text-accent transition-colors"
+          >
+            {p.l}
+          </button>
+        ))}
+      </div>
 
       {/* Apply button */}
       <button
         onClick={handleApplyTone}
         className="px-3 py-2 bg-accent text-ink font-mono text-xs uppercase rounded hover:opacity-90 transition-opacity"
       >
-        Apply Tone
+        Áp tone (cell {cell})
       </button>
     </div>
   );
