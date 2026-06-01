@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { Stamp } from "../../components/ui/Stamp";
@@ -15,6 +16,7 @@ interface ReviewProposal {
 }
 
 export default function BoardProposals() {
+  const toast = useToast();
   const [proposals, setProposals] = useState<ReviewProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +45,11 @@ export default function BoardProposals() {
       setProcessingId(proposalId);
       await api.patch(`/proposals/${proposalId}/decision`, { decision });
       setProposals(proposals.filter((p) => p.id !== proposalId));
+      if (decision === "APPROVED") {
+        toast.success('Đã duyệt đề xuất — series đã được tạo.');
+      } else {
+        toast.success('Đã từ chối đề xuất.');
+      }
     } catch (err: any) {
       console.error(`Failed to ${decision.toLowerCase()} proposal:`, err);
       setError(err.response?.data?.message || `Lỗi khi xử lý đề xuất`);

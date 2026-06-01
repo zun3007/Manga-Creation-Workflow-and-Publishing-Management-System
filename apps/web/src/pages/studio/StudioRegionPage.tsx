@@ -14,10 +14,13 @@ import type { AIAssist } from '../../lib/studio/ai/AIAssist';
 import { createDocument } from '../../lib/studio/document';
 import { loadImageFromBlob, imageToBuffer, exportPNG } from '../../lib/studio/io';
 import type { TaskItem } from '../../types';
+import { useToast } from '../../components/ui/Toast';
+import { Spinner } from '../../components/ui/Spinner';
 
 export default function StudioRegionPage() {
   const { taskId } = useParams<{ taskId: string }>(); const id = Number(taskId);
   const navigate = useNavigate(); const location = useLocation(); const { user } = useAuth();
+  const toast = useToast();
   const [engine, setEngine] = useState<StudioEngine | null>(null); const [saving, setSaving] = useState(false); const [error, setError] = useState('');
   const [ai, setAi] = useState<AIAssist | null>(null);
   const [aiKind, setAiKind] = useState<'ONNX' | 'Heuristic'>('Heuristic');
@@ -45,17 +48,19 @@ export default function StudioRegionPage() {
 
   async function onSave() {
     if (!engine) return; setSaving(true);
+    const tid = toast.loading('Đang nộp bài…');
     try {
       const blob = await exportPNG(engine); const fd = new FormData(); fd.append('file', new File([blob], `task-${id}.png`, { type: 'image/png' }));
       const { data } = await api.post<{ url: string }>('/uploads', fd);
       await api.post('/submissions', { taskId: id, fileUrl: data.url });
+      toast.update(tid, 'success', 'Đã nộp bài.');
       navigate('/my-tasks');
-    } catch (e) { console.error(e); alert('Nộp bài thất bại.'); } finally { setSaving(false); }
+    } catch (e) { console.error(e); toast.update(tid, 'error', 'Nộp bài thất bại. Thử lại nhé.'); } finally { setSaving(false); }
   }
 
-  if (error) return <div className="grid h-screen place-items-center bg-bg text-ink">{error}</div>;
-  if (!engine || !ai) return <div className="grid h-screen place-items-center bg-bg text-ink font-mono text-xs uppercase tracking-wider animate-pulse">Đang mở Studio…</div>;
-  return <div data-role={user ? roleScope(user.role) : 'assistant'} className="h-screen bg-bg">
+  if (error) return <div className="grid h-screen place-items-center bg-bg text-ink"><div className="flex flex-col items-center gap-3 text-center"><p className="text-sm text-danger">{error}</p><button onClick={() => navigate('/my-tasks')} className="px-4 py-2 text-xs uppercase tracking-wide rounded bg-accent text-ink">Quay lại</button></div></div>;
+  if (!engine || !ai) return <div className="grid h-screen place-items-center bg-bg text-ink"><div className="flex flex-col items-center gap-3 text-ink-soft"><Spinner size={28} className="text-accent" /><span className="font-mono text-xs uppercase tracking-wider">Đang mở Studio…</span></div></div>;
+  return <div data-role={user ? roleScope(user.role) : 'assistant'} className="h-screen w-screen overflow-hidden bg-bg">
     <Studio engine={engine} ai={ai} aiKind={aiKind} onSave={onSave} onClose={() => navigate('/my-tasks')} saving={saving} title={`Việc #${id}`} />
   </div>;
 }

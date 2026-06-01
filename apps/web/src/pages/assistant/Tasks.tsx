@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { TaskStatus } from "@manga/shared";
 import { api } from "../../lib/api";
+import { useToast } from "../../components/ui/Toast";
 import type { TaskItem } from "../../types";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
@@ -10,6 +11,7 @@ import { SubmitDialog } from "../../components/assistant/SubmitDialog";
 
 export default function Tasks() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -45,6 +47,7 @@ export default function Tasks() {
           t.id === task.id ? { ...t, status: TaskStatus.IN_PROGRESS } : t
         )
       );
+      toast.success('Đã nhận việc.');
     } catch (e) {
       console.error("Failed to start task", e);
       setError("Không thể bắt đầu việc. Vui lòng thử lại.");

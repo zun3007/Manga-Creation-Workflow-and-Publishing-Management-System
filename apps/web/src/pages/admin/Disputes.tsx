@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../../lib/api";
+import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { Stamp } from "../../components/ui/Stamp";
@@ -26,6 +27,7 @@ interface ResolveForm {
 }
 
 export default function Disputes() {
+  const toast = useToast();
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -64,6 +66,7 @@ export default function Disputes() {
       setDisputes((prev) =>
         prev.map((d) => (d.id === id ? { ...d, status: "UNDER_REVIEW" } : d))
       );
+      toast.success('Đã chuyển sang Đang xử lý.');
     } catch (e: any) {
       const message =
         e?.response?.data?.message || "Không thể bắt đầu xem xét khiếu nại.";
@@ -106,6 +109,7 @@ export default function Disputes() {
       );
       setEditingId(null);
       setForm({ disputeId: 0, resolutionNote: "", adjustedAmount: "" });
+      toast.success('Đã xử lý khiếu nại.');
     } catch (e: any) {
       const message =
         e?.response?.data?.message || "Không thể giải quyết khiếu nại.";

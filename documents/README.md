@@ -28,6 +28,7 @@ NestJS controllers, React routes) — not from aspirational design notes.
 - [01 Product Overview](01-overview/01-product-overview.md) — what it is (and is not), why it exists, the operating model, the five roles, scope, tech at a glance.
 - [02 Requirements & Use Cases](01-overview/02-requirements-and-use-cases.md) — functional + non-functional requirements and detailed use cases (SRS).
 - [03 Glossary](01-overview/03-glossary.md) — domain terms + a quick reference of every status enum.
+- [04 Business Rules](01-overview/04-business-rules.md) — the enforced authorization, workflow, money, validation, integrity & security rules (with where each is enforced).
 
 ### 02 · Architecture
 - [01 System Architecture](02-architecture/01-system-architecture.md) — context, monorepo layout, containers, backend modules, frontend, Studio/AI, request lifecycle, build & deploy.

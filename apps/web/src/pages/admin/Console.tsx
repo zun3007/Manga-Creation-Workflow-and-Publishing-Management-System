@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Role } from "@manga/shared";
 import { api } from "../../lib/api";
+import { useToast } from "../../components/ui/Toast";
 import type { AdminUser } from "../../types";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
@@ -8,6 +9,7 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { roleLabel } from "../../lib/roleLabel";
 
 export default function Console() {
+  const toast = useToast();
   const [overview, setOverview] = useState<Record<string, number> | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +56,7 @@ export default function Console() {
       setUsers((prev) =>
         prev.map((u) => (u.id === id ? { ...u, ...patch } : u))
       );
+      toast.success('Đã cập nhật người dùng.');
     } catch (e: any) {
       const message =
         e?.response?.data?.message || "Không thể cập nhật người dùng.";

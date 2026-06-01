@@ -63,7 +63,7 @@ const TOOL_GROUPS: { label: string; tools: { id: ToolId; icon: React.ReactNode; 
 
 export function Toolbar({ tool, onTool }: ToolbarProps) {
   return (
-    <div className="flex flex-col gap-3 p-2 bg-surface border-r border-line">
+    <div className="flex flex-col gap-3 p-2 bg-surface border-r border-line h-full overflow-y-auto shrink-0">
       {TOOL_GROUPS.map((group) => (
         <div key={group.label} className="flex flex-col gap-1">
           {/* Optional: group label (hidden for compact UI) */}

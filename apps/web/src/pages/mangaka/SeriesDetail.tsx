@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../lib/api";
+import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
 import { Stamp } from "../../components/ui/Stamp";
 import { Button } from "../../components/ui/Button";
@@ -20,6 +21,7 @@ const NEXT: Record<string, { to: ChapterStatus; label: string } | undefined> = {
 
 export default function SeriesDetail() {
   const navigate = useNavigate();
+  const toast = useToast();
   const { id } = useParams<{ id: string }>();
   const seriesId = Number(id);
 
@@ -80,6 +82,7 @@ export default function SeriesDetail() {
       // Prepend new chapter to list
       const newChapter = res.data;
       setChapters([newChapter, ...chapters]);
+      toast.success('Đã tạo chương.');
       // Reset form
       setFormTitle("");
       setFormDeadline("");
@@ -104,6 +107,11 @@ export default function SeriesDetail() {
       setChapters((prev) =>
         prev.map((ch) => (ch.id === chapterId ? { ...ch, status: newStatus } : ch))
       );
+      if (newStatus === "PUBLISHED") {
+        toast.success('Đã xuất bản chương.');
+      } else {
+        toast.success('Đã cập nhật chương.');
+      }
     } catch (e) {
       console.error("Failed to update chapter status", e);
       setLifecycleError({

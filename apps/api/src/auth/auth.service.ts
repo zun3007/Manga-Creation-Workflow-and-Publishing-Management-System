@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { AuthUser, JwtPayload } from '@manga/shared';
@@ -42,6 +42,24 @@ export class AuthService {
       );
     }
     return this.issue(user);
+  }
+
+  async changePassword(userId: number, currentPassword: string, newPassword: string) {
+    const user = await this.users.findById(userId);
+    if (!user) throw new UnauthorizedException('Không tìm thấy người dùng');
+    if (!user.password_hash) {
+      throw new BadRequestException(
+        'Tài khoản đăng nhập bằng Google không dùng mật khẩu nội bộ',
+      );
+    }
+    const ok = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!ok) throw new BadRequestException('Mật khẩu hiện tại không đúng');
+    if (currentPassword === newPassword) {
+      throw new BadRequestException('Mật khẩu mới phải khác mật khẩu hiện tại');
+    }
+    const hash = await bcrypt.hash(newPassword, 10);
+    await this.users.updatePassword(userId, hash);
+    return { ok: true };
   }
 
   private issue(user: UserRow) {

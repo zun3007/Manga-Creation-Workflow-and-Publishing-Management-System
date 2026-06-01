@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Download, Upload, RotateCcw, RotateCw } from 'lucide-react';
+import { ChevronDown, Download, Upload, RotateCcw, RotateCw, ZoomIn, ZoomOut, Maximize2, Minimize2 } from 'lucide-react';
 import type { StudioEngine } from '../../lib/studio/engine';
 import type { AIAssist } from '../../lib/studio/ai/AIAssist';
 import type { BrushSettings, ToolId, RGBA, RectN } from '../../lib/studio/types';
@@ -69,6 +69,12 @@ export function Studio({
   const [version, setVersion] = useState(0);
   const [pendingFrames, setPendingFrames] = useState<RectN[]>([]);
   const [exportOpen, setExportOpen] = useState(false);
+  const [fitToken, setFitToken] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const canvasWrapRef = useRef<HTMLDivElement>(null);
+  const prevToolRef = useRef<ToolId>('brush');
+  const toolRef = useRef<ToolId>(tool);
 
   // Refs to keep tool getters reading latest state
   const settingsRef = useRef(settings);
@@ -101,6 +107,10 @@ export function Studio({
   useEffect(() => {
     aiRef.current = ai;
   }, [ai]);
+
+  useEffect(() => {
+    toolRef.current = tool;
+  }, [tool]);
 
   // Create tools once
   const tools = useRef(
@@ -210,22 +220,25 @@ export function Studio({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [engine, tool]);
 
-  // Handle Space for pan
+  // Hold Space to temporarily pan; releasing restores the previous tool.
   useEffect(() => {
+    const isTyping = (t: EventTarget | null) => {
+      const el = t as HTMLElement | null;
+      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+    };
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !e.repeat) {
+      if (e.code === 'Space' && !e.repeat && !isTyping(e.target)) {
         e.preventDefault();
+        if (toolRef.current !== 'pan') prevToolRef.current = toolRef.current;
         setTool('pan');
       }
     };
-
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         e.preventDefault();
-        setTool('brush');
+        setTool(prevToolRef.current);
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     return () => {
@@ -233,6 +246,29 @@ export function Studio({
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, []);
+
+  // Fullscreen + zoom controls
+  const toggleFullscreen = () => {
+    const el = rootRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) void document.exitFullscreen?.();
+    else void el.requestFullscreen?.();
+  };
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
+  const zoomAround = (factor: number) => {
+    const el = canvasWrapRef.current;
+    setView((v) => {
+      const z = Math.max(0.05, Math.min(32, v.zoom * factor));
+      if (!el) return { ...v, zoom: z };
+      const cx = el.clientWidth / 2, cy = el.clientHeight / 2;
+      const docX = (cx - v.panX) / v.zoom, docY = (cy - v.panY) / v.zoom;
+      return { ...v, zoom: z, panX: cx - docX * z, panY: cy - docY * z };
+    });
+  };
 
   const handleAddSwatch = (hex: string) => {
     setPalette((p) => [hex, ...p.filter((x) => x !== hex)].slice(0, 10));
@@ -348,21 +384,32 @@ export function Studio({
   const cursor = tools[tool]?.cursor ?? 'crosshair';
 
   return (
-    <div className="flex h-full bg-surface text-ink" data-role="studio">
+    <div ref={rootRef} className="flex h-full w-full overflow-hidden min-h-0 bg-surface text-ink" data-role="studio">
       {/* Left toolbar */}
       <Toolbar tool={tool} onTool={setTool} />
 
       {/* Center canvas */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0">
         {/* Top bar */}
         <div className="flex items-center justify-between gap-4 px-4 py-2 bg-surface-alt border-b border-line">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <span className="font-mono text-sm text-ink-soft">
               {title || 'Studio'}
             </span>
-            <span className="text-xs text-ink-soft">
-              {(view.zoom * 100).toFixed(0)}%
-            </span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => zoomAround(1 / 1.25)} title="Thu nhỏ" aria-label="Zoom out" className="p-1.5 hover:bg-surface rounded transition-colors">
+                <ZoomOut size={16} />
+              </button>
+              <span className="w-12 text-center text-xs font-mono text-ink-soft tabular-nums">
+                {(view.zoom * 100).toFixed(0)}%
+              </span>
+              <button onClick={() => zoomAround(1.25)} title="Phóng to" aria-label="Zoom in" className="p-1.5 hover:bg-surface rounded transition-colors">
+                <ZoomIn size={16} />
+              </button>
+              <button onClick={() => setFitToken((t) => t + 1)} title="Vừa khung hình" aria-label="Fit to screen" className="px-2 py-1 text-xs font-mono uppercase hover:bg-surface rounded transition-colors">
+                Fit
+              </button>
+            </div>
             <div
               className="px-2 py-1 text-xs font-mono bg-surface border border-line rounded text-ink-soft"
               aria-label="ai-status"
@@ -467,6 +514,16 @@ export function Studio({
               Lưu
             </button>
 
+            {/* Fullscreen */}
+            <button
+              onClick={toggleFullscreen}
+              title="Toàn màn hình"
+              className="p-2 hover:bg-surface rounded transition-colors"
+              aria-label="Toggle fullscreen"
+            >
+              {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+            </button>
+
             {/* Close button */}
             <button
               onClick={onClose}
@@ -480,7 +537,8 @@ export function Studio({
 
         {/* Canvas with checkerboard background */}
         <div
-          className="flex-1 overflow-hidden"
+          ref={canvasWrapRef}
+          className="relative flex-1 overflow-hidden min-h-0"
           style={{
             backgroundImage:
               'repeating-conic-gradient(#e5e5e5 0% 25%, transparent 0% 50%)',
@@ -491,6 +549,8 @@ export function Studio({
             engine={engine}
             view={view}
             onViewChange={setView}
+            panning={tool === 'pan'}
+            fitToken={fitToken}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
@@ -500,7 +560,7 @@ export function Studio({
       </div>
 
       {/* Right dock with collapsible panels */}
-      <div className="w-72 flex flex-col gap-0 bg-surface border-l border-line overflow-y-auto">
+      <div className="w-72 shrink-0 flex flex-col gap-0 bg-surface border-l border-line overflow-y-auto min-h-0">
         {/* Color Panel */}
         <div className="border-b border-line">
           <ColorPanel

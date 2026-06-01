@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import React from "react";
 import { api } from "../../lib/api";
+import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { Stamp } from "../../components/ui/Stamp";
@@ -37,6 +38,7 @@ interface EarningsData {
 }
 
 export default function Earnings() {
+  const toast = useToast();
   const [earnings, setEarnings] = useState<EarningsData | null>(null);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +107,7 @@ export default function Earnings() {
       // Close form
       setEditingTaskId(null);
       setFormData({ reason: "", expectedAmount: "" });
+      toast.success('Đã gửi khiếu nại.');
     } catch (e) {
       console.error("Failed to submit dispute", e);
       setError("Không thể gửi khiếu nại. Vui lòng thử lại.");

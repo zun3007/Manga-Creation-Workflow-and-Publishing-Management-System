@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   Post,
   Req,
   Res,
@@ -11,6 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { GoogleOauthGuard } from './google-oauth.guard';
 
@@ -36,6 +38,12 @@ export class AuthController {
   logout() {
     // JWT is stateless; the client drops the token. Endpoint kept for symmetry.
     return { ok: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('password')
+  changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
+    return this.auth.changePassword(req.user.id, dto.currentPassword, dto.newPassword);
   }
 
   @UseGuards(GoogleOauthGuard)

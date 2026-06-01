@@ -35,6 +35,13 @@ export class UsersService {
     );
   }
 
+  async updatePassword(userId: number, passwordHash: string): Promise<void> {
+    await this.db.query(
+      `UPDATE \`User\` SET password_hash = ? WHERE user_id = ?`,
+      [passwordHash, userId],
+    );
+  }
+
   async linkGoogle(userId: number, googleId: string): Promise<void> {
     await this.db.query(
       `UPDATE \`User\` SET google_id = ?, auth_provider = 'GOOGLE' WHERE user_id = ? AND google_id IS NULL`,

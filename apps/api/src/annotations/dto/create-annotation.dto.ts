@@ -5,6 +5,8 @@ import {
   IsNotEmpty,
   IsOptional,
   IsNumber,
+  MaxLength,
+  Min,
 } from 'class-validator';
 import {
   AnnotationTargetType,
@@ -13,16 +15,21 @@ import {
 
 export class CreateAnnotationDto {
   @IsEnum(AnnotationTargetType)
+  @IsNotEmpty()
   targetType!: AnnotationTargetType;
 
   @IsInt()
+  @Min(1)
+  @IsNotEmpty()
   targetId!: number;
 
   @IsEnum(AnnotationCategory)
+  @IsNotEmpty()
   category!: AnnotationCategory;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(5000)
   context!: string;
 
   @IsOptional()

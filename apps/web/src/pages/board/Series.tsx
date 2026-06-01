@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../../lib/api";
+import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Stamp } from "../../components/ui/Stamp";
@@ -23,6 +24,7 @@ interface Editor {
 }
 
 export default function BoardSeries() {
+  const toast = useToast();
   const [rows, setRows] = useState<SeriesRow[]>([]);
   const [editors, setEditors] = useState<Editor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +72,7 @@ export default function BoardSeries() {
               : row
           )
         );
+        toast.success('Đã gỡ phân công biên tập.');
       } else {
         // Assign
         const editorId = Number(value);
@@ -86,6 +89,7 @@ export default function BoardSeries() {
               : row
           )
         );
+        toast.success('Đã phân công biên tập.');
       }
     } catch (e: any) {
       const message =

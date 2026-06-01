@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../../lib/api";
+import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { EmptyState } from "../../components/ui/EmptyState";
@@ -33,6 +34,7 @@ type AnnotationFormState = {
 export default function ChapterReview() {
   const { chapterId } = useParams<{ chapterId: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [pages, setPages] = useState<EditorPage[]>([]);
   const [annotationsByPageId, setAnnotationsByPageId] = useState<Record<number, Annotation[]>>({});
@@ -145,6 +147,7 @@ export default function ChapterReview() {
         ],
       }));
 
+      toast.success('Đã thêm góp ý.');
       setFormState(null);
       setFormContext("");
     } catch (e) {
@@ -167,6 +170,7 @@ export default function ChapterReview() {
           a.id === annotationId ? { ...a, isResolved: 1 } : a
         ),
       }));
+      toast.success('Đã đánh dấu đã xử lý.');
     } catch (e) {
       console.error("Failed to resolve annotation", e);
       setError("Không thể đánh dấu đã xử lý. Vui lòng thử lại.");
@@ -182,6 +186,7 @@ export default function ChapterReview() {
       await api.patch(`/chapters/${chapterId}/editor-review`, {
         decision: "APPROVE",
       });
+      toast.success('Đã duyệt chương.');
       navigate("/editor/review");
     } catch (e) {
       console.error("Failed to approve chapter", e);
@@ -199,6 +204,7 @@ export default function ChapterReview() {
         decision: "REVISE",
         feedback: feedbackText.trim(),
       });
+      toast.success('Đã trả chương để chỉnh sửa.');
       navigate("/editor/review");
     } catch (e) {
       console.error("Failed to revise chapter", e);
