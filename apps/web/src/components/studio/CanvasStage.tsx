@@ -88,7 +88,8 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
         ctx.strokeStyle = '#FF5A5F';
         ctx.strokeRect(rx, ry, rw, rh);
         ctx.fillStyle = '#FF5A5F';
-        ctx.fillText(String(i + 1), rx + 4 / v.zoom, ry + 4 / v.zoom);
+        ctx.textAlign = 'right'; // manga reads right-to-left → number the top-right corner
+        ctx.fillText(String(i + 1), rx + rw - 4 / v.zoom, ry + 4 / v.zoom);
       }
       ctx.restore();
     }

@@ -13,6 +13,7 @@ import {
   imageToBuffer,
 } from '../../lib/studio/io';
 import { createTools } from '../../lib/studio/tools/registry';
+import { drawFrameBorders } from '../../lib/studio/panels';
 import type { PointerSample } from '../../lib/studio/tools/Tool';
 import { Toolbar } from './Toolbar';
 import { CanvasStage } from './CanvasStage';
@@ -374,6 +375,17 @@ export function Studio({
     }
   };
 
+  const handleInkFrames = () => {
+    if (!pendingFrames.length) return;
+    engine.addLayer('raster', 'Khung');
+    const active = engine.doc.activeLayerId;
+    if (active) {
+      drawFrameBorders(engine.getBuffer(active), engine.doc.width, engine.doc.height, pendingFrames, 4);
+      engine.requestRender();
+    }
+    setPendingFrames([]);
+  };
+
   const handleSaveRegions = () => {
     if (onSaveRegions && pendingFrames.length > 0) {
       onSaveRegions(pendingFrames);
@@ -492,7 +504,17 @@ export function Studio({
               />
             </label>
 
-            {/* Save regions button */}
+            {/* Frame actions: preview overlay -> ink borders and/or save as regions */}
+            {pendingFrames.length > 0 && (
+              <button
+                onClick={handleInkFrames}
+                className="px-3 py-2 text-xs font-mono uppercase rounded border border-line text-ink hover:bg-surface"
+                aria-label="Ink frame borders"
+                title="Vẽ viền khung lên layer"
+              >
+                Vẽ viền ({pendingFrames.length})
+              </button>
+            )}
             {pendingFrames.length > 0 && (
               <button
                 onClick={handleSaveRegions}
