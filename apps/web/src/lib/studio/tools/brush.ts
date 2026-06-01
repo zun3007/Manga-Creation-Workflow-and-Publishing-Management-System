@@ -28,6 +28,20 @@ export function pressureOpacity(base: number, pressure: number, enabled: boolean
   return enabled ? base * pressure : base;
 }
 
+/** Per-tool character so ink/pencil/airbrush/marker actually differ from a plain brush.
+ *  Modifiers layer on top of the user's size/opacity/flow sliders. */
+interface BrushProfile {
+  hardness?: number; opacityMul?: number; flowMul?: number;
+  pressureSize?: boolean; pressureOpacity?: boolean; spacingMul?: number;
+}
+const BRUSH_PROFILES: Record<string, BrushProfile> = {
+  // G-pen: crisp hard edge, fully opaque, strong size-taper from pressure, tight spacing
+  ink: { hardness: 1.0, opacityMul: 1.0, flowMul: 1.0, pressureSize: true, pressureOpacity: false, spacingMul: 0.5 },
+  pencil: { hardness: 0.55, opacityMul: 0.85, flowMul: 0.9, pressureOpacity: true },
+  airbrush: { hardness: 0.12, opacityMul: 0.55, flowMul: 0.3, pressureOpacity: true, spacingMul: 0.4 },
+  marker: { hardness: 0.9, opacityMul: 0.7, flowMul: 1.0, pressureSize: false, spacingMul: 0.7 },
+};
+
 export class BrushTool implements Tool {
   id: BrushSettings['tool'];
   private getSettings: () => BrushSettings;
@@ -45,15 +59,18 @@ export class BrushTool implements Tool {
 
   private stampAt(eng: StudioEngine, x: number, y: number, pressure: number) {
     const s = this.getSettings();
-    const isEraser = s.tool === 'eraser';
-    const radius = pressureSize(s.size, pressure, s.pressureSize) / 2;
-    const flow = pressureOpacity(s.flow, pressure, s.pressureOpacity);
-    if (isEraser) {
-      eng.erase(x, y, radius, 1, flow);
+    if (s.tool === 'eraser') {
+      const r = pressureSize(s.size, pressure, s.pressureSize) / 2;
+      eng.erase(x, y, r, 1, pressureOpacity(s.flow, pressure, s.pressureOpacity));
       return;
     }
+    const p = BRUSH_PROFILES[s.tool] ?? {};
+    const radius = pressureSize(s.size, pressure, p.pressureSize ?? s.pressureSize) / 2;
+    const flow = pressureOpacity((p.flowMul ?? 1) * s.flow, pressure, p.pressureOpacity ?? s.pressureOpacity);
+    const hardness = p.hardness ?? s.hardness;
+    const opacity = Math.round(255 * Math.min(1, (p.opacityMul ?? 1) * s.opacity));
     const c = this.getColor();
-    eng.stamp(x, y, radius, s.hardness, { r: c.r, g: c.g, b: c.b, a: Math.round(255 * s.opacity) }, flow);
+    eng.stamp(x, y, radius, hardness, { r: c.r, g: c.g, b: c.b, a: opacity }, flow);
   }
 
   onDown(e: PointerSample, eng: StudioEngine) {
@@ -72,7 +89,7 @@ export class BrushTool implements Tool {
     this.smX += (e.x - this.smX) * (1 - a);
     this.smY += (e.y - this.smY) * (1 - a);
     const pt = { x: this.smX, y: this.smY };
-    const spacing = Math.max(1, s.size * s.spacing);
+    const spacing = Math.max(1, s.size * s.spacing * (BRUSH_PROFILES[s.tool]?.spacingMul ?? 1));
     for (const p of interpolateStamps(this.last, pt, spacing)) {
       this.stampAt(eng, p.x, p.y, e.pressure);
     }
