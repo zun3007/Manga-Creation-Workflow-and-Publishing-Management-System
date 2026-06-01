@@ -376,22 +376,27 @@ export function Studio({
     }
   };
 
-  const handleInkFrames = () => {
-    if (!pendingFrames.length) return;
+  const inkFrames = (frames: RectN[]) => {
+    if (!frames.length) return;
     engine.addLayer('raster', 'Khung');
     const active = engine.doc.activeLayerId;
     if (active) {
-      drawFrameBorders(engine.getBuffer(active), engine.doc.width, engine.doc.height, pendingFrames, 4);
+      drawFrameBorders(engine.getBuffer(active), engine.doc.width, engine.doc.height, frames, 4);
       engine.requestRender();
     }
+  };
+
+  const handleInkFrames = () => {
+    inkFrames(pendingFrames);
     setPendingFrames([]);
   };
 
+  // Save = draw the borders (so the panels don't vanish) AND persist them as regions.
   const handleSaveRegions = () => {
-    if (onSaveRegions && pendingFrames.length > 0) {
-      onSaveRegions(pendingFrames);
-      setPendingFrames([]);
-    }
+    if (pendingFrames.length === 0) return;
+    inkFrames(pendingFrames);
+    onSaveRegions?.(pendingFrames);
+    setPendingFrames([]);
   };
 
   const cursor = tools[tool]?.cursor ?? 'crosshair';

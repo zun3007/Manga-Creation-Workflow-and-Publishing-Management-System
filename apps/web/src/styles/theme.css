@@ -48,7 +48,9 @@
   --color-danger: #D0746B;
   --color-muted: #9A8F84;
 
-  --font-display: "Shippori Mincho", serif;
-  --font-sans: "Zen Kaku Gothic New", system-ui, sans-serif;
+  /* Vietnamese-first fonts (Be Vietnam Pro / Noto Serif) with the Japanese face kept
+     as a fallback so JP labels like 集中線 still render, while VN diacritics are correct. */
+  --font-display: "Noto Serif", "Zen Kaku Gothic New", serif;
+  --font-sans: "Be Vietnam Pro", "Zen Kaku Gothic New", system-ui, sans-serif;
   --font-mono: "Spline Sans Mono", ui-monospace, monospace;
 }
