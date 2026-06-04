@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Role } from "@manga/shared";
 import { api } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
+import { useConfirm } from "../../lib/confirm";
 import type { AdminUser } from "../../types";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
@@ -10,6 +11,7 @@ import { roleLabel } from "../../lib/roleLabel";
 
 export default function Console() {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const [overview, setOverview] = useState<Record<string, number> | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +47,7 @@ export default function Console() {
 
     // Confirm on deactivate
     if (patch.isActivated === false) {
-      if (!window.confirm("Khoá (vô hiệu hoá) người dùng này?")) {
+      if (!(await confirm({ title: 'Khoá (vô hiệu hoá) người dùng này?', tone: 'danger' }))) {
         setSavingId(null);
         return;
       }

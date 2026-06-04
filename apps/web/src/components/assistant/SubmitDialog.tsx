@@ -1,8 +1,11 @@
 import { useRef, useState } from "react";
 import { api } from "../../lib/api";
 import type { TaskItem } from "../../types";
-import { Panel } from "../ui/Panel";
+import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
+import { Progress } from "../ui/Progress";
+import { useToast } from "../ui/Toast";
+import { validateUpload } from "../../lib/fileValidation";
 
 interface SubmitDialogProps {
   task: TaskItem;
@@ -11,11 +14,13 @@ interface SubmitDialogProps {
 }
 
 export function SubmitDialog({ task, onClose, onSubmitted }: SubmitDialogProps) {
+  const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [versionNote, setVersionNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [progress, setProgress] = useState(0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,6 +40,7 @@ export function SubmitDialog({ task, onClose, onSubmitted }: SubmitDialogProps) 
 
       const uploadRes = await api.post<{ url: string }>("/uploads", formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (e) => setProgress(Math.round((e.loaded / (e.total || e.loaded)) * 100)),
       });
 
       // Submit the submission
@@ -44,6 +50,7 @@ export function SubmitDialog({ task, onClose, onSubmitted }: SubmitDialogProps) 
         versionNote: versionNote || undefined,
       });
 
+      toast.success("Đã nộp bài.");
       onSubmitted();
       onClose();
     } catch (e) {
@@ -55,28 +62,9 @@ export function SubmitDialog({ task, onClose, onSubmitted }: SubmitDialogProps) 
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 100,
-      }}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md"
-        onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
-      >
-        <Panel className="p-6">
-          <h2 className="text-xl font-semibold text-ink mb-4">
-            Nộp bài — {task.description || `Việc #${task.id}`}
-          </h2>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+    <Modal open onClose={onClose} title={`Nộp bài — ${task.description || `Việc #${task.id}`}`} className="w-full max-w-md">
+      <div className="p-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
             {/* File input */}
             <label className="block">
               <span className="mb-2 block font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft">
@@ -88,7 +76,15 @@ export function SubmitDialog({ task, onClose, onSubmitted }: SubmitDialogProps) 
                   type="file"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
-                    if (f) setFile(f);
+                    if (f) {
+                      const v = validateUpload(f);
+                      if (!v.ok) {
+                        setError(v.message);
+                        return;
+                      }
+                      setError("");
+                      setFile(f);
+                    }
                   }}
                   disabled={submitting}
                   className="sr-only"
@@ -124,7 +120,9 @@ export function SubmitDialog({ task, onClose, onSubmitted }: SubmitDialogProps) 
               />
             </label>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-danger">{error}</p>}
+
+            {submitting && <Progress value={progress} max={100} />}
 
             {/* Buttons */}
             <div className="flex gap-2 pt-2">
@@ -140,14 +138,14 @@ export function SubmitDialog({ task, onClose, onSubmitted }: SubmitDialogProps) 
               <Button
                 type="submit"
                 className="flex-1"
-                disabled={submitting || !file}
+                disabled={!file}
+                loading={submitting}
               >
-                {submitting ? "Đang nộp…" : "Nộp"}
+                Nộp
               </Button>
             </div>
           </form>
-        </Panel>
       </div>
-    </div>
+    </Modal>
   );
 }

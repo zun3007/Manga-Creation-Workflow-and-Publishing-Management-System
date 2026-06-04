@@ -29,19 +29,45 @@ export default function Login() {
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   useEffect(() => {
     if (user) navigate("/", { replace: true });
   }, [user, navigate]);
 
   useEffect(() => {
-    if (params.get("error") === "google_not_configured") {
+    const errorParam = params.get("error");
+    if (errorParam === "session_expired") {
+      setError("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
+    } else if (errorParam === "google_not_configured") {
       setError("Google OAuth chưa cấu hình — xem dev/README.md để thêm credentials.");
     }
   }, [params]);
 
+  function validateForm(): boolean {
+    setEmailError("");
+    setPasswordError("");
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError("Email không hợp lệ.");
+      return false;
+    }
+
+    if (!password.trim()) {
+      setPasswordError("Mật khẩu không thể trống.");
+      return false;
+    }
+
+    return true;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!validateForm()) return;
+
     setBusy(true);
     setError("");
     try {
@@ -135,25 +161,35 @@ export default function Login() {
             )}
 
             <form onSubmit={onSubmit} className="mt-6 space-y-5">
-              <Input
-                label="Email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="ban@studio.com"
-                required
-              />
+              <div>
+                <Input
+                  label="Email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setEmailError("");
+                  }}
+                  placeholder="ban@studio.com"
+                  aria-invalid={emailError ? "true" : undefined}
+                  required
+                />
+                {emailError && <p className="mt-1 text-sm text-danger">{emailError}</p>}
+              </div>
 
               <div>
                 <label className="font-mono text-xs uppercase tracking-wider block text-ink-soft mb-1">
                   Mật khẩu
                 </label>
-                <div className="flex items-center gap-2 border border-line rounded-[calc(var(--app-radius)*0.6)] bg-surface px-3 py-2 focus-within:border-accent transition">
+                <div className={`flex items-center gap-2 border rounded-[calc(var(--app-radius)*0.6)] bg-surface px-3 py-2 focus-within:border-accent transition ${passwordError ? "border-danger" : "border-line"}`} aria-invalid={passwordError ? "true" : undefined}>
                   <Lock size={18} className="text-ink-soft shrink-0" />
                   <input
                     type={show ? "text" : "password"}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setPasswordError("");
+                    }}
                     className="flex-1 bg-transparent text-ink outline-none placeholder:text-ink-soft"
                     placeholder="••••••••"
                     required
@@ -167,10 +203,11 @@ export default function Login() {
                     {show ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+                {passwordError && <p className="mt-1 text-sm text-danger">{passwordError}</p>}
               </div>
 
-              <Button type="submit" disabled={busy} className="w-full">
-                {busy ? "Đang vào studio…" : "Đăng nhập"}
+              <Button type="submit" loading={busy} className="w-full">
+                Đăng nhập
                 {!busy && <ArrowRight size={18} />}
               </Button>
             </form>

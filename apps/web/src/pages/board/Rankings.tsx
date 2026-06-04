@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
+import { useConfirm } from "../../lib/confirm";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { Stamp } from "../../components/ui/Stamp";
@@ -35,6 +36,7 @@ type FrequencyType = "WEEKLY" | "MONTHLY";
 
 export default function BoardRankings() {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const [rankings, setRankings] = useState<RankingRow[]>([]);
   const [openPeriods, setOpenPeriods] = useState<OpenPeriod[]>([]);
   const [seriesOptions, setSeriesOptions] = useState<SeriesOption[]>([]);
@@ -80,7 +82,7 @@ export default function BoardRankings() {
     }
   };
 
-  const handleDecision = async (seriesId: number) => {
+  const handleDecision = async (seriesId: number): Promise<void> => {
     const decision = decisionData[seriesId];
     if (!decision || !decision.type || !decision.reason.trim()) {
       setActionError("Vui lòng điền đầy đủ thông tin quyết định.");
@@ -93,7 +95,7 @@ export default function BoardRankings() {
     }
 
     if (decision.type === "CANCEL" || decision.type === "HIATUS") {
-      if (!window.confirm("Xác nhận quyết định này cho series? Hành động sẽ đổi trạng thái series.")) {
+      if (!(await confirm({ title: 'Xác nhận quyết định cho series?', body: 'Hành động sẽ đổi trạng thái series.', tone: 'danger' }))) {
         return;
       }
     }

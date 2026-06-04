@@ -75,6 +75,11 @@ export default function Earnings() {
       return;
     }
 
+    if (formData.expectedAmount && Number(formData.expectedAmount) <= 0) {
+      setError("Số tiền mong đợi phải lớn hơn 0.");
+      return;
+    }
+
     setBusy(true);
     setError("");
     try {

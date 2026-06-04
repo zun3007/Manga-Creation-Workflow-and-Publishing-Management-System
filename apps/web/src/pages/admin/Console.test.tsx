@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
+import { ConfirmProvider } from "../../lib/confirm";
+import { ToastProvider } from "../../components/ui/Toast";
 import Console from "./Console";
 
 const mockGet = vi.fn();
@@ -15,7 +17,6 @@ vi.mock("../../lib/api", () => ({
 
 describe("Console", () => {
   beforeEach(() => {
-    vi.stubGlobal("confirm", () => true);
     mockGet.mockClear();
     mockPatch.mockClear();
 
@@ -59,7 +60,11 @@ describe("Console", () => {
   it("renders overview cards with stats", async () => {
     render(
       <BrowserRouter>
-        <Console />
+        <ToastProvider>
+          <ConfirmProvider>
+            <Console />
+          </ConfirmProvider>
+        </ToastProvider>
       </BrowserRouter>
     );
 
@@ -71,7 +76,11 @@ describe("Console", () => {
   it("renders a user row with name and email", async () => {
     render(
       <BrowserRouter>
-        <Console />
+        <ToastProvider>
+          <ConfirmProvider>
+            <Console />
+          </ConfirmProvider>
+        </ToastProvider>
       </BrowserRouter>
     );
 
@@ -82,7 +91,11 @@ describe("Console", () => {
   it("changes user role via select and calls api.patch", async () => {
     render(
       <BrowserRouter>
-        <Console />
+        <ToastProvider>
+          <ConfirmProvider>
+            <Console />
+          </ConfirmProvider>
+        </ToastProvider>
       </BrowserRouter>
     );
 
@@ -109,7 +122,11 @@ describe("Console", () => {
   it("toggles user activation status via button", async () => {
     render(
       <BrowserRouter>
-        <Console />
+        <ToastProvider>
+          <ConfirmProvider>
+            <Console />
+          </ConfirmProvider>
+        </ToastProvider>
       </BrowserRouter>
     );
 
@@ -121,6 +138,9 @@ describe("Console", () => {
     expect(lockButton).toBeTruthy();
 
     fireEvent.click(lockButton!);
+
+    // Confirm the styled confirm dialog
+    fireEvent.click(await screen.findByText("Xác nhận"));
 
     // Verify api.patch was called with isActivated: false
     await waitFor(() => {
@@ -142,7 +162,11 @@ describe("Console", () => {
 
     render(
       <BrowserRouter>
-        <Console />
+        <ToastProvider>
+          <ConfirmProvider>
+            <Console />
+          </ConfirmProvider>
+        </ToastProvider>
       </BrowserRouter>
     );
 
@@ -151,6 +175,9 @@ describe("Console", () => {
     const buttons = screen.getAllByRole("button");
     const lockButton = buttons.find((btn) => btn.textContent?.includes("Khoá"));
     fireEvent.click(lockButton!);
+
+    // Confirm the styled confirm dialog
+    fireEvent.click(await screen.findByText("Xác nhận"));
 
     expect(
       await screen.findByText("Không thể khoá admin cuối cùng.")
@@ -172,7 +199,11 @@ describe("Console", () => {
 
     render(
       <BrowserRouter>
-        <Console />
+        <ToastProvider>
+          <ConfirmProvider>
+            <Console />
+          </ConfirmProvider>
+        </ToastProvider>
       </BrowserRouter>
     );
 
