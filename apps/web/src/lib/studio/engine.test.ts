@@ -125,4 +125,26 @@ describe('StudioEngine', () => {
     eng.addLayer('raster', 'new layer');
     expect(eng.isDirty()).toBe(true);
   });
+  it('setLayerText stores and retrieves TextData', async () => {
+    const wasm = await InkforgeWasm.load(wasmBytes as BufferSource);
+    const doc = createDocument({ width: 100, height: 100, background: 'transparent' });
+    const eng = new StudioEngine(doc, wasm);
+    eng.addLayer('text', 'Text Layer');
+    const layerId = eng.doc.activeLayerId!;
+    const textData = {
+      content: 'Hello World',
+      fontFamily: 'Arial, sans-serif',
+      fontSize: 24,
+      color: '#FF0000',
+      bold: true,
+      align: 'center' as const,
+      vertical: false,
+      x: 50,
+      y: 50,
+    };
+    eng.setLayerText(layerId, textData);
+    const layer = eng.doc.layers.find((l) => l.id === layerId);
+    expect(layer).toBeDefined();
+    expect(layer!.text).toEqual(textData);
+  });
 });

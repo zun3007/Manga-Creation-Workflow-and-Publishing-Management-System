@@ -63,7 +63,15 @@ export function Studio({
     pressureSize: true,
     pressureOpacity: true,
   });
-  const [color, setColor] = useState<RGBA>({ r: 0, g: 0, b: 0, a: 255 });
+  const [colors, setColors] = useState<{ fg: RGBA; bg: RGBA }>({
+    fg: { r: 0, g: 0, b: 0, a: 255 },
+    bg: { r: 255, g: 255, b: 255, a: 255 },
+  });
+  const [activeColorSlot, setActiveColorSlot] = useState<'fg' | 'bg'>('fg');
+  const color = colors[activeColorSlot];
+  const setColor = (c: RGBA) => {
+    setColors((prev) => ({ ...prev, [activeColorSlot]: c }));
+  };
   const [tolerance, setTolerance] = useState(24);
   const [bubbleType, setBubbleType] = useState<'round' | 'spiky' | 'thought'>('round');
   const [lineWidth, setLineWidth] = useState(3);
@@ -172,6 +180,11 @@ export function Studio({
 
   // Keyboard shortcuts
   useEffect(() => {
+    const isTyping = (t: EventTarget | null) => {
+      const el = t as HTMLElement | null;
+      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
       const mod = isMac ? e.metaKey : e.ctrlKey;
@@ -197,10 +210,29 @@ export function Studio({
         engine.paste();
       }
 
-      // Deselect
+      // Deselect (Ctrl+D)
       if (mod && e.key === 'd') {
         e.preventDefault();
         engine.clearSelection();
+      }
+
+      // Skip tool/color shortcuts when typing
+      if (isTyping(e.target)) return;
+
+      // Color swap (X)
+      if (e.key === 'x' || e.key === 'X') {
+        e.preventDefault();
+        setActiveColorSlot((s) => (s === 'fg' ? 'bg' : 'fg'));
+      }
+
+      // Reset colors to black/white (D, but not Ctrl+D)
+      if (!mod && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        setColors({
+          fg: { r: 0, g: 0, b: 0, a: 255 },
+          bg: { r: 255, g: 255, b: 255, a: 255 },
+        });
+        setActiveColorSlot('fg');
       }
 
       // Tool shortcuts
@@ -620,8 +652,10 @@ export function Studio({
         {/* Color Panel */}
         <div className="border-b border-line">
           <ColorPanel
-            color={color}
-            onColor={setColor}
+            colors={colors}
+            onColors={setColors}
+            activeColorSlot={activeColorSlot}
+            onActiveColorSlot={setActiveColorSlot}
             palette={palette}
             onAddSwatch={handleAddSwatch}
             recent={recent}
