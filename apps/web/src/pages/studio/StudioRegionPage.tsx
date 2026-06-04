@@ -53,6 +53,7 @@ export default function StudioRegionPage() {
       const blob = await exportPNG(engine); const fd = new FormData(); fd.append('file', new File([blob], `task-${id}.png`, { type: 'image/png' }));
       const { data } = await api.post<{ url: string }>('/uploads', fd);
       await api.post('/submissions', { taskId: id, fileUrl: data.url });
+      engine.markSaved();
       toast.update(tid, 'success', 'Đã nộp bài.');
       navigate('/my-tasks');
     } catch (e) { console.error(e); toast.update(tid, 'error', 'Nộp bài thất bại. Thử lại nhé.'); } finally { setSaving(false); }

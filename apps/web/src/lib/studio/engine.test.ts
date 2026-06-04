@@ -31,11 +31,10 @@ describe('StudioEngine', () => {
     const wasm = await InkforgeWasm.load(wasmBytes as BufferSource);
     const doc = createDocument({ width: 5, height: 5, background: 'transparent' });
     const eng = new StudioEngine(doc, wasm);
-    const before = eng.beginStroke();
+    eng.beginStroke();
     eng.bucketFill(2, 2, { r:255,g:0,b:0,a:255 }, 0);
     let out = eng.composite(); expect(out[(2*5+2)*4]).toBe(255);
     eng.undo(); out = eng.composite(); expect(out[(2*5+2)*4+3]).toBe(0);
-    void before;
   });
   it('hidden layers are skipped in composite', async () => {
     const wasm = await InkforgeWasm.load(wasmBytes as BufferSource);
@@ -94,5 +93,36 @@ describe('StudioEngine', () => {
     let opaque=0, clear=0;
     for (let i=3;i<buf.length;i+=4){ if (buf[i]>200) opaque++; else if (buf[i]<40) clear++; }
     expect(opaque).toBeGreaterThan(0); expect(clear).toBeGreaterThan(0);
+  });
+  it('fresh document is not dirty', async () => {
+    const wasm = await InkforgeWasm.load(wasmBytes as BufferSource);
+    const doc = createDocument({ width: 5, height: 5, background: 'transparent' });
+    const eng = new StudioEngine(doc, wasm);
+    expect(eng.isDirty()).toBe(false);
+  });
+  it('becomes dirty after a paint stroke', async () => {
+    const wasm = await InkforgeWasm.load(wasmBytes as BufferSource);
+    const doc = createDocument({ width: 5, height: 5, background: 'transparent' });
+    const eng = new StudioEngine(doc, wasm);
+    eng.beginStroke();
+    eng.bucketFill(2, 2, { r:255,g:0,b:0,a:255 }, 0);
+    expect(eng.isDirty()).toBe(true);
+  });
+  it('becomes not dirty after markSaved', async () => {
+    const wasm = await InkforgeWasm.load(wasmBytes as BufferSource);
+    const doc = createDocument({ width: 5, height: 5, background: 'transparent' });
+    const eng = new StudioEngine(doc, wasm);
+    eng.beginStroke();
+    eng.bucketFill(2, 2, { r:255,g:0,b:0,a:255 }, 0);
+    expect(eng.isDirty()).toBe(true);
+    eng.markSaved();
+    expect(eng.isDirty()).toBe(false);
+  });
+  it('becomes dirty after addLayer', async () => {
+    const wasm = await InkforgeWasm.load(wasmBytes as BufferSource);
+    const doc = createDocument({ width: 5, height: 5, background: 'transparent' });
+    const eng = new StudioEngine(doc, wasm);
+    eng.addLayer('raster', 'new layer');
+    expect(eng.isDirty()).toBe(true);
   });
 });

@@ -3,6 +3,7 @@ import { ChevronDown, Download, Upload, RotateCcw, RotateCw, ZoomIn, ZoomOut, Ma
 import type { StudioEngine } from '../../lib/studio/engine';
 import type { AIAssist } from '../../lib/studio/ai/AIAssist';
 import type { BrushSettings, ToolId, RGBA, RectN } from '../../lib/studio/types';
+import { useConfirm } from '../../lib/confirm';
 import { MANGA_PALETTE } from '../../lib/studio/color';
 import { makeView, type View } from '../../lib/studio/view';
 import {
@@ -49,6 +50,7 @@ export function Studio({
   saving,
   title,
 }: StudioProps) {
+  const { confirm } = useConfirm();
   const [tool, setTool] = useState<ToolId>('brush');
   const [settings, setSettings] = useState<BrushSettings>({
     tool: 'brush',
@@ -249,6 +251,18 @@ export function Studio({
     };
   }, []);
 
+  // beforeunload handler: guard against closing/refreshing with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (engine.isDirty()) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [engine]);
+
   // Fullscreen + zoom controls
   const toggleFullscreen = () => {
     const el = rootRef.current;
@@ -400,6 +414,19 @@ export function Studio({
   };
 
   const cursor = tools[tool]?.cursor ?? 'crosshair';
+
+  // Wrapped close handler: confirm if there are unsaved changes
+  const handleClose = async () => {
+    if (engine.isDirty()) {
+      const confirmed = await confirm({
+        title: 'Thoát Studio?',
+        body: 'Bản vẽ chưa lưu sẽ mất.',
+        tone: 'danger',
+      });
+      if (!confirmed) return;
+    }
+    onClose();
+  };
 
   return (
     <div ref={rootRef} className="flex h-full w-full overflow-hidden min-h-0 bg-surface text-ink" data-role="studio">
@@ -554,7 +581,7 @@ export function Studio({
 
             {/* Close button */}
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="px-3 py-2 text-xs font-mono uppercase rounded hover:bg-surface"
               aria-label="Close"
             >

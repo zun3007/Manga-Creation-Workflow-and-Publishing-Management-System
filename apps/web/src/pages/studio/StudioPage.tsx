@@ -80,11 +80,26 @@ export default function StudioPage() {
       const { manifest, blobs } = await serializeDoc(engine);
       for (const [lid, blob] of Object.entries(blobs)) manifest.layerImages[lid] = await uploadBlob(blob, `layer-${id}-${lid}.png`);
       await api.post('/studio/docs', { pageId: id, manifest });
+      engine.markSaved();
       toast.update(tid, 'success', 'Đã lưu trang.');
     } catch (e) { console.error(e); toast.update(tid, 'error', 'Lưu thất bại. Thử lại nhé.'); } finally { setSaving(false); }
   }
   async function onSaveRegions(frames: RectN[]) {
-    for (const r of frames) { try { await api.post('/regions', { pageId: id, regionType: 'PANEL', x: r.x, y: r.y, width: r.width, height: r.height }); } catch (e) { console.error(e); } }
+    const tid = toast.loading('Đang lưu vùng…');
+    let successCount = 0;
+    for (const r of frames) {
+      try {
+        await api.post('/regions', { pageId: id, regionType: 'PANEL', x: r.x, y: r.y, width: r.width, height: r.height });
+        successCount++;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    if (successCount === frames.length) {
+      toast.update(tid, 'success', `Đã lưu ${successCount} vùng.`);
+    } else {
+      toast.update(tid, 'error', `Lưu vùng thất bại (${successCount}/${frames.length}).`);
+    }
   }
 
   if (error) return <div className="grid h-screen place-items-center bg-bg text-ink"><div className="flex flex-col items-center gap-3 text-center"><p className="text-sm text-danger">{error}</p><button onClick={() => navigate(-1)} className="px-4 py-2 text-xs uppercase tracking-wide rounded bg-accent text-ink">Quay lại</button></div></div>;

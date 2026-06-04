@@ -12,6 +12,8 @@ export class StudioEngine {
   symmetry: 'none'|'vertical'|'horizontal';
   private buffers: Map<string, Uint8ClampedArray>;
   private listeners: Set<() => void>;
+  private revision: number;
+  private savedRevision: number;
 
   constructor(doc: DocumentData, wasm: InkforgeWasm) {
     this.doc = doc;
@@ -21,6 +23,8 @@ export class StudioEngine {
     this.symmetry = 'none';
     this.buffers = new Map();
     this.listeners = new Set();
+    this.revision = 0;
+    this.savedRevision = 0;
     for (const l of doc.layers) this.ensureBuffer(l.id);
   }
 
@@ -66,33 +70,33 @@ export class StudioEngine {
   }
 
   // ---- layer mutations (mirror document.ts, keep buffers in sync) ----
-  addLayer(kind: LayerData['kind'], name?: string) { this.doc = addLayer(this.doc, kind, name); this.ensureBuffer(this.doc.activeLayerId!); this.emit(); }
+  addLayer(kind: LayerData['kind'], name?: string) { this.doc = addLayer(this.doc, kind, name); this.ensureBuffer(this.doc.activeLayerId!); this.revision++; this.emit(); }
 
-  removeLayer(id: string) { this.doc = removeLayer(this.doc, id); this.buffers.delete(id); this.emit(); }
+  removeLayer(id: string) { this.doc = removeLayer(this.doc, id); this.buffers.delete(id); this.revision++; this.emit(); }
 
-  reorderLayer(id: string, to: number) { this.doc = reorderLayer(this.doc, id, to); this.emit(); }
+  reorderLayer(id: string, to: number) { this.doc = reorderLayer(this.doc, id, to); this.revision++; this.emit(); }
 
-  setActiveLayer(id: string) { this.doc = setActive(this.doc, id); this.emit(); }
+  setActiveLayer(id: string) { this.doc = setActive(this.doc, id); this.revision++; this.emit(); }
 
-  setLayerVisible(id: string, v: boolean) { this.doc = updateLayer(this.doc, id, { visible: v }); this.emit(); }
+  setLayerVisible(id: string, v: boolean) { this.doc = updateLayer(this.doc, id, { visible: v }); this.revision++; this.emit(); }
 
-  setLayerOpacity(id: string, o: number) { this.doc = updateLayer(this.doc, id, { opacity: o }); this.emit(); }
+  setLayerOpacity(id: string, o: number) { this.doc = updateLayer(this.doc, id, { opacity: o }); this.revision++; this.emit(); }
 
-  setLayerBlend(id: string, b: BlendMode) { this.doc = updateLayer(this.doc, id, { blendMode: b }); this.emit(); }
+  setLayerBlend(id: string, b: BlendMode) { this.doc = updateLayer(this.doc, id, { blendMode: b }); this.revision++; this.emit(); }
 
-  setLayerLocked(id: string, v: boolean) { this.doc = updateLayer(this.doc, id, { locked: v }); this.emit(); }
+  setLayerLocked(id: string, v: boolean) { this.doc = updateLayer(this.doc, id, { locked: v }); this.revision++; this.emit(); }
 
-  setLayerClipped(id: string, v: boolean) { this.doc = updateLayer(this.doc, id, { clipped: v }); this.emit(); }
+  setLayerClipped(id: string, v: boolean) { this.doc = updateLayer(this.doc, id, { clipped: v }); this.revision++; this.emit(); }
 
-  renameLayer(id: string, name: string) { this.doc = updateLayer(this.doc, id, { name }); this.emit(); }
+  renameLayer(id: string, name: string) { this.doc = updateLayer(this.doc, id, { name }); this.revision++; this.emit(); }
 
-  setLayerText(id: string, text: import('./types').TextData) { this.doc = updateLayer(this.doc, id, { text }); this.emit(); }
+  setLayerText(id: string, text: import('./types').TextData) { this.doc = updateLayer(this.doc, id, { text }); this.revision++; this.emit(); }
 
   duplicateLayer(id: string) {
     const i = this.doc.layers.findIndex(l => l.id === id); if (i < 0) return;
     const src = this.doc.layers[i]; this.doc = addLayer(this.doc, src.kind, `${src.name} copy`);
     const nid = this.doc.activeLayerId!; this.ensureBuffer(nid).set(this.ensureBuffer(id));
-    this.doc = reorderLayer(this.doc, nid, i + 1); this.emit();
+    this.doc = reorderLayer(this.doc, nid, i + 1); this.revision++; this.emit();
   }
 
   mergeDown(id: string) {
@@ -107,7 +111,7 @@ export class StudioEngine {
     const out = this.composite(); const keepId = this.doc.layers[0].id;
     for (const lid of this.doc.layers.slice(1).map(l => l.id)) this.removeLayer(lid);
     this.doc = updateLayer(this.doc, keepId, { opacity: 1, blendMode: 'normal', visible: true, clipped: false });
-    this.ensureBuffer(keepId).set(out); this.setActiveLayer(keepId); this.emit();
+    this.ensureBuffer(keepId).set(out); this.revision++; this.setActiveLayer(keepId); this.emit();
   }
 
   // ---- selection & clipboard ----
@@ -121,7 +125,7 @@ export class StudioEngine {
     this.clipboard = out;
   }
 
-  paste() { if (!this.clipboard) return; this.addLayer('raster', 'Pasted'); this.ensureBuffer(this.doc.activeLayerId!).set(this.clipboard); this.emit(); }
+  paste() { if (!this.clipboard) return; this.addLayer('raster', 'Pasted'); this.ensureBuffer(this.doc.activeLayerId!).set(this.clipboard); this.revision++; this.emit(); }
 
   invertSelection() { const m = this.selectionMask; if (!m) return; const inv = new Uint8Array(m.length); for (let p = 0; p < m.length; p++) inv[p] = m[p] ? 0 : 255; this.selectionMask = inv; this.emit(); }
 
@@ -142,6 +146,15 @@ export class StudioEngine {
       undo: () => { this.ensureBuffer(id).set(before); this.emit(); },
       redo: () => { this.ensureBuffer(id).set(after); this.emit(); },
     } as Op);
+    this.revision++;
+  }
+
+  markSaved(): void {
+    this.savedRevision = this.revision;
+  }
+
+  isDirty(): boolean {
+    return this.revision !== this.savedRevision;
   }
 
   // ---- painting ----
