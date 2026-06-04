@@ -1,6 +1,8 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Body, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DbService } from '../db/db.service';
+import { UsersService } from './users.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 interface AssistantRow {
   id: number;
@@ -17,7 +19,10 @@ interface EditorRow {
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly db: DbService) {}
+  constructor(
+    private readonly db: DbService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Get('assistants')
   async getAssistants(): Promise<AssistantRow[]> {
@@ -39,5 +44,15 @@ export class UsersController {
        ORDER BY full_name ASC`,
       [],
     );
+  }
+
+  @Get('me')
+  async getProfile(@Req() req: any) {
+    return this.usersService.getProfile(req.user.id);
+  }
+
+  @Patch('me')
+  async updateProfile(@Req() req: any, @Body() dto: UpdateProfileDto) {
+    return this.usersService.updateProfile(req.user.id, dto.fullName, dto.avatarUrl);
   }
 }

@@ -21,6 +21,7 @@ import EditorReviewQueue from "./pages/editor/ReviewQueue";
 import EditorChapterReview from "./pages/editor/ChapterReview";
 import AdminConsole from "./pages/admin/Console";
 import AdminDisputes from "./pages/admin/Disputes";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { AppShell } from "./components/app/AppShell";
 import { ToastProvider } from "./components/ui/Toast";
@@ -193,6 +194,16 @@ function AppRoutes() {
           <Protected>
             <AppShell>
               <AdminDisputes />
+            </AppShell>
+          </Protected>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <Protected>
+            <AppShell>
+              <Profile />
             </AppShell>
           </Protected>
         }
