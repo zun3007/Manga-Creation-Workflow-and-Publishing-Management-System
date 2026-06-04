@@ -24,6 +24,7 @@ import AdminDisputes from "./pages/admin/Disputes";
 import NotFound from "./pages/NotFound";
 import { AppShell } from "./components/app/AppShell";
 import { ToastProvider } from "./components/ui/Toast";
+import { ConfirmProvider } from "./lib/confirm";
 
 function Splash() {
   return (
@@ -215,7 +216,9 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <ToastProvider>
-          <AppRoutes />
+          <ConfirmProvider>
+            <AppRoutes />
+          </ConfirmProvider>
         </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
