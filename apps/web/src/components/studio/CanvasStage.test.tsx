@@ -51,4 +51,82 @@ describe('CanvasStage', () => {
     fireEvent.pointerDown(cv, { clientX: 30, clientY: 40, pressure: 0.7 });
     expect(onDown).toHaveBeenCalled();
   });
+
+  it('renders marching ants selection overlay when selection mask exists', () => {
+    const eng = new StudioEngine(createDocument({ width: 100, height: 100 }), wasm);
+    // Create a simple selection mask with a few pixels selected
+    const selectionMask = new Uint8Array(100 * 100);
+    selectionMask[0] = 255;
+    selectionMask[1] = 255;
+    selectionMask[2] = 255;
+    eng.setSelection(selectionMask);
+
+    // Return an id WITHOUT invoking the callback — a synchronous cb() would make
+    // the animation loop recurse infinitely (real rAF is async).
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1);
+
+    const { container } = render(
+      <CanvasStage
+        engine={eng}
+        view={makeView({ zoom: 1 })}
+        onViewChange={() => {}}
+        onPointerDown={() => {}}
+        onPointerMove={() => {}}
+        onPointerUp={() => {}}
+      />
+    );
+
+    const cv = container.querySelector('canvas')!;
+    expect(cv).toBeTruthy();
+
+    // requestAnimationFrame should be called for marching ants animation
+    expect(rafSpy).toHaveBeenCalled();
+
+    rafSpy.mockRestore();
+  });
+
+  it('cancels marching ants animation when selection is cleared', () => {
+    const eng = new StudioEngine(createDocument({ width: 100, height: 100 }), wasm);
+    const selectionMask = new Uint8Array(100 * 100);
+    selectionMask[0] = 255;
+    eng.setSelection(selectionMask);
+
+    let animationFrameId = 0;
+    const cafSpy = vi.spyOn(window, 'cancelAnimationFrame');
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => {
+      return ++animationFrameId;
+    });
+
+    const { rerender } = render(
+      <CanvasStage
+        engine={eng}
+        view={makeView({ zoom: 1 })}
+        onViewChange={() => {}}
+        onPointerDown={() => {}}
+        onPointerMove={() => {}}
+        onPointerUp={() => {}}
+      />
+    );
+
+    // Clear the selection
+    eng.clearSelection();
+
+    // Rerender to trigger the effect
+    rerender(
+      <CanvasStage
+        engine={eng}
+        view={makeView({ zoom: 1 })}
+        onViewChange={() => {}}
+        onPointerDown={() => {}}
+        onPointerMove={() => {}}
+        onPointerUp={() => {}}
+      />
+    );
+
+    // cancelAnimationFrame should be called after clearing selection
+    expect(cafSpy).toHaveBeenCalled();
+
+    rafSpy.mockRestore();
+    cafSpy.mockRestore();
+  });
 });

@@ -1,5 +1,5 @@
 // Main-thread wrapper for sam.worker
-// Spawns worker on first use, handles postMessage/onmessage, timeout
+// Spawns worker on first use, handles postMessage/onmessage, timeout, and cancellation
 
 import type { Point } from '../AIAssist';
 
@@ -31,20 +31,33 @@ function getWorker(): Worker {
   return worker;
 }
 
+export function disposeSamWorker(): void {
+  if (worker) {
+    worker.terminate();
+    worker = null;
+  }
+}
+
 export async function segment(
   rgba: Uint8ClampedArray,
   w: number,
   h: number,
-  point: Point
+  point: Point,
+  signal?: AbortSignal
 ): Promise<{ mask: Float32Array; lw: number; lh: number; sw: number; sh: number }> {
   return new Promise((resolve, reject) => {
     const w_ = getWorker();
     let timeoutId: NodeJS.Timeout | null = null;
 
-    const handleMessage = (e: MessageEvent<SegmentResponse>) => {
+    const cleanup = () => {
       if (timeoutId) clearTimeout(timeoutId);
       w_.removeEventListener('message', handleMessage);
       w_.removeEventListener('error', handleError);
+      if (signal) signal.removeEventListener('abort', handleAbort);
+    };
+
+    const handleMessage = (e: MessageEvent<SegmentResponse>) => {
+      cleanup();
 
       if (!e.data.ok) {
         reject(new Error(e.data.error || 'SAM segment failed'));
@@ -56,18 +69,22 @@ export async function segment(
     };
 
     const handleError = (err: ErrorEvent) => {
-      if (timeoutId) clearTimeout(timeoutId);
-      w_.removeEventListener('message', handleMessage);
-      w_.removeEventListener('error', handleError);
+      cleanup();
       reject(new Error(`SAM worker error: ${err.message}`));
+    };
+
+    const handleAbort = () => {
+      cleanup();
+      disposeSamWorker();
+      reject(new DOMException('Aborted', 'AbortError'));
     };
 
     w_.addEventListener('message', handleMessage);
     w_.addEventListener('error', handleError);
+    if (signal) signal.addEventListener('abort', handleAbort);
 
     timeoutId = setTimeout(() => {
-      w_.removeEventListener('message', handleMessage);
-      w_.removeEventListener('error', handleError);
+      cleanup();
       reject(new Error('SAM segment timeout (15s)'));
     }, SEGMENT_TIMEOUT);
 

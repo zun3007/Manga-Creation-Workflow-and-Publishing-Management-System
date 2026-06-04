@@ -45,11 +45,11 @@ export class OnnxAI implements AIAssist {
     }
   }
 
-  async segment(px: Uint8ClampedArray, w: number, h: number, point: Point): Promise<Uint8Array> {
+  async segment(px: Uint8ClampedArray, w: number, h: number, point: Point, signal?: AbortSignal): Promise<Uint8Array> {
     try {
       // Dynamic import to lazy-load samClient (and worker/ort only when segment is used)
       const { segment } = await import('./samClient');
-      const { mask, lw, lh, sw, sh } = await segment(px, w, h, point);
+      const { mask, lw, lh, sw, sh } = await segment(px, w, h, point, signal);
       return maskToSelectionCropped(mask, lw, lh, sw, sh, 1024, w, h);
     } catch (e) {
       console.warn('[OnnxAI] segment fallback:', e);
@@ -57,11 +57,11 @@ export class OnnxAI implements AIAssist {
     }
   }
 
-  async colorize(engine: StudioEngine): Promise<void> {
+  async colorize(engine: StudioEngine, signal?: AbortSignal): Promise<void> {
     try {
       // Lazy-load colorizeClient only when colorize is invoked
       const { colorize } = await import('./colorizeClient');
-      const colored = await colorize(engine.composite(), engine.doc.width, engine.doc.height);
+      const colored = await colorize(engine.composite(), engine.doc.width, engine.doc.height, signal);
       engine.addLayer('raster', 'AI Color');
       engine.setBuffer(engine.doc.activeLayerId!, colored);
       engine.requestRender();

@@ -28,6 +28,8 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
   const overlaysRef = useRef<RectN[] | undefined>(props.overlays);
   const fittedRef = useRef(false);
   const panDrag = useRef<{ id: number; x: number; y: number; panX: number; panY: number } | null>(null);
+  const marchingAntsAnimationRef = useRef<number | null>(null);
+  const marchingAntsOffsetRef = useRef(0);
 
   // Single source of truth: mirror the latest view/overlays into refs so the
   // engine-change render callback (registered once) never reads stale values.
@@ -40,6 +42,49 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
     if (!b) { b = document.createElement('canvas'); bitmapRef.current = b; }
     if (b.width !== width || b.height !== height) { b.width = width; b.height = height; }
     return b;
+  };
+
+  const drawSelectionContour = (ctx: CanvasRenderingContext2D, sel: Uint8Array, w: number, h: number) => {
+    // Draw edges where selection changes from selected to unselected
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        const isSelected = sel[idx] > 0;
+        if (!isSelected) continue;
+
+        // Check each edge and draw if it borders an unselected pixel
+        const left = x === 0 || sel[idx - 1] === 0;
+        const right = x === w - 1 || sel[idx + 1] === 0;
+        const top = y === 0 || sel[idx - w] === 0;
+        const bottom = y === h - 1 || sel[idx + w] === 0;
+
+        // Draw line segments on edges
+        if (top) {
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + 1, y);
+          ctx.stroke();
+        }
+        if (bottom) {
+          ctx.beginPath();
+          ctx.moveTo(x, y + 1);
+          ctx.lineTo(x + 1, y + 1);
+          ctx.stroke();
+        }
+        if (left) {
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x, y + 1);
+          ctx.stroke();
+        }
+        if (right) {
+          ctx.beginPath();
+          ctx.moveTo(x + 1, y);
+          ctx.lineTo(x + 1, y + 1);
+          ctx.stroke();
+        }
+      }
+    }
   };
 
   const render = useCallback(() => {
@@ -93,6 +138,33 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
       }
       ctx.restore();
     }
+
+    // Marching ants selection overlay (animated dashed outline).
+    const sel = props.engine.selectionMask;
+    if (sel && sel.length === w * h) {
+      ctx.save();
+      ctx.lineWidth = 1.5 / v.zoom;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.setLineDash([6, 4]);
+      ctx.lineDashOffset = -(marchingAntsOffsetRef.current);
+
+      // High-contrast alternating strokes (white primary, black outline for visibility)
+      // Draw black outline first for visibility on light backgrounds
+      ctx.strokeStyle = '#000000';
+      ctx.globalAlpha = 0.5;
+      ctx.lineWidth = (3 / v.zoom);
+      drawSelectionContour(ctx, sel, w, h);
+
+      // Then draw white stroke on top
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = (1.5 / v.zoom);
+      drawSelectionContour(ctx, sel, w, h);
+
+      ctx.restore();
+    }
+
     ctx.restore();
   }, [props.engine]);
 
@@ -143,6 +215,35 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
     fit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.fitToken]);
+
+  // Marching-ants: animate only while a selection exists. Re-evaluated on every
+  // engine change (subscribed below) so it STARTS on select and STOPS on deselect —
+  // the effect deps alone can't see selection changes (the engine ref is stable).
+  useEffect(() => {
+    const stop = () => {
+      if (marchingAntsAnimationRef.current !== null) {
+        cancelAnimationFrame(marchingAntsAnimationRef.current);
+        marchingAntsAnimationRef.current = null;
+      }
+    };
+    const evaluate = () => {
+      const sel = props.engine.selectionMask;
+      const hasSel = !!sel && sel.length > 0;
+      if (hasSel && marchingAntsAnimationRef.current === null) {
+        const animate = () => {
+          marchingAntsOffsetRef.current += 2;
+          render();
+          marchingAntsAnimationRef.current = requestAnimationFrame(animate);
+        };
+        marchingAntsAnimationRef.current = requestAnimationFrame(animate);
+      } else if (!hasSel) {
+        stop();
+      }
+    };
+    evaluate();
+    const unsub = props.engine.onChange(evaluate);
+    return () => { unsub(); stop(); };
+  }, [props.engine, render]);
 
   const toDoc = (e: { clientX: number; clientY: number }): PointerSample => {
     const rect = canvasRef.current!.getBoundingClientRect();
