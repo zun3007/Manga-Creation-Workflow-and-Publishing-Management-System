@@ -1,0 +1,375 @@
+{
+  "passed": 68,
+  "total": 68,
+  "failed": 0,
+  "suites": [
+    {
+      "name": "A. Auth & Identity",
+      "passed": 23,
+      "total": 23,
+      "checks": [
+        {
+          "name": "Login MANGAKA",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /auth/me MANGAKA",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "Login MANGAKA",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /auth/me MANGAKA",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "Login ASSISTANT",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /auth/me ASSISTANT",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "Login ASSISTANT",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /auth/me ASSISTANT",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "Login TANTOU_EDITOR",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /auth/me TANTOU_EDITOR",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "Login TANTOU_EDITOR",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /auth/me TANTOU_EDITOR",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "Login EDITORIAL_BOARD",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /auth/me EDITORIAL_BOARD",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "Login EDITORIAL_BOARD",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /auth/me EDITORIAL_BOARD",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "Login ADMIN",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /auth/me ADMIN",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "Login ADMIN",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /auth/me ADMIN",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "Login with wrong password returns 401",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /auth/me without token returns 401",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "Login with bad email returns 401",
+          "passed": true,
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "name": "B. Happy Path Pipeline",
+      "passed": 29,
+      "total": 29,
+      "checks": [
+        {
+          "name": "Mangaka1 login",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "POST /proposals (create)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "PATCH /proposals/:id/submit",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "Board1 login",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /proposals/review-queue has submitted proposal",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "PATCH /proposals/:id/decision (APPROVED)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "PUT /series/:id/editor (assign)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "POST /chapters (create)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "POST /pages (create)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "POST /regions (create)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "POST /tasks (create)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "PATCH /tasks/:id/start",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "POST /uploads (or placeholder)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "POST /submissions (submit)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "PATCH /submissions/:id/review (APPROVED)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /earnings/mine (approved task accrued)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "PATCH /chapters/:id/status (IN_PROGRESS)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "PATCH /chapters/:id/status (READY_FOR_EDITOR_REVIEW)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "PATCH /chapters/:id/editor-review (APPROVE)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "PATCH /chapters/:id/status (PUBLISHED)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "POST /vote-periods",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "POST /votes (board1)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "POST /votes (board2)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "POST /vote-periods/:id/close (ranking computed)",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /rankings has entry",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "POST /decisions",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "POST /disputes",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "PATCH /disputes/:id/review",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "PATCH /disputes/:id/resolve",
+          "passed": true,
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "name": "C. RBAC Matrix",
+      "passed": 11,
+      "total": 11,
+      "checks": [
+        {
+          "name": "POST /proposals (non-mangaka) → 403",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "PATCH /proposals/:id/decision (non-board) → 403",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /series/all (non-board) → 403",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /tasks/mine (non-assistant) → 403",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /submissions/review-queue (non-mangaka) → 403",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /chapters/review-queue (non-editor) → 403",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "POST /vote-periods (non-board) → 403",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /disputes (non-admin) → 403",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /admin/users (non-admin) → 403",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /proposals/mine (no token) → 401",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /tasks/mine (no token) → 401",
+          "passed": true,
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "name": "D. Validation & Negative",
+      "passed": 5,
+      "total": 5,
+      "checks": [
+        {
+          "name": "POST /proposals empty body → 400",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "Login bad email → 401",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "GET /series/99999999 → 404",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "PATCH /proposals/:id/decision on DRAFT → 400/409",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "POST /submissions invalid task → 400/404/409",
+          "passed": true,
+          "detail": ""
+        }
+      ]
+    }
+  ]
+}

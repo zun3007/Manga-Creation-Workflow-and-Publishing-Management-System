@@ -41,7 +41,10 @@ export function wandMask(buf:Uint8ClampedArray,w:number,h:number,sx:number,sy:nu
     const o=idx*4; const dr=buf[o]-sr,dg=buf[o+1]-sg,db=buf[o+2]-sb,da=buf[o+3]-sa;
     if (dr*dr+dg*dg+db*db+da*da>t2) continue; m[idx]=255;
     const cx=idx%w, cy=(idx/w)|0;
+    // 8-connected flood fill (includes diagonals for better contiguity)
     if (cx>0) st.push(idx-1); if (cx<w-1) st.push(idx+1); if (cy>0) st.push(idx-w); if (cy<h-1) st.push(idx+w);
+    if (cx>0 && cy>0) st.push(idx-w-1); if (cx<w-1 && cy>0) st.push(idx-w+1);
+    if (cx>0 && cy<h-1) st.push(idx+w-1); if (cx<w-1 && cy<h-1) st.push(idx+w+1);
   }
   return m;
 }

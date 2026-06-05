@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
+import { ConfirmProvider } from "../../lib/confirm";
+import { ToastProvider } from "../../components/ui/Toast";
 import BoardSeries from "./Series";
 
 const mockGet = vi.fn();
@@ -17,7 +19,6 @@ vi.mock("../../lib/api", () => ({
 
 describe("BoardSeries", () => {
   beforeEach(() => {
-    vi.stubGlobal("confirm", () => true);
     mockGet.mockClear();
     mockPut.mockClear();
     mockDelete.mockClear();
@@ -56,7 +57,11 @@ describe("BoardSeries", () => {
   it("lists series and assigns an editor", async () => {
     render(
       <BrowserRouter>
-        <BoardSeries />
+        <ToastProvider>
+          <ConfirmProvider>
+            <BoardSeries />
+          </ConfirmProvider>
+        </ToastProvider>
       </BrowserRouter>
     );
     expect(await screen.findByText("Series X")).toBeTruthy();

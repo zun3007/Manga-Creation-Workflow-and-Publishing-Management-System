@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -15,10 +15,19 @@ import { GoogleStrategy } from './google.strategy';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET', 'dev-secret'),
-        signOptions: { expiresIn: config.get<string>('JWT_EXPIRES', '7d') as any },
-      }),
+      useFactory: (config: ConfigService) => {
+        const secret = config.get<string>('JWT_SECRET');
+        if (!secret) {
+          Logger.warn(
+            'JWT_SECRET not set — using insecure dev default',
+            'AuthModule',
+          );
+        }
+        return {
+          secret: secret || 'dev-secret',
+          signOptions: { expiresIn: config.get<string>('JWT_EXPIRES', '7d') as any },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

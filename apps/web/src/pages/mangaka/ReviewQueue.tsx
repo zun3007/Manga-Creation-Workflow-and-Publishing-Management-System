@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { useToast } from "../../components/ui/Toast";
 import { SubmissionStatus } from "@manga/shared";
 import type { SubmissionItem } from "../../types";
 import { Panel } from "../../components/ui/Panel";
@@ -14,6 +15,7 @@ interface ToastMsg {
 }
 
 export default function ReviewQueue() {
+  const toast = useToast();
   const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +63,7 @@ export default function ReviewQueue() {
         decision: SubmissionStatus.APPROVED,
       });
       setSubmissions((prev) => prev.filter((s) => s.id !== id));
-      showToast("✓ Đã duyệt", "ok");
+      toast.success('Đã duyệt bài nộp.');
     } catch (err: any) {
       console.error("Approve failed", err);
       showToast(err?.response?.data?.message || "Duyệt thất bại", "error");
@@ -85,7 +87,7 @@ export default function ReviewQueue() {
       setSubmissions((prev) => prev.filter((s) => s.id !== id));
       setFeedback((prev) => ({ ...prev, [id]: "" }));
       setExpandedId(null);
-      showToast("✓ Đã yêu cầu sửa", "ok");
+      toast.success('Đã yêu cầu chỉnh sửa.');
     } catch (err: any) {
       console.error("Revision request failed", err);
       showToast(err?.response?.data?.message || "Yêu cầu sửa thất bại", "error");

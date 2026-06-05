@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { ConfirmProvider } from "../../lib/confirm";
+import { ToastProvider } from "../../components/ui/Toast";
 import BoardRankings from "./Rankings";
 
 const mockGet = vi.fn();
@@ -14,7 +16,6 @@ vi.mock("../../lib/api", () => ({
 
 describe("BoardRankings", () => {
   beforeEach(() => {
-    vi.stubGlobal("confirm", () => true);
     mockGet.mockClear();
     mockPost.mockClear();
 
@@ -60,14 +61,26 @@ describe("BoardRankings", () => {
   it("renders loading state initially", () => {
     mockGet.mockImplementation(() => new Promise(() => {}));
 
-    render(<BoardRankings />);
+    render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <BoardRankings />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
 
     expect(screen.getByText("Xếp hạng & Quyết định")).toBeInTheDocument();
     expect(screen.getByText("Đang tải…")).toBeInTheDocument();
   });
 
   it("renders rankings and open periods on load", async () => {
-    render(<BoardRankings />);
+    render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <BoardRankings />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
 
     // Wait for data to load
     expect(await screen.findByText("4.2")).toBeInTheDocument();
@@ -81,7 +94,13 @@ describe("BoardRankings", () => {
   });
 
   it("allows voting on open periods", async () => {
-    render(<BoardRankings />);
+    render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <BoardRankings />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
 
     // Wait for open periods to load
     await screen.findByText("Kỳ bình chọn đang mở");
@@ -129,7 +148,13 @@ describe("BoardRankings", () => {
       return Promise.resolve({ data: [] });
     });
 
-    render(<BoardRankings />);
+    render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <BoardRankings />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
 
     await screen.findByText("Kỳ bình chọn đang mở");
 
@@ -141,7 +166,13 @@ describe("BoardRankings", () => {
   it("renders empty states when no data", async () => {
     mockGet.mockResolvedValue({ data: [] });
 
-    render(<BoardRankings />);
+    render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <BoardRankings />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
 
     expect(await screen.findByText("Chưa có dữ liệu xếp hạng.")).toBeInTheDocument();
     expect(
@@ -152,7 +183,13 @@ describe("BoardRankings", () => {
   it("handles API errors gracefully", async () => {
     mockGet.mockRejectedValue(new Error("Network error"));
 
-    render(<BoardRankings />);
+    render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <BoardRankings />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
 
     expect(
       await screen.findByText("Không thể tải dữ liệu. Vui lòng thử lại.")

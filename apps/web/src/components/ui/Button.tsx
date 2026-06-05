@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes } from "react";
+import { Spinner } from "./Spinner";
 
 type Variant = "accent" | "soft" | "ghost";
 
@@ -11,12 +12,20 @@ const styles: Record<Variant, string> = {
 export function Button({
   variant = "accent",
   className = "",
+  loading = false,
+  disabled,
+  children,
   ...p
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; loading?: boolean }) {
   return (
     <button
+      aria-busy={loading || undefined}
+      disabled={disabled || loading}
       className={`inline-flex items-center justify-center gap-2 rounded-[calc(var(--app-radius)*0.66)] px-4 py-2 font-semibold transition disabled:opacity-50 ${styles[variant]} ${className}`}
       {...p}
-    />
+    >
+      {loading && <Spinner size={16} />}
+      {children}
+    </button>
   );
 }

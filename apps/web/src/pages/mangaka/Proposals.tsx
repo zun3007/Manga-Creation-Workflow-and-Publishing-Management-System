@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
@@ -14,6 +15,7 @@ interface Genre {
 
 export default function Proposals() {
   useAuth();
+  const toast = useToast();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +73,7 @@ export default function Proposals() {
         genreIds: formData.genreIds,
       });
       setProposals([res.data, ...proposals]);
+      toast.success('Đã tạo đề xuất.');
       setFormData({
         title: "",
         synopsis: "",
@@ -91,6 +94,7 @@ export default function Proposals() {
       setProposals(
         proposals.map((p) => (p.id === proposalId ? res.data : p))
       );
+      toast.success('Đã gửi đề xuất cho hội đồng.');
     } catch (err: any) {
       console.error("Failed to submit proposal:", err);
       setError(err.response?.data?.message || "Lỗi khi gửi đề xuất");

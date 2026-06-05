@@ -1,0 +1,67 @@
+{
+  "password": "Test1234!",
+  "apiBase": "http://localhost:3000/api",
+  "generated": "deterministic test set (2 per role)",
+  "accounts": [
+    {
+      "role": "MANGAKA",
+      "email": "mangaka1@test.inkframe.studio",
+      "name": "Test Mangaka 1",
+      "id": 8
+    },
+    {
+      "role": "MANGAKA",
+      "email": "mangaka2@test.inkframe.studio",
+      "name": "Test Mangaka 2",
+      "id": 9
+    },
+    {
+      "role": "ASSISTANT",
+      "email": "assistant1@test.inkframe.studio",
+      "name": "Test Assistant 1",
+      "id": 10
+    },
+    {
+      "role": "ASSISTANT",
+      "email": "assistant2@test.inkframe.studio",
+      "name": "Test Assistant 2",
+      "id": 11
+    },
+    {
+      "role": "TANTOU_EDITOR",
+      "email": "tantou_editor1@test.inkframe.studio",
+      "name": "Test Tantou Editor 1",
+      "id": 12
+    },
+    {
+      "role": "TANTOU_EDITOR",
+      "email": "tantou_editor2@test.inkframe.studio",
+      "name": "Test Tantou Editor 2",
+      "id": 13
+    },
+    {
+      "role": "EDITORIAL_BOARD",
+      "email": "editorial_board1@test.inkframe.studio",
+      "name": "Test Editorial Board 1",
+      "id": 14
+    },
+    {
+      "role": "EDITORIAL_BOARD",
+      "email": "editorial_board2@test.inkframe.studio",
+      "name": "Test Editorial Board 2",
+      "id": 15
+    },
+    {
+      "role": "ADMIN",
+      "email": "admin1@test.inkframe.studio",
+      "name": "Test Admin 1",
+      "id": 16
+    },
+    {
+      "role": "ADMIN",
+      "email": "admin2@test.inkframe.studio",
+      "name": "Test Admin 2",
+      "id": 17
+    }
+  ]
+}

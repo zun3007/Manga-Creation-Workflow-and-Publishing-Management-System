@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "../../lib/api";
+import { useToast } from "../../components/ui/Toast";
+import { useConfirm } from "../../lib/confirm";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { Stamp } from "../../components/ui/Stamp";
@@ -26,6 +28,8 @@ interface ResolveForm {
 }
 
 export default function Disputes() {
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -64,6 +68,7 @@ export default function Disputes() {
       setDisputes((prev) =>
         prev.map((d) => (d.id === id ? { ...d, status: "UNDER_REVIEW" } : d))
       );
+      toast.success('Đã chuyển sang Đang xử lý.');
     } catch (e: any) {
       const message =
         e?.response?.data?.message || "Không thể bắt đầu xem xét khiếu nại.";
@@ -78,7 +83,16 @@ export default function Disputes() {
     const dispute = disputes.find((d) => d.id === editingId);
     if (!dispute) return;
 
-    if (!window.confirm("Giải quyết khiếu nại? Có thể điều chỉnh tiền công.")) {
+    // Validate adjusted amount if provided
+    if (form.adjustedAmount.trim()) {
+      const adjustedAmount = Number(form.adjustedAmount);
+      if (adjustedAmount <= 0) {
+        setActionError("Số tiền điều chỉnh phải lớn hơn 0.");
+        return;
+      }
+    }
+
+    if (!(await confirm({ title: 'Giải quyết khiếu nại?', body: 'Có thể điều chỉnh tiền công.' }))) {
       return;
     }
 
@@ -106,6 +120,7 @@ export default function Disputes() {
       );
       setEditingId(null);
       setForm({ disputeId: 0, resolutionNote: "", adjustedAmount: "" });
+      toast.success('Đã xử lý khiếu nại.');
     } catch (e: any) {
       const message =
         e?.response?.data?.message || "Không thể giải quyết khiếu nại.";
@@ -120,7 +135,7 @@ export default function Disputes() {
     const dispute = disputes.find((d) => d.id === editingId);
     if (!dispute) return;
 
-    if (!window.confirm("Từ chối khiếu nại này?")) {
+    if (!(await confirm({ title: 'Từ chối khiếu nại này?', tone: 'danger' }))) {
       return;
     }
 

@@ -136,7 +136,7 @@ export class RankingsService {
       [period.series_id, periodId, rankPosition, total, risk],
     );
 
-    // If HIGH risk, update series status and notify mangaka
+    // If HIGH risk, update series status and notify mangaka and editors
     if (risk === RiskLevel.HIGH) {
       await this.db.query(
         `UPDATE \`Series\` SET series_status='AT_RISK' WHERE series_id=?`,
@@ -160,6 +160,23 @@ export class RankingsService {
           'Series',
           period.series_id,
         );
+
+        // Notify active editors
+        const editors = await this.db.query<{ editor_user_id: number }>(
+          `SELECT editor_user_id FROM \`Series_Tantou_Editor\` WHERE series_id = ? AND unassigned_at IS NULL`,
+          [period.series_id],
+        );
+
+        for (const editor of editors) {
+          await this.notifications.notify(
+            editor.editor_user_id,
+            NotificationType.RISK_ALERT,
+            'Series được phụ trách đang ở mức rủi ro cao',
+            `Điểm trung bình ${total.toFixed(2)}`,
+            'Series',
+            period.series_id,
+          );
+        }
       }
     }
 

@@ -62,31 +62,55 @@ const CFG: Record<
 
 function RoleDashboard({ role }: { role: string }) {
   const [s, setS] = useState<Record<string, number> | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    api
-      .get('/dashboard/summary')
-      .then((r) => setS(r.data))
-      .catch(() => setS({}));
+    loadStats();
   }, []);
+
+  async function loadStats() {
+    setError(false);
+    try {
+      const r = await api.get('/dashboard/summary');
+      setS(r.data);
+    } catch (e) {
+      console.error("Failed to load dashboard summary", e);
+      setError(true);
+      setS(null);
+    }
+  }
 
   const c = CFG[role] ?? CFG.ASSISTANT;
 
   return (
     <div className="p-8">
       <h1 className="text-3xl text-ink mb-6">{c.title}</h1>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {c.cards.map(([label, key]) => (
-          <StatCard key={key} label={label} value={s?.[key] ?? 0} />
-        ))}
-      </div>
-      {c.cta && (
-        <Link
-          to={c.cta.to}
-          className="mt-6 inline-block rounded bg-accent px-4 py-2 text-white"
-        >
-          {c.cta.label} →
-        </Link>
+      {error ? (
+        <Panel className="p-6 bg-danger/10 border-danger/20">
+          <p className="text-danger mb-4">Không thể tải dữ liệu tổng quan. Vui lòng thử lại.</p>
+          <button
+            onClick={loadStats}
+            className="inline-block rounded bg-accent px-4 py-2 text-white hover:bg-accent/90 transition"
+          >
+            Thử lại
+          </button>
+        </Panel>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {c.cards.map(([label, key]) => (
+              <StatCard key={key} label={label} value={s?.[key] ?? 0} />
+            ))}
+          </div>
+          {c.cta && (
+            <Link
+              to={c.cta.to}
+              className="mt-6 inline-block rounded bg-accent px-4 py-2 text-white"
+            >
+              {c.cta.label} →
+            </Link>
+          )}
+        </>
       )}
     </div>
   );

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Download, Upload, RotateCcw, RotateCw } from 'lucide-react';
+import { ChevronDown, Download, Upload, RotateCcw, RotateCw, ZoomIn, ZoomOut, Maximize2, Minimize2 } from 'lucide-react';
 import type { StudioEngine } from '../../lib/studio/engine';
 import type { AIAssist } from '../../lib/studio/ai/AIAssist';
 import type { BrushSettings, ToolId, RGBA, RectN } from '../../lib/studio/types';
+import { useConfirm } from '../../lib/confirm';
 import { MANGA_PALETTE } from '../../lib/studio/color';
 import { makeView, type View } from '../../lib/studio/view';
 import {
@@ -13,6 +14,7 @@ import {
   imageToBuffer,
 } from '../../lib/studio/io';
 import { createTools } from '../../lib/studio/tools/registry';
+import { drawFrameBorders } from '../../lib/studio/panels';
 import type { PointerSample } from '../../lib/studio/tools/Tool';
 import { Toolbar } from './Toolbar';
 import { CanvasStage } from './CanvasStage';
@@ -22,6 +24,7 @@ import { LayerPanel } from './LayerPanel';
 import { PanelTools } from './PanelTools';
 import { AIAssistPanel } from './AIAssistPanel';
 import { ToneControls } from './ToneControls';
+import { EffectsPanel } from './EffectsPanel';
 import { MangaRulers } from './MangaRulers';
 import { TextControls } from './TextControls';
 import { ToolOptions } from './ToolOptions';
@@ -47,6 +50,7 @@ export function Studio({
   saving,
   title,
 }: StudioProps) {
+  const { confirm } = useConfirm();
   const [tool, setTool] = useState<ToolId>('brush');
   const [settings, setSettings] = useState<BrushSettings>({
     tool: 'brush',
@@ -59,7 +63,15 @@ export function Studio({
     pressureSize: true,
     pressureOpacity: true,
   });
-  const [color, setColor] = useState<RGBA>({ r: 0, g: 0, b: 0, a: 255 });
+  const [colors, setColors] = useState<{ fg: RGBA; bg: RGBA }>({
+    fg: { r: 0, g: 0, b: 0, a: 255 },
+    bg: { r: 255, g: 255, b: 255, a: 255 },
+  });
+  const [activeColorSlot, setActiveColorSlot] = useState<'fg' | 'bg'>('fg');
+  const color = colors[activeColorSlot];
+  const setColor = (c: RGBA) => {
+    setColors((prev) => ({ ...prev, [activeColorSlot]: c }));
+  };
   const [tolerance, setTolerance] = useState(24);
   const [bubbleType, setBubbleType] = useState<'round' | 'spiky' | 'thought'>('round');
   const [lineWidth, setLineWidth] = useState(3);
@@ -69,6 +81,12 @@ export function Studio({
   const [version, setVersion] = useState(0);
   const [pendingFrames, setPendingFrames] = useState<RectN[]>([]);
   const [exportOpen, setExportOpen] = useState(false);
+  const [fitToken, setFitToken] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const canvasWrapRef = useRef<HTMLDivElement>(null);
+  const prevToolRef = useRef<ToolId>('brush');
+  const toolRef = useRef<ToolId>(tool);
 
   // Refs to keep tool getters reading latest state
   const settingsRef = useRef(settings);
@@ -101,6 +119,10 @@ export function Studio({
   useEffect(() => {
     aiRef.current = ai;
   }, [ai]);
+
+  useEffect(() => {
+    toolRef.current = tool;
+  }, [tool]);
 
   // Create tools once
   const tools = useRef(
@@ -158,6 +180,11 @@ export function Studio({
 
   // Keyboard shortcuts
   useEffect(() => {
+    const isTyping = (t: EventTarget | null) => {
+      const el = t as HTMLElement | null;
+      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
       const mod = isMac ? e.metaKey : e.ctrlKey;
@@ -183,10 +210,29 @@ export function Studio({
         engine.paste();
       }
 
-      // Deselect
+      // Deselect (Ctrl+D)
       if (mod && e.key === 'd') {
         e.preventDefault();
         engine.clearSelection();
+      }
+
+      // Skip tool/color shortcuts when typing
+      if (isTyping(e.target)) return;
+
+      // Color swap (X)
+      if (e.key === 'x' || e.key === 'X') {
+        e.preventDefault();
+        setActiveColorSlot((s) => (s === 'fg' ? 'bg' : 'fg'));
+      }
+
+      // Reset colors to black/white (D, but not Ctrl+D)
+      if (!mod && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        setColors({
+          fg: { r: 0, g: 0, b: 0, a: 255 },
+          bg: { r: 255, g: 255, b: 255, a: 255 },
+        });
+        setActiveColorSlot('fg');
       }
 
       // Tool shortcuts
@@ -210,22 +256,25 @@ export function Studio({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [engine, tool]);
 
-  // Handle Space for pan
+  // Hold Space to temporarily pan; releasing restores the previous tool.
   useEffect(() => {
+    const isTyping = (t: EventTarget | null) => {
+      const el = t as HTMLElement | null;
+      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+    };
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !e.repeat) {
+      if (e.code === 'Space' && !e.repeat && !isTyping(e.target)) {
         e.preventDefault();
+        if (toolRef.current !== 'pan') prevToolRef.current = toolRef.current;
         setTool('pan');
       }
     };
-
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         e.preventDefault();
-        setTool('brush');
+        setTool(prevToolRef.current);
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     return () => {
@@ -233,6 +282,41 @@ export function Studio({
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, []);
+
+  // beforeunload handler: guard against closing/refreshing with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (engine.isDirty()) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [engine]);
+
+  // Fullscreen + zoom controls
+  const toggleFullscreen = () => {
+    const el = rootRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) void document.exitFullscreen?.();
+    else void el.requestFullscreen?.();
+  };
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
+  const zoomAround = (factor: number) => {
+    const el = canvasWrapRef.current;
+    setView((v) => {
+      const z = Math.max(0.05, Math.min(32, v.zoom * factor));
+      if (!el) return { ...v, zoom: z };
+      const cx = el.clientWidth / 2, cy = el.clientHeight / 2;
+      const docX = (cx - v.panX) / v.zoom, docY = (cy - v.panY) / v.zoom;
+      return { ...v, zoom: z, panX: cx - docX * z, panY: cy - docY * z };
+    });
+  };
 
   const handleAddSwatch = (hex: string) => {
     setPalette((p) => [hex, ...p.filter((x) => x !== hex)].slice(0, 10));
@@ -338,31 +422,71 @@ export function Studio({
     }
   };
 
-  const handleSaveRegions = () => {
-    if (onSaveRegions && pendingFrames.length > 0) {
-      onSaveRegions(pendingFrames);
-      setPendingFrames([]);
+  const inkFrames = (frames: RectN[]) => {
+    if (!frames.length) return;
+    engine.addLayer('raster', 'Khung');
+    const active = engine.doc.activeLayerId;
+    if (active) {
+      drawFrameBorders(engine.getBuffer(active), engine.doc.width, engine.doc.height, frames, 4);
+      engine.requestRender();
     }
+  };
+
+  const handleInkFrames = () => {
+    inkFrames(pendingFrames);
+    setPendingFrames([]);
+  };
+
+  // Save = draw the borders (so the panels don't vanish) AND persist them as regions.
+  const handleSaveRegions = () => {
+    if (pendingFrames.length === 0) return;
+    inkFrames(pendingFrames);
+    onSaveRegions?.(pendingFrames);
+    setPendingFrames([]);
   };
 
   const cursor = tools[tool]?.cursor ?? 'crosshair';
 
+  // Wrapped close handler: confirm if there are unsaved changes
+  const handleClose = async () => {
+    if (engine.isDirty()) {
+      const confirmed = await confirm({
+        title: 'Thoát Studio?',
+        body: 'Bản vẽ chưa lưu sẽ mất.',
+        tone: 'danger',
+      });
+      if (!confirmed) return;
+    }
+    onClose();
+  };
+
   return (
-    <div className="flex h-full bg-surface text-ink" data-role="studio">
+    <div ref={rootRef} className="flex h-full w-full overflow-hidden min-h-0 bg-surface text-ink" data-role="studio">
       {/* Left toolbar */}
       <Toolbar tool={tool} onTool={setTool} />
 
       {/* Center canvas */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0">
         {/* Top bar */}
         <div className="flex items-center justify-between gap-4 px-4 py-2 bg-surface-alt border-b border-line">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <span className="font-mono text-sm text-ink-soft">
               {title || 'Studio'}
             </span>
-            <span className="text-xs text-ink-soft">
-              {(view.zoom * 100).toFixed(0)}%
-            </span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => zoomAround(1 / 1.25)} title="Thu nhỏ" aria-label="Zoom out" className="p-1.5 hover:bg-surface rounded transition-colors">
+                <ZoomOut size={16} />
+              </button>
+              <span className="w-12 text-center text-xs font-mono text-ink-soft tabular-nums">
+                {(view.zoom * 100).toFixed(0)}%
+              </span>
+              <button onClick={() => zoomAround(1.25)} title="Phóng to" aria-label="Zoom in" className="p-1.5 hover:bg-surface rounded transition-colors">
+                <ZoomIn size={16} />
+              </button>
+              <button onClick={() => setFitToken((t) => t + 1)} title="Vừa khung hình" aria-label="Fit to screen" className="px-2 py-1 text-xs font-mono uppercase hover:bg-surface rounded transition-colors">
+                Fit
+              </button>
+            </div>
             <div
               className="px-2 py-1 text-xs font-mono bg-surface border border-line rounded text-ink-soft"
               aria-label="ai-status"
@@ -445,7 +569,17 @@ export function Studio({
               />
             </label>
 
-            {/* Save regions button */}
+            {/* Frame actions: preview overlay -> ink borders and/or save as regions */}
+            {pendingFrames.length > 0 && (
+              <button
+                onClick={handleInkFrames}
+                className="px-3 py-2 text-xs font-mono uppercase rounded border border-line text-ink hover:bg-surface"
+                aria-label="Ink frame borders"
+                title="Vẽ viền khung lên layer"
+              >
+                Vẽ viền ({pendingFrames.length})
+              </button>
+            )}
             {pendingFrames.length > 0 && (
               <button
                 onClick={handleSaveRegions}
@@ -467,9 +601,19 @@ export function Studio({
               Lưu
             </button>
 
+            {/* Fullscreen */}
+            <button
+              onClick={toggleFullscreen}
+              title="Toàn màn hình"
+              className="p-2 hover:bg-surface rounded transition-colors"
+              aria-label="Toggle fullscreen"
+            >
+              {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+            </button>
+
             {/* Close button */}
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="px-3 py-2 text-xs font-mono uppercase rounded hover:bg-surface"
               aria-label="Close"
             >
@@ -480,7 +624,8 @@ export function Studio({
 
         {/* Canvas with checkerboard background */}
         <div
-          className="flex-1 overflow-hidden"
+          ref={canvasWrapRef}
+          className="relative flex-1 overflow-hidden min-h-0"
           style={{
             backgroundImage:
               'repeating-conic-gradient(#e5e5e5 0% 25%, transparent 0% 50%)',
@@ -491,6 +636,9 @@ export function Studio({
             engine={engine}
             view={view}
             onViewChange={setView}
+            panning={tool === 'pan'}
+            fitToken={fitToken}
+            overlays={pendingFrames}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
@@ -500,12 +648,14 @@ export function Studio({
       </div>
 
       {/* Right dock with collapsible panels */}
-      <div className="w-72 flex flex-col gap-0 bg-surface border-l border-line overflow-y-auto">
+      <div className="w-72 shrink-0 flex flex-col gap-0 bg-surface border-l border-line overflow-y-auto min-h-0">
         {/* Color Panel */}
         <div className="border-b border-line">
           <ColorPanel
-            color={color}
-            onColor={setColor}
+            colors={colors}
+            onColors={setColors}
+            activeColorSlot={activeColorSlot}
+            onActiveColorSlot={setActiveColorSlot}
             palette={palette}
             onAddSwatch={handleAddSwatch}
             recent={recent}
@@ -551,6 +701,12 @@ export function Studio({
         {tool === 'tone' && (
           <div className="border-b border-line">
             <ToneControls engine={engine} />
+          </div>
+        )}
+
+        {tool === 'line' && (
+          <div className="border-b border-line">
+            <EffectsPanel engine={engine} />
           </div>
         )}
 

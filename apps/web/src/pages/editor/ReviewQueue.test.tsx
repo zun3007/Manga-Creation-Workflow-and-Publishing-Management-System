@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
+import { ToastProvider } from "../../components/ui/Toast";
 
 const mockGet = vi.fn();
 const mockPatch = vi.fn();
@@ -46,7 +47,11 @@ describe("ReviewQueue", () => {
     });
     mockPatch.mockResolvedValue({});
 
-    render(<ReviewQueue />);
+    render(
+      <ToastProvider>
+        <ReviewQueue />
+      </ToastProvider>
+    );
 
     // Wait for the chapter title to appear
     expect(await screen.findByText(/Khởi đầu/)).toBeTruthy();
@@ -62,12 +67,21 @@ describe("ReviewQueue", () => {
         expect.objectContaining({ decision: "APPROVE" })
       )
     );
+
+    // Verify success toast appears
+    await waitFor(() =>
+      expect(screen.getByText("Đã duyệt chương.")).toBeInTheDocument()
+    );
   });
 
   it("renders empty state when no chapters", async () => {
     mockGet.mockResolvedValue({ data: [] });
 
-    render(<ReviewQueue />);
+    render(
+      <ToastProvider>
+        <ReviewQueue />
+      </ToastProvider>
+    );
 
     expect(
       await screen.findByText("Không có chương nào chờ duyệt.")
@@ -77,7 +91,11 @@ describe("ReviewQueue", () => {
   it("shows error message on load failure", async () => {
     mockGet.mockRejectedValue(new Error("Network error"));
 
-    render(<ReviewQueue />);
+    render(
+      <ToastProvider>
+        <ReviewQueue />
+      </ToastProvider>
+    );
 
     expect(
       await screen.findByText(
@@ -102,7 +120,11 @@ describe("ReviewQueue", () => {
       ],
     });
 
-    render(<ReviewQueue />);
+    render(
+      <ToastProvider>
+        <ReviewQueue />
+      </ToastProvider>
+    );
 
     await screen.findByText(/Khởi đầu/);
 
@@ -131,7 +153,11 @@ describe("ReviewQueue", () => {
     });
     mockPatch.mockResolvedValue({});
 
-    render(<ReviewQueue />);
+    render(
+      <ToastProvider>
+        <ReviewQueue />
+      </ToastProvider>
+    );
 
     await screen.findByText(/Khởi đầu/);
 
@@ -156,6 +182,11 @@ describe("ReviewQueue", () => {
           feedback: "Cần sửa chất lượng ảnh",
         })
       )
+    );
+
+    // Verify success toast appears
+    await waitFor(() =>
+      expect(screen.getByText("Đã gửi yêu cầu sửa.")).toBeInTheDocument()
     );
   });
 });

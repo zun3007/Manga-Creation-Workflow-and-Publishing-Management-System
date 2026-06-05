@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import type { EditorChapter } from "../../types";
 import { api } from "../../lib/api";
+import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { EmptyState } from "../../components/ui/EmptyState";
 
 export default function ReviewQueue() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [chapters, setChapters] = useState<EditorChapter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -50,6 +52,7 @@ export default function ReviewQueue() {
       setChapters((prev) => prev.filter((c) => c.id !== id));
       setRevisingId(null);
       setFeedbackText("");
+      toast.success(decision === 'APPROVE' ? 'Đã duyệt chương.' : 'Đã gửi yêu cầu sửa.');
     } catch (e) {
       console.error("Failed to submit review decision", e);
       setActionError("Không thể lưu quyết định. Vui lòng thử lại.");

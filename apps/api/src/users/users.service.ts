@@ -35,6 +35,13 @@ export class UsersService {
     );
   }
 
+  async updatePassword(userId: number, passwordHash: string): Promise<void> {
+    await this.db.query(
+      `UPDATE \`User\` SET password_hash = ? WHERE user_id = ?`,
+      [passwordHash, userId],
+    );
+  }
+
   async linkGoogle(userId: number, googleId: string): Promise<void> {
     await this.db.query(
       `UPDATE \`User\` SET google_id = ?, auth_provider = 'GOOGLE' WHERE user_id = ? AND google_id IS NULL`,
@@ -58,5 +65,79 @@ export class UsersService {
       throw new Error(`Failed to retrieve created user with email ${email}`);
     }
     return user;
+  }
+
+  async getProfile(
+    userId: number,
+  ): Promise<{
+    id: number;
+    email: string;
+    fullName: string;
+    avatarUrl: string | null;
+    role: Role;
+  } | null> {
+    const user = await this.db.queryOne<{
+      user_id: number;
+      email: string;
+      full_name: string;
+      avatar_url: string | null;
+      role: Role;
+    }>(
+      `SELECT user_id, email, full_name, avatar_url, role
+       FROM \`User\`
+       WHERE user_id = ?`,
+      [userId],
+    );
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user.user_id,
+      email: user.email,
+      fullName: user.full_name,
+      avatarUrl: user.avatar_url,
+      role: user.role,
+    };
+  }
+
+  async updateProfile(
+    userId: number,
+    fullName?: string,
+    avatarUrl?: string,
+  ): Promise<{
+    id: number;
+    email: string;
+    fullName: string;
+    avatarUrl: string | null;
+    role: Role;
+  } | null> {
+    const updates: string[] = [];
+    const params: any[] = [];
+
+    if (fullName !== undefined) {
+      updates.push('full_name = ?');
+      params.push(fullName);
+    }
+
+    if (avatarUrl !== undefined) {
+      updates.push('avatar_url = ?');
+      params.push(avatarUrl);
+    }
+
+    if (updates.length === 0) {
+      // Nothing to update, just return current profile
+      return this.getProfile(userId);
+    }
+
+    params.push(userId);
+
+    await this.db.query(
+      `UPDATE \`User\` SET ${updates.join(', ')} WHERE user_id = ?`,
+      params,
+    );
+
+    return this.getProfile(userId);
   }
 }

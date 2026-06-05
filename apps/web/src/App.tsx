@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, BrowserRouter } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "./lib/auth";
 import { AuthProvider } from "./lib/auth";
+import type { Role } from "@manga/shared";
 import Login from "./pages/Login";
 import AuthCallback from "./pages/AuthCallback";
 import Dashboard from "./pages/Dashboard";
@@ -21,8 +22,12 @@ import EditorReviewQueue from "./pages/editor/ReviewQueue";
 import EditorChapterReview from "./pages/editor/ChapterReview";
 import AdminConsole from "./pages/admin/Console";
 import AdminDisputes from "./pages/admin/Disputes";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { AppShell } from "./components/app/AppShell";
+import { RoleProtected } from "./components/app/RoleProtected";
+import { ToastProvider } from "./components/ui/Toast";
+import { ConfirmProvider } from "./lib/confirm";
 
 function Splash() {
   return (
@@ -57,9 +62,11 @@ function AppRoutes() {
         path="/proposals"
         element={
           <Protected>
-            <AppShell>
-              <Proposals />
-            </AppShell>
+            <RoleProtected roles={["MANGAKA" as Role]}>
+              <AppShell>
+                <Proposals />
+              </AppShell>
+            </RoleProtected>
           </Protected>
         }
       />
@@ -67,9 +74,11 @@ function AppRoutes() {
         path="/series"
         element={
           <Protected>
-            <AppShell>
-              <SeriesList />
-            </AppShell>
+            <RoleProtected roles={["MANGAKA" as Role]}>
+              <AppShell>
+                <SeriesList />
+              </AppShell>
+            </RoleProtected>
           </Protected>
         }
       />
@@ -77,9 +86,11 @@ function AppRoutes() {
         path="/series/:id"
         element={
           <Protected>
-            <AppShell>
-              <SeriesDetail />
-            </AppShell>
+            <RoleProtected roles={["MANGAKA" as Role]}>
+              <AppShell>
+                <SeriesDetail />
+              </AppShell>
+            </RoleProtected>
           </Protected>
         }
       />
@@ -87,9 +98,11 @@ function AppRoutes() {
         path="/series/:seriesId/chapters/:chapterId"
         element={
           <Protected>
-            <AppShell>
-              <ChapterWorkspace />
-            </AppShell>
+            <RoleProtected roles={["MANGAKA" as Role]}>
+              <AppShell>
+                <ChapterWorkspace />
+              </AppShell>
+            </RoleProtected>
           </Protected>
         }
       />
@@ -97,9 +110,11 @@ function AppRoutes() {
         path="/review"
         element={
           <Protected>
-            <AppShell>
-              <ReviewQueue />
-            </AppShell>
+            <RoleProtected roles={["MANGAKA" as Role]}>
+              <AppShell>
+                <ReviewQueue />
+              </AppShell>
+            </RoleProtected>
           </Protected>
         }
       />
@@ -107,9 +122,11 @@ function AppRoutes() {
         path="/board/proposals"
         element={
           <Protected>
-            <AppShell>
-              <BoardProposals />
-            </AppShell>
+            <RoleProtected roles={["EDITORIAL_BOARD" as Role]}>
+              <AppShell>
+                <BoardProposals />
+              </AppShell>
+            </RoleProtected>
           </Protected>
         }
       />
@@ -117,9 +134,11 @@ function AppRoutes() {
         path="/board/series"
         element={
           <Protected>
-            <AppShell>
-              <BoardSeries />
-            </AppShell>
+            <RoleProtected roles={["EDITORIAL_BOARD" as Role]}>
+              <AppShell>
+                <BoardSeries />
+              </AppShell>
+            </RoleProtected>
           </Protected>
         }
       />
@@ -127,9 +146,11 @@ function AppRoutes() {
         path="/board/rankings"
         element={
           <Protected>
-            <AppShell>
-              <BoardRankings />
-            </AppShell>
+            <RoleProtected roles={["EDITORIAL_BOARD" as Role]}>
+              <AppShell>
+                <BoardRankings />
+              </AppShell>
+            </RoleProtected>
           </Protected>
         }
       />
@@ -137,9 +158,11 @@ function AppRoutes() {
         path="/my-tasks"
         element={
           <Protected>
-            <AppShell>
-              <AssistantTasks />
-            </AppShell>
+            <RoleProtected roles={["ASSISTANT" as Role]}>
+              <AppShell>
+                <AssistantTasks />
+              </AppShell>
+            </RoleProtected>
           </Protected>
         }
       />
@@ -147,9 +170,11 @@ function AppRoutes() {
         path="/earnings"
         element={
           <Protected>
-            <AppShell>
-              <AssistantEarnings />
-            </AppShell>
+            <RoleProtected roles={["ASSISTANT" as Role]}>
+              <AppShell>
+                <AssistantEarnings />
+              </AppShell>
+            </RoleProtected>
           </Protected>
         }
       />
@@ -159,9 +184,11 @@ function AppRoutes() {
         path="/editor/review"
         element={
           <Protected>
-            <AppShell>
-              <EditorReviewQueue />
-            </AppShell>
+            <RoleProtected roles={["TANTOU_EDITOR" as Role]}>
+              <AppShell>
+                <EditorReviewQueue />
+              </AppShell>
+            </RoleProtected>
           </Protected>
         }
       />
@@ -169,9 +196,11 @@ function AppRoutes() {
         path="/editor/review/:chapterId"
         element={
           <Protected>
-            <AppShell>
-              <EditorChapterReview />
-            </AppShell>
+            <RoleProtected roles={["TANTOU_EDITOR" as Role]}>
+              <AppShell>
+                <EditorChapterReview />
+              </AppShell>
+            </RoleProtected>
           </Protected>
         }
       />
@@ -179,9 +208,11 @@ function AppRoutes() {
         path="/admin"
         element={
           <Protected>
-            <AppShell>
-              <AdminConsole />
-            </AppShell>
+            <RoleProtected roles={["ADMIN" as Role]}>
+              <AppShell>
+                <AdminConsole />
+              </AppShell>
+            </RoleProtected>
           </Protected>
         }
       />
@@ -189,8 +220,20 @@ function AppRoutes() {
         path="/admin/disputes"
         element={
           <Protected>
+            <RoleProtected roles={["ADMIN" as Role]}>
+              <AppShell>
+                <AdminDisputes />
+              </AppShell>
+            </RoleProtected>
+          </Protected>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <Protected>
             <AppShell>
-              <AdminDisputes />
+              <Profile />
             </AppShell>
           </Protected>
         }
@@ -213,7 +256,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <ToastProvider>
+          <ConfirmProvider>
+            <AppRoutes />
+          </ConfirmProvider>
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   );

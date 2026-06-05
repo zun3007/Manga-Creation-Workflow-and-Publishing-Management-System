@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import React from "react";
 import { api } from "../../lib/api";
+import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { Stamp } from "../../components/ui/Stamp";
@@ -37,6 +38,7 @@ interface EarningsData {
 }
 
 export default function Earnings() {
+  const toast = useToast();
   const [earnings, setEarnings] = useState<EarningsData | null>(null);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,18 +75,16 @@ export default function Earnings() {
       return;
     }
 
+    if (formData.expectedAmount && Number(formData.expectedAmount) <= 0) {
+      setError("Số tiền mong đợi phải lớn hơn 0.");
+      return;
+    }
+
     setBusy(true);
     setError("");
+    const previousEarnings = earnings;
     try {
-      await api.post("/disputes", {
-        taskId,
-        reason: formData.reason,
-        expectedAmount: formData.expectedAmount
-          ? Number(formData.expectedAmount)
-          : undefined,
-      });
-
-      // Update local state
+      // Update local state optimistically
       if (earnings) {
         setEarnings((prev) =>
           prev
@@ -98,6 +98,14 @@ export default function Earnings() {
         );
       }
 
+      await api.post("/disputes", {
+        taskId,
+        reason: formData.reason,
+        expectedAmount: formData.expectedAmount
+          ? Number(formData.expectedAmount)
+          : undefined,
+      });
+
       // Refetch disputes
       const disputesRes = await api.get<Dispute[]>("/disputes/mine");
       setDisputes(disputesRes.data || []);
@@ -105,8 +113,11 @@ export default function Earnings() {
       // Close form
       setEditingTaskId(null);
       setFormData({ reason: "", expectedAmount: "" });
+      toast.success('Đã gửi khiếu nại.');
     } catch (e) {
       console.error("Failed to submit dispute", e);
+      // Revert to previous state
+      setEarnings(previousEarnings);
       setError("Không thể gửi khiếu nại. Vui lòng thử lại.");
     } finally {
       setBusy(false);

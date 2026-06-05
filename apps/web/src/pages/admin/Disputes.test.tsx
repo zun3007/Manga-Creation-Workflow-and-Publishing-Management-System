@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { ConfirmProvider } from "../../lib/confirm";
+import { ToastProvider } from "../../components/ui/Toast";
 import Disputes from "./Disputes";
 
 vi.mock("../../lib/api", () => ({
@@ -27,8 +29,6 @@ vi.mock("../../lib/api", () => ({
   },
 }));
 
-vi.stubGlobal("confirm", () => true);
-
 import { api as mockApi } from "../../lib/api";
 
 describe("Disputes", () => {
@@ -37,7 +37,13 @@ describe("Disputes", () => {
   });
 
   it("renders disputes table with data", async () => {
-    render(<Disputes />);
+    render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <Disputes />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Mai")).toBeInTheDocument();
@@ -46,7 +52,13 @@ describe("Disputes", () => {
   });
 
   it("calls /disputes on mount", async () => {
-    render(<Disputes />);
+    render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <Disputes />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
 
     await waitFor(() => {
       expect(mockApi.get).toHaveBeenCalledWith("/disputes");
@@ -54,7 +66,13 @@ describe("Disputes", () => {
   });
 
   it("calls patch /disputes/:id/review on review button click", async () => {
-    render(<Disputes />);
+    render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <Disputes />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Bắt đầu xem xét")).toBeInTheDocument();
@@ -73,7 +91,13 @@ describe("Disputes", () => {
       data: [],
     } as any);
 
-    render(<Disputes />);
+    render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <Disputes />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Không có khiếu nại nào.")).toBeInTheDocument();
@@ -85,7 +109,13 @@ describe("Disputes", () => {
       () => new Promise(() => {})
     );
 
-    render(<Disputes />);
+    render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <Disputes />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
 
     expect(screen.getByText("Đang tải…")).toBeInTheDocument();
   });
@@ -93,7 +123,13 @@ describe("Disputes", () => {
   it("shows error panel on API failure", async () => {
     vi.mocked(mockApi.get).mockRejectedValueOnce(new Error("API Error"));
 
-    render(<Disputes />);
+    render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <Disputes />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
 
     await waitFor(() => {
       expect(
@@ -103,7 +139,13 @@ describe("Disputes", () => {
   });
 
   it("updates status to UNDER_REVIEW after review", async () => {
-    render(<Disputes />);
+    render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <Disputes />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Bắt đầu xem xét")).toBeInTheDocument();

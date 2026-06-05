@@ -100,6 +100,23 @@ export class DecisionsService {
       dto.seriesId,
     );
 
+    // Step 7: Notify active editors of this series
+    const editors = await this.db.query<{ editor_user_id: number }>(
+      `SELECT editor_user_id FROM \`Series_Tantou_Editor\` WHERE series_id = ? AND unassigned_at IS NULL`,
+      [dto.seriesId],
+    );
+
+    for (const editor of editors) {
+      await this.notifications.notify(
+        editor.editor_user_id,
+        NotificationType.DECISION,
+        `Quyết định cho "${series.title}": ${dto.decisionType}`,
+        dto.reason,
+        'Series',
+        dto.seriesId,
+      );
+    }
+
     return { ok: true };
   }
 

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "../../lib/api";
+import { useToast } from "../../components/ui/Toast";
+import { useConfirm } from "../../lib/confirm";
 import { Panel } from "../../components/ui/Panel";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Stamp } from "../../components/ui/Stamp";
@@ -23,6 +25,8 @@ interface Editor {
 }
 
 export default function BoardSeries() {
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const [rows, setRows] = useState<SeriesRow[]>([]);
   const [editors, setEditors] = useState<Editor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,12 +57,23 @@ export default function BoardSeries() {
   }
 
   async function handleEditorChange(seriesId: number, value: string) {
+    const currentRow = rows.find((r) => r.id === seriesId);
+    if (!currentRow) return;
+
     setSavingId(seriesId);
     setActionError("");
     try {
       if (value === "") {
-        // Unassign
-        if (!window.confirm("Bỏ gán biên tập khỏi series này?")) {
+        // Unassign - confirm before applying
+        if (!(await confirm({ title: 'Bỏ gán biên tập khỏi series này?', tone: 'danger' }))) {
+          // Revert the select to its previous value
+          setRows((prev) =>
+            prev.map((row) =>
+              row.id === seriesId
+                ? { ...row, editorUserId: currentRow.editorUserId, editor: currentRow.editor }
+                : row
+            )
+          );
           setSavingId(null);
           return;
         }
@@ -70,6 +85,7 @@ export default function BoardSeries() {
               : row
           )
         );
+        toast.success('Đã gỡ phân công biên tập.');
       } else {
         // Assign
         const editorId = Number(value);
@@ -86,6 +102,7 @@ export default function BoardSeries() {
               : row
           )
         );
+        toast.success('Đã phân công biên tập.');
       }
     } catch (e: any) {
       const message =

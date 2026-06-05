@@ -4,6 +4,7 @@ import type { PageDetail, RegionItem } from "../../types";
 import { RegionType } from "@manga/shared";
 import { Panel } from "../ui/Panel";
 import { Button } from "../ui/Button";
+import { useToast } from "../ui/Toast";
 
 const REGION_TYPES = [
   RegionType.PANEL,
@@ -23,6 +24,7 @@ interface PageCanvasProps {
 }
 
 export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
+  const toast = useToast();
   const boxRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
@@ -151,6 +153,7 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
       });
       setRegions([...regions, res.data]);
       setNewRegionRect(null);
+      toast.success("Đã thêm vùng.");
     } catch (e) {
       console.error("Failed to create region", e);
     }
@@ -228,9 +231,9 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
               width: `${Math.abs(currentPos.x - startPos.x)}px`,
               height: `${Math.abs(currentPos.y - startPos.y)}px`,
               border: "2px dashed var(--accent)",
-              backgroundColor: "var(--accent-rgb) / 0.1",
               pointerEvents: "none",
             }}
+            className="bg-accent/10"
           />
         )}
 
@@ -240,6 +243,7 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
             <button
               key={region.id}
               onClick={() => onRegionClick?.(region)}
+              aria-label={`Vùng ${region.type}`}
               style={{
                 position: "absolute",
                 left: `${region.x * boxSize.width}px`,
@@ -247,11 +251,10 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
                 width: `${region.width * boxSize.width}px`,
                 height: `${region.height * boxSize.height}px`,
                 border: "1px solid var(--accent)",
-                backgroundColor: "var(--accent-rgb) / 0.1",
                 cursor: "pointer",
                 transition: "all 0.2s",
               }}
-              className="hover:brightness-110"
+              className="bg-accent/10 hover:brightness-110"
             >
               <div className="absolute bottom-0.5 left-0.5 bg-accent text-white px-1 py-0.5 font-mono text-[0.5rem] uppercase rounded-[2px]">
                 {region.type}

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { emitToast } from "./toastBus";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 const TOKEN_KEY = "manga_token";
@@ -20,10 +21,22 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    if (error?.response?.status === 401 && !location.pathname.startsWith("/login")) {
-      clearToken();
-      location.href = "/login?error=session_expired";
+    const status = error?.response?.status as number | undefined;
+    if (status === 401) {
+      if (!location.pathname.startsWith("/login")) {
+        clearToken();
+        location.href = "/login?error=session_expired";
+      }
+      return Promise.reject(error);
     }
+    // Surface every other failure (validation 400, 403, 404, 5xx, network) as a toast
+    // so no action ever fails silently.
+    let msg = error?.response?.data?.message;
+    if (Array.isArray(msg)) msg = msg.join("; ");
+    emitToast(
+      "error",
+      msg || (status ? `Có lỗi xảy ra (HTTP ${status})` : "Không kết nối được máy chủ."),
+    );
     return Promise.reject(error);
   },
 );

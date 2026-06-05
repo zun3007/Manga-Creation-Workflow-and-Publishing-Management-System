@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import wasmUrl from '@manga/canvas-wasm/inkforge.wasm?url';
 import { InkforgeWasm } from '@manga/canvas-wasm';
 import { api } from '../../lib/api';
 import { roleScope } from '@manga/shared';
 import { useAuth } from '../../lib/auth';
+import { useConfirm } from '../../lib/confirm';
 import { Studio } from '../../components/studio/Studio';
 import { StudioEngine } from '../../lib/studio/engine';
 import { HeuristicAI } from '../../lib/studio/ai/heuristic';
@@ -15,29 +16,77 @@ import { createDocument } from '../../lib/studio/document';
 import { deserializeDoc, loadImageFromBlob, imageToBuffer, serializeDoc, exportPNG } from '../../lib/studio/io';
 import type { RectN } from '../../lib/studio/types';
 import type { PageDetail } from '../../types';
+import { useToast } from '../../components/ui/Toast';
+import { Spinner } from '../../components/ui/Spinner';
+import { draftKey, saveDraft, loadDraft, getDraftMeta, clearDraft } from '../../lib/studio/persist';
 
 export default function StudioPage() {
   const { pageId } = useParams<{ pageId: string }>(); const id = Number(pageId);
   const navigate = useNavigate(); const { user } = useAuth();
+  const toast = useToast(); const { confirm } = useConfirm();
   const [engine, setEngine] = useState<StudioEngine | null>(null);
   const [saving, setSaving] = useState(false); const [error, setError] = useState('');
   const [ai, setAi] = useState<AIAssist | null>(null);
   const [aiKind, setAiKind] = useState<'ONNX' | 'Heuristic'>('Heuristic');
+  const autosaveTimerRef = useRef<number | null>(null);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => { let alive = true; (async () => {
     try {
       const wasm = await InkforgeWasm.load(wasmUrl);
-      const { data: page } = await api.get<PageDetail>(`/pages/${id}`);
+      let page: PageDetail | null = null;
+      try { page = (await api.get<PageDetail>(`/pages/${id}`)).data; }
+      catch (e) { console.warn('[StudioPage] page meta unavailable, opening blank canvas', e); }
       const docRes = await api.get(`/studio/docs/${id}`).catch(() => ({ data: null as any }));
       let eng: StudioEngine;
-      if (docRes.data && docRes.data.doc) { eng = await deserializeDoc(docRes.data, wasm); }
-      else {
-        const img = await loadImageFromBlob(await (await fetch(page.imageUrl)).blob());
-        const w = img.naturalWidth || 1000, h = img.naturalHeight || 1414;
-        const doc = createDocument({ width: w, height: h, background: 'white' });
-        eng = new StudioEngine(doc, wasm);
-        eng.setBuffer(doc.activeLayerId!, imageToBuffer(img, w, h, w, h));
+      if (docRes.data && docRes.data.doc) {
+        const result = await deserializeDoc(docRes.data, wasm);
+        eng = result.engine;
+        if (result.warnings?.length) {
+          console.warn('[StudioPage] Layer load warnings:', result.warnings);
+        }
+      } else {
+        // Always open a usable canvas: start blank, enrich with the page image if one exists.
+        const w0 = 1000, h0 = 1414;
+        const blank = createDocument({ width: w0, height: h0, background: 'white' });
+        eng = new StudioEngine(blank, wasm);
+        if (page?.imageUrl) {
+          try {
+            const img = await loadImageFromBlob(await (await fetch(page.imageUrl)).blob());
+            const w = img.naturalWidth || w0, h = img.naturalHeight || h0;
+            const doc = createDocument({ width: w, height: h, background: 'white' });
+            eng = new StudioEngine(doc, wasm);
+            eng.setBuffer(doc.activeLayerId!, imageToBuffer(img, w, h, w, h));
+          } catch (imgErr) {
+            console.warn('[StudioPage] page image unavailable, opening blank canvas', imgErr);
+          }
+        }
       }
+
+      // Check for draft restore
+      const key = draftKey('page', id);
+      const draftMeta = await getDraftMeta(key);
+      if (draftMeta) {
+        const shouldRestore = await confirm({
+          title: 'Khôi phục bản nháp chưa lưu?',
+          body: `Có một bản nháp cục bộ lúc ${new Date(draftMeta.savedAt).toLocaleString('vi-VN')}. Khôi phục?`,
+          confirmText: 'Khôi phục',
+          cancelText: 'Bỏ qua',
+        });
+        if (shouldRestore) {
+          const draft = await loadDraft(key);
+          if (draft && draft.manifest) {
+            const result = await deserializeDoc(draft.manifest as any, wasm);
+            eng = result.engine;
+            if (result.warnings?.length) {
+              console.warn('[StudioPage] Draft layer load warnings:', result.warnings);
+            }
+          }
+        } else {
+          await clearDraft(key);
+        }
+      }
+
       // Select AI based on model availability
       const hasModel = await modelExists(MODELS.panels);
       let selectedAi: AIAssist;
@@ -49,7 +98,42 @@ export default function StudioPage() {
         setAiKind(hasModel ? 'ONNX' : 'Heuristic');
       }
     } catch (e) { console.error(e); if (alive) setError('Không mở được Studio.'); }
-  })(); return () => { alive = false; }; }, [id]);
+  })(); return () => { alive = false; }; }, [id, confirm]);
+
+  // Autosave effect: subscribe to engine changes and debounce saves
+  useEffect(() => {
+    if (!engine) return;
+    const key = draftKey('page', id);
+
+    const debounceAutosave = () => {
+      if (autosaveTimerRef.current !== null) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+      autosaveTimerRef.current = window.setTimeout(async () => {
+        if (engine.isDirty()) {
+          try {
+            const { manifest, blobs } = await serializeDoc(engine);
+            await saveDraft(key, { manifest, blobs });
+          } catch (e) {
+            console.error('[StudioPage] autosave error:', e);
+          }
+        }
+        autosaveTimerRef.current = null;
+      }, 4000);
+    };
+
+    const unsub = engine.onChange(debounceAutosave);
+    unsubscribeRef.current = unsub;
+
+    return () => {
+      if (autosaveTimerRef.current !== null) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+    };
+  }, [engine, id]);
 
   async function uploadBlob(blob: Blob, name: string): Promise<string> {
     const fd = new FormData(); fd.append('file', new File([blob], name, { type: 'image/png' }));
@@ -57,21 +141,40 @@ export default function StudioPage() {
   }
   async function onSave() {
     if (!engine) return; setSaving(true);
+    const tid = toast.loading('Đang lưu trang…');
     try {
       const flatUrl = await uploadBlob(await exportPNG(engine), `page-${id}.png`);
       await api.post('/studio/page-versions', { pageId: id, imageUrl: flatUrl });
       const { manifest, blobs } = await serializeDoc(engine);
       for (const [lid, blob] of Object.entries(blobs)) manifest.layerImages[lid] = await uploadBlob(blob, `layer-${id}-${lid}.png`);
       await api.post('/studio/docs', { pageId: id, manifest });
-    } catch (e) { console.error(e); alert('Lưu thất bại.'); } finally { setSaving(false); }
+      engine.markSaved();
+      const key = draftKey('page', id);
+      await clearDraft(key);
+      toast.update(tid, 'success', 'Đã lưu trang.');
+    } catch (e) { console.error(e); toast.update(tid, 'error', 'Lưu thất bại. Thử lại nhé.'); } finally { setSaving(false); }
   }
   async function onSaveRegions(frames: RectN[]) {
-    for (const r of frames) { try { await api.post('/regions', { pageId: id, regionType: 'PANEL', x: r.x, y: r.y, width: r.width, height: r.height }); } catch (e) { console.error(e); } }
+    const tid = toast.loading('Đang lưu vùng…');
+    let successCount = 0;
+    for (const r of frames) {
+      try {
+        await api.post('/regions', { pageId: id, regionType: 'PANEL', x: r.x, y: r.y, width: r.width, height: r.height });
+        successCount++;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    if (successCount === frames.length) {
+      toast.update(tid, 'success', `Đã lưu ${successCount} vùng.`);
+    } else {
+      toast.update(tid, 'error', `Lưu vùng thất bại (${successCount}/${frames.length}).`);
+    }
   }
 
-  if (error) return <div className="grid h-screen place-items-center bg-bg text-ink">{error}</div>;
-  if (!engine || !ai) return <div className="grid h-screen place-items-center bg-bg text-ink font-mono text-xs uppercase tracking-wider animate-pulse">Đang mở Studio…</div>;
-  return <div data-role={user ? roleScope(user.role) : 'mangaka'} className="h-screen bg-bg">
+  if (error) return <div className="grid h-screen place-items-center bg-bg text-ink"><div className="flex flex-col items-center gap-3 text-center"><p className="text-sm text-danger">{error}</p><button onClick={() => navigate(-1)} className="px-4 py-2 text-xs uppercase tracking-wide rounded bg-accent text-ink">Quay lại</button></div></div>;
+  if (!engine || !ai) return <div className="grid h-screen place-items-center bg-bg text-ink"><div className="flex flex-col items-center gap-3 text-ink-soft"><Spinner size={28} className="text-accent" /><span className="font-mono text-xs uppercase tracking-wider">Đang mở Studio…</span></div></div>;
+  return <div data-role={user ? roleScope(user.role) : 'mangaka'} className="h-screen w-screen overflow-hidden bg-bg">
     <Studio engine={engine} ai={ai} aiKind={aiKind} onSave={onSave} onSaveRegions={onSaveRegions} onClose={() => navigate(-1)} saving={saving} title={`Trang ${id}`} />
   </div>;
 }

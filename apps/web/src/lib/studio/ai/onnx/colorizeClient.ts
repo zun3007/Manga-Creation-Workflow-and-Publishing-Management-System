@@ -1,5 +1,5 @@
 // Main-thread wrapper for colorize.worker
-// Spawns worker on first use, handles postMessage/onmessage, timeout
+// Spawns worker on first use, handles postMessage/onmessage, timeout, and cancellation
 
 interface ColorizeRequest {
   cmd: 'colorize';
@@ -24,19 +24,32 @@ function getWorker(): Worker {
   return worker;
 }
 
+export function disposeColorizeWorker(): void {
+  if (worker) {
+    worker.terminate();
+    worker = null;
+  }
+}
+
 export async function colorize(
   rgba: Uint8ClampedArray,
   w: number,
-  h: number
+  h: number,
+  signal?: AbortSignal
 ): Promise<Uint8ClampedArray> {
   return new Promise((resolve, reject) => {
     const w_ = getWorker();
     let timeoutId: NodeJS.Timeout | null = null;
 
-    const handleMessage = (e: MessageEvent<ColorizeResponse>) => {
+    const cleanup = () => {
       if (timeoutId) clearTimeout(timeoutId);
       w_.removeEventListener('message', handleMessage);
       w_.removeEventListener('error', handleError);
+      if (signal) signal.removeEventListener('abort', handleAbort);
+    };
+
+    const handleMessage = (e: MessageEvent<ColorizeResponse>) => {
+      cleanup();
 
       if (!e.data.ok) {
         reject(new Error(e.data.error || 'Colorize failed'));
@@ -48,18 +61,22 @@ export async function colorize(
     };
 
     const handleError = (err: ErrorEvent) => {
-      if (timeoutId) clearTimeout(timeoutId);
-      w_.removeEventListener('message', handleMessage);
-      w_.removeEventListener('error', handleError);
+      cleanup();
       reject(new Error(`Colorize worker error: ${err.message}`));
+    };
+
+    const handleAbort = () => {
+      cleanup();
+      disposeColorizeWorker();
+      reject(new DOMException('Aborted', 'AbortError'));
     };
 
     w_.addEventListener('message', handleMessage);
     w_.addEventListener('error', handleError);
+    if (signal) signal.addEventListener('abort', handleAbort);
 
     timeoutId = setTimeout(() => {
-      w_.removeEventListener('message', handleMessage);
-      w_.removeEventListener('error', handleError);
+      cleanup();
       reject(new Error('Colorize timeout (60s)'));
     }, COLORIZE_TIMEOUT);
 

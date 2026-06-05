@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "../../lib/api";
+import { useToast } from "../../components/ui/Toast";
+import { useConfirm } from "../../lib/confirm";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { Stamp } from "../../components/ui/Stamp";
@@ -33,6 +35,8 @@ type DecisionType = "CONTINUE" | "CANCEL" | "HIATUS" | "CHANGE_FREQUENCY";
 type FrequencyType = "WEEKLY" | "MONTHLY";
 
 export default function BoardRankings() {
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const [rankings, setRankings] = useState<RankingRow[]>([]);
   const [openPeriods, setOpenPeriods] = useState<OpenPeriod[]>([]);
   const [seriesOptions, setSeriesOptions] = useState<SeriesOption[]>([]);
@@ -78,7 +82,7 @@ export default function BoardRankings() {
     }
   };
 
-  const handleDecision = async (seriesId: number) => {
+  const handleDecision = async (seriesId: number): Promise<void> => {
     const decision = decisionData[seriesId];
     if (!decision || !decision.type || !decision.reason.trim()) {
       setActionError("Vui lòng điền đầy đủ thông tin quyết định.");
@@ -91,7 +95,7 @@ export default function BoardRankings() {
     }
 
     if (decision.type === "CANCEL" || decision.type === "HIATUS") {
-      if (!window.confirm("Xác nhận quyết định này cho series? Hành động sẽ đổi trạng thái series.")) {
+      if (!(await confirm({ title: 'Xác nhận quyết định cho series?', body: 'Hành động sẽ đổi trạng thái series.', tone: 'danger' }))) {
         return;
       }
     }
@@ -115,6 +119,7 @@ export default function BoardRankings() {
       // Refetch rankings
       const res = await api.get<RankingRow[]>("/rankings");
       setRankings(res.data || []);
+      toast.success('Đã ghi nhận quyết định.');
     } catch (e) {
       const message = (e as any)?.response?.data?.message || "Thao tác thất bại.";
       setActionError(String(message));
@@ -149,6 +154,7 @@ export default function BoardRankings() {
       // Refetch open periods
       const res = await api.get<OpenPeriod[]>("/vote-periods/open");
       setOpenPeriods(res.data || []);
+      toast.success('Đã ghi nhận phiếu bình chọn.');
     } catch (e) {
       const message = (e as any)?.response?.data?.message || "Thao tác thất bại.";
       setActionError(String(message));
@@ -171,6 +177,7 @@ export default function BoardRankings() {
       ]);
       setRankings(rankingsRes.data || []);
       setOpenPeriods(periodsRes.data || []);
+      toast.success('Đã chốt kỳ & tính xếp hạng.');
     } catch (e) {
       const message = (e as any)?.response?.data?.message || "Thao tác thất bại.";
       setActionError(String(message));
@@ -206,6 +213,7 @@ export default function BoardRankings() {
       // Refetch open periods
       const res = await api.get<OpenPeriod[]>("/vote-periods/open");
       setOpenPeriods(res.data || []);
+      toast.success('Đã mở kỳ bình chọn.');
     } catch (e) {
       const message = (e as any)?.response?.data?.message || "Thao tác thất bại.";
       setActionError(String(message));

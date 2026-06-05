@@ -35,13 +35,16 @@ coverage/
 .nyc_output/
 
 # ───────────────── Local file storage (uploads MVP) ─────────────────
-uploads/
+# NOTE: only ignore the runtime upload STORAGE dir, never the source module
+# at apps/api/src/uploads/ (uploads.controller.ts / uploads.module.ts).
+apps/api/uploads/
 storage/
 
 # ───────────────── OS ─────────────────
 .DS_Store
 Thumbs.db
 desktop.ini
+~$*
 
 # ───────────────── IDE / editor ─────────────────
 .idea/

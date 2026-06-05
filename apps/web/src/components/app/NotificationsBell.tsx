@@ -10,6 +10,8 @@ export function NotificationsBell() {
 
   useEffect(() => {
     loadNotifications();
+    // Set up 20-second polling interval
+    const pollInterval = setInterval(loadNotifications, 20000);
     // Set up click outside listener
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -17,11 +19,16 @@ export function NotificationsBell() {
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      clearInterval(pollInterval);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   useEffect(() => {
     if (!isOpen) return;
+    // Refetch notifications when dropdown opens
+    loadNotifications();
     // Handle Escape key to close dropdown
     function handleEscape(e: KeyboardEvent) {
       if (e.key === "Escape") {
@@ -43,22 +50,26 @@ export function NotificationsBell() {
   }
 
   async function markAsRead(id: number) {
+    const previousNotifications = notifications;
     try {
-      await api.patch(`/notifications/${id}/read`);
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, isRead: 1 } : n))
       );
+      await api.patch(`/notifications/${id}/read`);
     } catch (err) {
       console.error("Failed to mark notification as read", err);
+      setNotifications(previousNotifications);
     }
   }
 
   async function markAllAsRead() {
+    const previousNotifications = notifications;
     try {
-      await api.patch("/notifications/read-all");
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: 1 })));
+      await api.patch("/notifications/read-all");
     } catch (err) {
       console.error("Failed to mark all as read", err);
+      setNotifications(previousNotifications);
     }
   }
 

@@ -1,0 +1,3300 @@
+{
+  "info": {
+    "name": "Manga Creation Workflow & Publishing Management System",
+    "description": "Complete REST API collection for the manga studio platform. 66 endpoints across 18 modules with RBAC, chaining, and Newman-compatible happy paths.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 - Auth & Login",
+      "item": [
+        {
+          "name": "POST Login - Mangaka",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and has accessToken', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('accessToken');",
+                  "  pm.expect(pm.response.json().user).to.have.property('role', 'MANGAKA');",
+                  "});",
+                  "pm.environment.set('tok_mangaka', pm.response.json().accessToken);",
+                  "pm.environment.set('uid_mangaka', pm.response.json().user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"mangaka1@test.inkframe.studio\",\"password\":\"Test1234!\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Login - Assistant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and has accessToken', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('accessToken');",
+                  "  pm.expect(pm.response.json().user).to.have.property('role', 'ASSISTANT');",
+                  "});",
+                  "pm.environment.set('tok_assistant', pm.response.json().accessToken);",
+                  "pm.environment.set('uid_assistant', pm.response.json().user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"assistant1@test.inkframe.studio\",\"password\":\"Test1234!\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Login - Tantou Editor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and has accessToken', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('accessToken');",
+                  "  pm.expect(pm.response.json().user).to.have.property('role', 'TANTOU_EDITOR');",
+                  "});",
+                  "pm.environment.set('tok_editor', pm.response.json().accessToken);",
+                  "pm.environment.set('uid_editor', pm.response.json().user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"tantou_editor1@test.inkframe.studio\",\"password\":\"Test1234!\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Login - Editorial Board 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and has accessToken', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('accessToken');",
+                  "  pm.expect(pm.response.json().user).to.have.property('role', 'EDITORIAL_BOARD');",
+                  "});",
+                  "pm.environment.set('tok_board', pm.response.json().accessToken);",
+                  "pm.environment.set('uid_board', pm.response.json().user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"editorial_board1@test.inkframe.studio\",\"password\":\"Test1234!\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Login - Editorial Board 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and has accessToken', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('accessToken');",
+                  "  pm.expect(pm.response.json().user).to.have.property('role', 'EDITORIAL_BOARD');",
+                  "});",
+                  "pm.environment.set('tok_board2', pm.response.json().accessToken);",
+                  "pm.environment.set('uid_board2', pm.response.json().user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"editorial_board2@test.inkframe.studio\",\"password\":\"Test1234!\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Login - Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and has accessToken', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('accessToken');",
+                  "  pm.expect(pm.response.json().user).to.have.property('role', 'ADMIN');",
+                  "});",
+                  "pm.environment.set('tok_admin', pm.response.json().accessToken);",
+                  "pm.environment.set('uid_admin', pm.response.json().user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"admin1@test.inkframe.studio\",\"password\":\"Test1234!\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Login - Wrong Password (Negative)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', function() {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"mangaka1@test.inkframe.studio\",\"password\":\"WrongPassword123\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Auth Me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns user', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('id');",
+                  "  pm.expect(pm.response.json()).to.have.property('role');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Auth Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns ok', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('ok', true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - Genres (Setup)",
+      "item": [
+        {
+          "name": "GET Genres",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "  if(pm.response.json().length > 0) {",
+                  "    pm.environment.set('genreId1', pm.response.json()[0].id);",
+                  "    pm.environment.set('genreId2', pm.response.json()[1]?.id || pm.response.json()[0].id);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/genres",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "genres"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Proposals",
+      "item": [
+        {
+          "name": "POST Create Proposal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 and returns proposal', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('id');",
+                  "  pm.expect(pm.response.json()).to.have.property('status', 'DRAFT');",
+                  "  pm.environment.set('proposalId', pm.response.json().id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"Epic Adventure {{$timestamp}}\",\"synopsis\":\"A thrilling journey across magical lands\",\"proposedFrequency\":\"WEEKLY\",\"genreIds\":[{{genreId1}},{{genreId2}}]}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/proposals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "proposals"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET My Proposals",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/proposals/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "proposals",
+                "mine"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH Submit Proposal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and status SUBMITTED', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('status', 'SUBMITTED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/proposals/{{proposalId}}/submit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "proposals",
+                "{{proposalId}}",
+                "submit"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Review Queue - Editorial Board",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_board}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/proposals/review-queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "proposals",
+                "review-queue"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH Approve Proposal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and decision APPROVED with seriesId', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('decision', 'APPROVED');",
+                  "  pm.expect(pm.response.json()).to.have.property('seriesId');",
+                  "  pm.environment.set('seriesId', pm.response.json().seriesId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_board}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"decision\":\"APPROVED\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/proposals/{{proposalId}}/decision",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "proposals",
+                "{{proposalId}}",
+                "decision"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Series",
+      "item": [
+        {
+          "name": "GET All Series - Editorial Board",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_board}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/series/all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "series",
+                "all"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET My Series - Mangaka",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/series/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "series",
+                "mine"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Series Details",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns series', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('id');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/series/{{seriesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "series",
+                "{{seriesId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT Assign Tantou Editor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and ok true', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('ok', true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_board}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"editorUserId\":{{uid_editor}}}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/series/{{seriesId}}/editor",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "series",
+                "{{seriesId}}",
+                "editor"
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE Unassign Editor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and ok true', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('ok', true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_board}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/series/{{seriesId}}/editor",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "series",
+                "{{seriesId}}",
+                "editor"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Chapters",
+      "item": [
+        {
+          "name": "POST Create Chapter",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 and returns chapter', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('id');",
+                  "  pm.expect(pm.response.json()).to.have.property('status', 'DRAFT');",
+                  "  pm.environment.set('chapterId', pm.response.json().id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"seriesId\":{{seriesId}},\"title\":\"Chapter 1: The Beginning {{$timestamp}}\",\"deadline\":\"2026-06-14\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/chapters",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "chapters"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Chapters by Series",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chapters?seriesId={{seriesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "chapters"
+              ],
+              "query": [
+                {
+                  "key": "seriesId",
+                  "value": "{{seriesId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH Chapter Status - IN_PROGRESS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and status IN_PROGRESS', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('status', 'IN_PROGRESS');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"IN_PROGRESS\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/chapters/{{chapterId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "chapters",
+                "{{chapterId}}",
+                "status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH Chapter Status - Ready for Review",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and status READY_FOR_EDITOR_REVIEW', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('status', 'READY_FOR_EDITOR_REVIEW');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"READY_FOR_EDITOR_REVIEW\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/chapters/{{chapterId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "chapters",
+                "{{chapterId}}",
+                "status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Review Queue - Tantou Editor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_editor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chapters/review-queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "chapters",
+                "review-queue"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Chapter Pages",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Chapter pages returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(Array.isArray(body)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_editor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chapters/{{chapterId}}/pages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "chapters",
+                "{{chapterId}}",
+                "pages"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH Editor Review - Approve",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns chapter object', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('id');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_editor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"decision\":\"APPROVE\",\"feedback\":\"Excellent work! Minor adjustments on page 3.\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/chapters/{{chapterId}}/editor-review",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "chapters",
+                "{{chapterId}}",
+                "editor-review"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Pages",
+      "item": [
+        {
+          "name": "POST Create Page",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 and returns page', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('id');",
+                  "  pm.expect(pm.response.json()).to.have.property('status', 'RAW');",
+                  "  pm.environment.set('pageId', pm.response.json().id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"chapterId\":{{chapterId}},\"imageUrl\":\"/uploads/page-001.png\",\"uploadNote\":\"High-res scanned original\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pages"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Pages by Chapter",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pages?chapterId={{chapterId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pages"
+              ],
+              "query": [
+                {
+                  "key": "chapterId",
+                  "value": "{{chapterId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Page Details with Versions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Page details returns object', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(typeof pm.response.json()).to.equal('object');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pages/{{pageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pages",
+                "{{pageId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Regions",
+      "item": [
+        {
+          "name": "POST Create Region",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 and returns region', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('id');",
+                  "  pm.environment.set('regionId', pm.response.json().id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"pageId\":{{pageId}},\"regionType\":\"DIALOGUE_BUBBLE\",\"x\":150.5,\"y\":200.0,\"width\":100.0,\"height\":75.5}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/regions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "regions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Regions by Page",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/regions?pageId={{pageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "regions"
+              ],
+              "query": [
+                {
+                  "key": "pageId",
+                  "value": "{{pageId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Recreate Region for Tasks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 and returns region', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('id');",
+                  "  pm.environment.set('regionId', pm.response.json().id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"pageId\":{{pageId}},\"regionType\":\"DIALOGUE_BUBBLE\",\"x\":150.5,\"y\":200.0,\"width\":100.0,\"height\":75.5}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/regions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "regions"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Users (Dropdowns)",
+      "item": [
+        {
+          "name": "GET Assistants",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "  if(pm.response.json().length > 0) {",
+                  "    pm.environment.set('assistantId', pm.response.json()[0].id);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/assistants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "assistants"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Editors",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_board}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/editors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "editors"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Tasks",
+      "item": [
+        {
+          "name": "POST Create Task (after region re-creation)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 and returns task', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  var taskId = pm.response.json().task_id || pm.response.json().id;",
+                  "  pm.expect(taskId).to.exist;",
+                  "  pm.expect(pm.response.json()).to.have.property('status', 'ASSIGNED');",
+                  "  pm.environment.set('taskId', taskId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"regionId\":{{regionId}},\"assigneeUserId\":{{uid_assistant}},\"description\":\"Add dialogue to bubble\",\"instruction\":\"Use Arial 12pt, white text with black outline\",\"deadline\":\"2026-06-07\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET My Tasks - Assistant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_assistant}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                "mine"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Tasks by Page",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tasks?pageId={{pageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks"
+              ],
+              "query": [
+                {
+                  "key": "pageId",
+                  "value": "{{pageId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH Start Task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and status IN_PROGRESS', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('status', 'IN_PROGRESS');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_assistant}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/{{taskId}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                "{{taskId}}",
+                "start"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - Submissions",
+      "item": [
+        {
+          "name": "POST Submit Work",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Submit work returns submission', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('submission_id');",
+                  "  pm.environment.set('submissionId', body.submission_id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_assistant}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"taskId\":{{taskId}},\"fileUrl\":\"/uploads/submission-{{$timestamp}}.png\",\"versionNote\":\"Added white outline as instructed\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/submissions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "submissions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Submission Review Queue",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/submissions/review-queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "submissions",
+                "review-queue"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH Review Submission - Approve",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Review submission approved', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('decision', 'APPROVED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"decision\":\"APPROVED\",\"feedback\":\"Perfect! Ready to publish.\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/submissions/{{submissionId}}/review",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "submissions",
+                "{{submissionId}}",
+                "review"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Annotations",
+      "item": [
+        {
+          "name": "POST Create Annotation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create annotation and capture id', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('id');",
+                  "  pm.environment.set('annotationId', pm.response.json().id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_editor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"targetType\":\"SUBMISSION\",\"targetId\":{{submissionId}},\"category\":\"DIALOGUE_ISSUE\",\"context\":\"This line is cut off at the edge.\",\"x\":145.5,\"y\":210.0}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/annotations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "annotations"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Annotations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_editor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/annotations?targetType=SUBMISSION&targetId={{submissionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "annotations"
+              ],
+              "query": [
+                {
+                  "key": "targetType",
+                  "value": "SUBMISSION"
+                },
+                {
+                  "key": "targetId",
+                  "value": "{{submissionId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH Resolve Annotation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Resolve annotation returns ok:true', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('ok', true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_editor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/annotations/{{annotationId}}/resolve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "annotations",
+                "{{annotationId}}",
+                "resolve"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 - Rankings & Voting",
+      "item": [
+        {
+          "name": "POST Create Vote Period",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create vote period', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('id');",
+                  "  pm.environment.set('votePeriodId', pm.response.json().id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_board}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"seriesId\":{{seriesId}},\"periodType\":\"WEEKLY\",\"startDate\":\"2026-06-01\",\"endDate\":\"2026-06-07\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vote-periods",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vote-periods"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Open Vote Periods",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_board}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vote-periods/open",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vote-periods",
+                "open"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Cast Vote - Board 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Cast vote', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_board}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"votePeriodId\":{{votePeriodId}},\"score\":4.5,\"comment\":\"Strong artwork this week\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/votes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "votes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Cast Vote - Board 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Cast vote', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_board2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"votePeriodId\":{{votePeriodId}},\"score\":4.0,\"comment\":\"Well-paced narrative\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/votes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "votes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Close Vote Period",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Close vote period', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_board}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vote-periods/{{votePeriodId}}/close",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vote-periods",
+                "{{votePeriodId}}",
+                "close"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Rankings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_board}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/rankings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rankings"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 - Decisions",
+      "item": [
+        {
+          "name": "POST Create Decision",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 and ok true', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('ok', true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_board}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"seriesId\":{{seriesId}},\"decisionType\":\"CONTINUE\",\"reason\":\"Strong reader feedback, maintain weekly schedule\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "decisions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Decisions by Series",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_board}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/decisions?seriesId={{seriesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "decisions"
+              ],
+              "query": [
+                {
+                  "key": "seriesId",
+                  "value": "{{seriesId}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 - Earnings & Disputes",
+      "item": [
+        {
+          "name": "GET My Earnings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and has total earnings', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('total');",
+                  "  pm.expect(pm.response.json()).to.have.property('tasks');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_assistant}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/earnings/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "earnings",
+                "mine"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Create Dispute",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 and returns dispute', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('id');",
+                  "  pm.expect(pm.response.json()).to.have.property('status', 'OPEN');",
+                  "  pm.environment.set('disputeId', pm.response.json().id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_assistant}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"taskId\":{{taskId}},\"reason\":\"Work was significantly more complex than quoted\",\"expectedAmount\":7500}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/disputes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "disputes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET My Disputes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_assistant}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/disputes/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "disputes",
+                "mine"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET All Disputes - Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/disputes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "disputes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH Review Dispute",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns ok:true', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('ok', true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/disputes/{{disputeId}}/review",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "disputes",
+                "{{disputeId}}",
+                "review"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH Resolve Dispute",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and ok true', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('ok', true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_admin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"RESOLVED\",\"resolutionNote\":\"Approved partial adjustment based on submission analysis\",\"adjustedAmount\":6000}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/disputes/{{disputeId}}/resolve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "disputes",
+                "{{disputeId}}",
+                "resolve"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 - Notifications",
+      "item": [
+        {
+          "name": "GET Notifications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH Mark All as Read",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and ok true', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('ok', true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "read-all"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 - Dashboard",
+      "item": [
+        {
+          "name": "GET Dashboard Summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and is object with metrics', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('object');",
+                  "  pm.expect(pm.response.json()).to.have.property('totalSeries');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard",
+                "summary"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Dashboard Series",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard",
+                "series"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Dashboard Tasks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard",
+                "tasks"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Dashboard Submissions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/submissions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard",
+                "submissions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Dashboard Notifications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Dashboard notifications returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(Array.isArray(pm.response.json())).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard",
+                "notifications"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 - Admin",
+      "item": [
+        {
+          "name": "GET Admin Users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns array', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Admin Overview",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and has users field', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('users');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/overview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "overview"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH Update User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Update user', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('ok', true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_admin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"isActivated\":true}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{uid_assistant}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{uid_assistant}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 - Studio & Uploads",
+      "item": [
+        {
+          "name": "POST Save Studio Page Version",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200/201 and returns pageId, versionNumber', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('pageId');",
+                  "  pm.expect(body).to.have.property('versionNumber');",
+                  "  pm.environment.set('studioPageId', body.pageId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"pageId\":{{pageId}},\"imageUrl\":\"/uploads/canvas-export-v2.png\",\"note\":\"v2: Fixed perspective, added screentone\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/studio/page-versions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "studio",
+                "page-versions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Save Studio Doc Manifest",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200/201 and returns saved:true', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  pm.expect(pm.response.json()).to.have.property('saved', true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"pageId\":{{studioPageId}},\"manifest\":{\"layers\":[{\"name\":\"base\",\"opacity\":1},{\"name\":\"effects\",\"opacity\":0.8}],\"viewport\":{\"x\":0,\"y\":0,\"zoom\":1},\"history\":[]}}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/studio/docs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "studio",
+                "docs"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Load Studio Doc",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 and returns manifest object', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "  const body = pm.response.json();",
+                  "  if (body && typeof body === 'object') {",
+                  "    pm.expect(Object.keys(body).length).to.be.greaterThan(0);",
+                  "  } else {",
+                  "    pm.expect(body).to.not.be.null;",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/studio/docs/{{studioPageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "studio",
+                "docs",
+                "{{studioPageId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 - Health Check",
+      "item": [
+        {
+          "name": "GET API Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "ZZ - RBAC Negative Tests",
+      "item": [
+        {
+          "name": "POST Proposal - Wrong Role (Assistant forbids MANGAKA endpoint)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 403 Forbidden', function() {",
+                  "  pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_assistant}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"Forbidden\",\"synopsis\":\"Should fail\",\"proposedFrequency\":\"WEEKLY\",\"genreIds\":[1]}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/proposals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "proposals"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Review Queue - Wrong Role (Mangaka forbids EDITORIAL_BOARD endpoint)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 403 Forbidden', function() {",
+                  "  pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/proposals/review-queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "proposals",
+                "review-queue"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Admin Users - Wrong Role (Mangaka forbids ADMIN endpoint)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 403 Forbidden', function() {",
+                  "  pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_mangaka}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Earnings - Missing Auth (No token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', function() {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/earnings/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "earnings",
+                "mine"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Notifications - Missing Auth (Empty token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', function() {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer invalid-token-xyz"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Dashboard - Editor forbids Mangaka dashboard",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 403 Forbidden', function() {",
+                  "  pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tok_editor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard",
+                "series"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "tok_mangaka",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "uid_mangaka",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tok_assistant",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "uid_assistant",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tok_editor",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "uid_editor",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tok_board",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "uid_board",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tok_board2",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "uid_board2",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tok_admin",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "uid_admin",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "genreId1",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "genreId2",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "proposalId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "seriesId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "chapterId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pageId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "regionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "taskId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "submissionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "annotationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "votePeriodId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "rankingId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "decisionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "disputeId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "assistantId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

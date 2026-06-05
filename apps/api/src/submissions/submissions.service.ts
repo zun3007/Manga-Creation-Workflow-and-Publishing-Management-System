@@ -193,31 +193,34 @@ export class SubmissionsService {
       );
     }
 
-    // Update submission
-    await this.db.query(
-      `UPDATE \`Submission\`
-       SET submission_status = ?, feedback = ?, reviewed_by_user_id = ?, reviewed_at = NOW()
-       WHERE submission_id = ?`,
-      [decisionStatus, feedback ?? null, mangakaUserId, submissionId],
-    );
-
-    // Update task
-    await this.db.query(
-      `UPDATE \`Task\` SET task_status = ? WHERE task_id = ?`,
-      [newTaskStatus, row.task_id],
-    );
-
-    // Accrue earnings to assistant profile
-    if (decision === 'APPROVED') {
-      await this.db.query(
-        `UPDATE \`Assistant_Profile\`
-         SET total_earnings = total_earnings + COALESCE((SELECT payment_amount FROM \`Task\` WHERE task_id = ?), 0)
-         WHERE user_id = ?`,
-        [row.task_id, row.assistant_user_id],
+    // Execute all DB writes in a single transaction
+    await this.db.transaction(async (tx) => {
+      // Update submission
+      await tx.query(
+        `UPDATE \`Submission\`
+         SET submission_status = ?, feedback = ?, reviewed_by_user_id = ?, reviewed_at = NOW()
+         WHERE submission_id = ?`,
+        [decisionStatus, feedback ?? null, mangakaUserId, submissionId],
       );
-    }
 
-    // Send notification to assistant
+      // Update task
+      await tx.query(
+        `UPDATE \`Task\` SET task_status = ? WHERE task_id = ?`,
+        [newTaskStatus, row.task_id],
+      );
+
+      // Accrue earnings to assistant profile
+      if (decision === 'APPROVED') {
+        await tx.query(
+          `UPDATE \`Assistant_Profile\`
+           SET total_earnings = total_earnings + COALESCE((SELECT payment_amount FROM \`Task\` WHERE task_id = ?), 0)
+           WHERE user_id = ?`,
+          [row.task_id, row.assistant_user_id],
+        );
+      }
+    });
+
+    // Send notification after transaction commits
     if (decision === 'APPROVED') {
       await this.notifications.notify(
         row.assistant_user_id,

@@ -1,30 +1,40 @@
 import type { RGBA } from '../../lib/studio/types';
 import { hexToRgb, rgbToHex, rgbToHsv, hsvToRgb, MANGA_PALETTE } from '../../lib/studio/color';
+import { Shuffle } from 'lucide-react';
 
 export interface ColorPanelProps {
-  color: RGBA;
-  onColor: (c: RGBA) => void;
+  colors: { fg: RGBA; bg: RGBA };
+  onColors: (c: { fg: RGBA; bg: RGBA }) => void;
+  activeColorSlot: 'fg' | 'bg';
+  onActiveColorSlot: (slot: 'fg' | 'bg') => void;
   palette: string[];
   onAddSwatch: (hex: string) => void;
   recent: string[];
 }
 
 export function ColorPanel({
-  color,
-  onColor,
+  colors,
+  onColors,
+  activeColorSlot,
+  onActiveColorSlot,
   palette,
   onAddSwatch,
   recent,
 }: ColorPanelProps) {
+  const color = colors[activeColorSlot];
   const hex = rgbToHex({ r: color.r, g: color.g, b: color.b });
   const hsv = rgbToHsv({ r: color.r, g: color.g, b: color.b });
+
+  const setActiveColor = (c: RGBA) => {
+    onColors({ ...colors, [activeColorSlot]: c });
+  };
 
   const handleHexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     if (!val.startsWith('#') || val.length < 4) return;
     try {
       const rgb = hexToRgb(val);
-      onColor({ ...rgb, a: color.a });
+      setActiveColor({ ...rgb, a: color.a });
     } catch {
       // ignore invalid hex
     }
@@ -33,32 +43,44 @@ export function ColorPanel({
   const handleHueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newHsv = { h: Number(e.target.value), s: hsv.s, v: hsv.v };
     const rgb = hsvToRgb(newHsv.h, newHsv.s, newHsv.v);
-    onColor({ ...rgb, a: color.a });
+    setActiveColor({ ...rgb, a: color.a });
   };
 
   const handleSaturationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newHsv = { h: hsv.h, s: Number(e.target.value) / 100, v: hsv.v };
     const rgb = hsvToRgb(newHsv.h, newHsv.s, newHsv.v);
-    onColor({ ...rgb, a: color.a });
+    setActiveColor({ ...rgb, a: color.a });
   };
 
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newHsv = { h: hsv.h, s: hsv.s, v: Number(e.target.value) / 100 };
     const rgb = hsvToRgb(newHsv.h, newHsv.s, newHsv.v);
-    onColor({ ...rgb, a: color.a });
+    setActiveColor({ ...rgb, a: color.a });
   };
 
   const handleAlphaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onColor({ ...color, a: Number(e.target.value) });
+    setActiveColor({ ...color, a: Number(e.target.value) });
   };
 
   const handlePaletteSwatch = (swatchHex: string) => {
     const rgb = hexToRgb(swatchHex);
-    onColor({ ...rgb, a: color.a });
+    setActiveColor({ ...rgb, a: color.a });
   };
 
   const handleAddSwatch = () => {
     onAddSwatch(hex);
+  };
+
+  const handleSwapColors = () => {
+    onColors({ fg: colors.bg, bg: colors.fg });
+  };
+
+  const handleResetColors = () => {
+    onColors({
+      fg: { r: 0, g: 0, b: 0, a: 255 },
+      bg: { r: 255, g: 255, b: 255, a: 255 },
+    });
+    onActiveColorSlot('fg');
   };
 
   const allSwatches = [
@@ -68,6 +90,51 @@ export function ColorPanel({
 
   return (
     <div className="flex flex-col gap-4 bg-surface border border-line rounded p-4">
+      {/* Foreground/Background color swatches */}
+      <div className="flex items-center gap-3">
+        {/* FG swatch */}
+        <button
+          onClick={() => onActiveColorSlot('fg')}
+          className={`relative w-14 h-14 rounded border-2 cursor-pointer transition-all ${
+            activeColorSlot === 'fg' ? 'border-accent' : 'border-line'
+          }`}
+          style={{ backgroundColor: rgbToHex(colors.fg) }}
+          aria-label="Foreground color"
+          title="Foreground (X to swap)"
+        />
+
+        {/* BG swatch (overlapping slightly) */}
+        <button
+          onClick={() => onActiveColorSlot('bg')}
+          className={`relative w-12 h-12 rounded border-2 cursor-pointer transition-all -ml-6 ${
+            activeColorSlot === 'bg' ? 'border-accent' : 'border-line'
+          }`}
+          style={{ backgroundColor: rgbToHex(colors.bg) }}
+          aria-label="Background color"
+          title="Background (X to swap)"
+        />
+
+        {/* Swap and reset buttons */}
+        <div className="flex flex-col gap-1 ml-1">
+          <button
+            onClick={handleSwapColors}
+            className="p-1.5 hover:bg-surface-alt rounded transition-colors"
+            aria-label="Swap colors"
+            title="Swap FG/BG (X)"
+          >
+            <Shuffle size={16} />
+          </button>
+          <button
+            onClick={handleResetColors}
+            className="px-2 py-1 text-xs font-mono uppercase rounded hover:bg-surface-alt border border-line transition-colors"
+            aria-label="Reset colors"
+            title="Reset to black/white (D)"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
       {/* Color input */}
       <div className="flex items-center gap-2">
         <input
@@ -75,7 +142,7 @@ export function ColorPanel({
           value={hex}
           onChange={(e) => {
             const rgb = hexToRgb(e.target.value);
-            onColor({ ...rgb, a: color.a });
+            setActiveColor({ ...rgb, a: color.a });
           }}
           className="w-16 h-16 rounded border border-line cursor-pointer"
           aria-label="Color picker"

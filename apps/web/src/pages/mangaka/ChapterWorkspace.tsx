@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../lib/api";
+import { useToast } from "../../components/ui/Toast";
 import type { PageItem, RegionItem } from "../../types";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
@@ -9,6 +10,7 @@ import { TaskAssignDialog } from "../../components/workspace/TaskAssignDialog";
 
 export default function ChapterWorkspace() {
   const navigate = useNavigate();
+  const toast = useToast();
   const { seriesId, chapterId } = useParams<{
     seriesId: string;
     chapterId: string;
@@ -76,6 +78,7 @@ export default function ChapterWorkspace() {
       const newPage = pageRes.data;
       setPages([...pages, newPage]);
       setSelectedPageId(newPage.id);
+      toast.success('Đã lưu.');
     } catch (e) {
       console.error("Failed to upload page", e);
       setUploadError("Không thể tải trang lên. Vui lòng thử lại.");
