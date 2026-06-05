@@ -20,22 +20,24 @@ A monorepo-based internal manga-studio production & publishing management tool. 
 graph TB
     Users["👥 Five Roles<br/>MANGAKA | ASSISTANT<br/>TANTOU_EDITOR | EDITORIAL_BOARD | ADMIN"]
     Web["🌐 Web SPA<br/>React 19 + Vite 8<br/>Tailwind v4 theme<br/>Studio canvas"]
-    API["⚙️ NestJS 11 API<br/>Module-per-domain<br/>JWT auth<br/>MySQL raw SQL"]
+    API["⚙️ NestJS 11 API<br/>Module-per-domain<br/>JWT auth + throttle<br/>MySQL raw SQL<br/>Transactions"]
     MySQL["🗄️ MySQL 8<br/>29 tables<br/>State machines<br/>Docker :3308"]
-    Uploads["📁 Static /uploads/<br/>Page images<br/>Submission files<br/>Served by API"]
+    SeaweedFS["☁️ SeaweedFS S3<br/>Self-hosted object storage<br/>Public read /uploads<br/>Docker :8333"]
     AIOnnx["🤖 ONNX Runtime Web<br/>YOLO | SAM | Colorize<br/>Web workers<br/>Lazy loaded"]
     
     Users -->|HTTP GET/POST/PATCH| Web
     Web -->|axios Bearer /api| API
-    Web -->|Static /uploads| Uploads
+    Web -->|Static /uploads| API
     API -->|Query raw SQL<br/>Transactions| MySQL
-    Uploads -->|Image URL| Web
+    API -->|PUT/GET objects| SeaweedFS
+    SeaweedFS -->|Image URL| Web
     Web -->|In-browser inference| AIOnnx
     AIOnnx -->|heuristic fallback| Web
     
     style Web fill:#e1f5ff
     style API fill:#fff3e0
     style MySQL fill:#f3e5f5
+    style SeaweedFS fill:#fff9c4
     style AIOnnx fill:#e8f5e9
 ```
 
@@ -43,9 +45,9 @@ graph TB
 - Five roles authenticate via JWT (email/password or Google OAuth) and land on a per-role dashboard.
 - Each role interacts with a single web SPA whose UI theme switches via `data-role` CSS scoping (no code duplication).
 - The web frontend proxies `/api/*` to the NestJS backend (Vite dev proxy; production: separate origins with CORS).
-- The API module-per-domain pattern enforces single responsibility: auth guards (JWT + RolesGuard) sit at the controller layer; services delegate to DbService for normalized raw SQL; notifications cross-cut all domain events.
+- The API module-per-domain pattern enforces single responsibility: auth guards (JWT + RolesGuard) + throttling sit at the controller layer; services delegate to DbService for normalized raw SQL with transaction support; notifications cross-cut all domain events.
 - MySQL (Docker on host :3308 → container :3306) holds 29 tables grouped by concern: users & profiles, series lifecycle, chapters/pages/regions, tasks/submissions, annotations, voting/ranking/decisions, earnings/disputes, and cross-cutting audit/notifications.
-- Static `/uploads/` folder served by the API stores raster images and submission files; in production, this moves to object storage (S3/GCS) behind a CDN.
+- **SeaweedFS S3** (Docker on host :8333, self-hosted object storage) stores raster images and submission files. The API's StorageService (@aws-sdk/client-s3, forcePathStyle) manages uploads; `GET /uploads/:key` is served publicly with path-traversal guard. Legacy on-disk fallback present for migration.
 - The Studio (a full-screen raster drawing app within the web SPA) supports on-device AI assists using ONNX Runtime Web—all inference runs in-browser; a heuristic fallback ensures the tool is always usable even if models fail to load.
 
 ---
@@ -122,9 +124,11 @@ Manga-Creation-Workflow-and-Publishing-Management-System/
 │       ├── wasm/               # Compiled .wasm binaries
 │       └── package.json
 │
-├── db/                         # Database layer
+├── db/                         # Database + storage layer
 │   ├── 01-schema.sql           # 29 tables: users, series, chapters, tasks, submissions, etc.
-│   └── docker-compose.yml      # MySQL 8, port 3308
+│   ├── 02-seed.sql             # Demo data (5 roles, 5 series proposals, etc.)
+│   ├── docker-compose.yml      # MySQL 8 (:3308) + SeaweedFS S3 (:8333)
+│   └── seaweedfs-s3.json       # SeaweedFS S3 bucket configuration
 │
 └── docs/                       # Documentation
     ├── superpowers/
@@ -146,10 +150,11 @@ Manga-Creation-Workflow-and-Publishing-Management-System/
 | Component | Technology | Version | Purpose |
 |-----------|-----------|---------|---------|
 | **Web SPA** | React + Vite + TypeScript + Tailwind v4 | React 19.2, Vite 8, TS ~6.0, Tailwind 4.3 | Browser UI: 5 role dashboards (1 codebase, theme via `data-role`), Studio canvas, axios HTTP client |
-| **API Server** | NestJS + TypeScript + MySQL client | NestJS 11, TS 5.7, mysql2 3.22 | 26 domain modules; JWT auth + role guards; raw SQL (no ORM); Multer file upload; request lifecycle validation via class-validator/transformer |
+| **API Server** | NestJS + TypeScript + MySQL client + @aws-sdk/s3 | NestJS 11, TS 5.7, mysql2 3.22, @aws-sdk/client-s3 | 26 domain modules; JWT auth + role guards + global throttling (120/min); raw SQL (no ORM) with transaction support (DbService.transaction); StorageService for S3-compatible uploads; AllExceptionsFilter for clean error responses; request lifecycle validation via class-validator/transformer |
 | **Shared Lib** | TypeScript enums + state machines | TS ~6.0 | Single source of truth: Role, status enums; transition validators; DTO shapes |
 | **Canvas WASM** | AssemblyScript → WASM | Latest | Pixel-op acceleration for Studio raster drawing (brush fill, selection, etc.) |
 | **Database** | MySQL 8 (Docker) | 8.0 | 29 tables: users & profiles (5 role profiles), series lifecycle, chapters/pages/regions, tasks/submissions, voting/rankings/decisions, earnings/disputes, cross-cut audit/notifications |
+| **Object Storage** | SeaweedFS (S3-compatible, Docker) | Latest | Self-hosted S3 API on :8333; replaces external cloud storage; stores page images, submission files; accessible via /uploads/<key> with path-traversal guard |
 | **ONNX Runtime Web** | @onnxruntime/web (lazy loaded) | 1.26 | In-browser AI: YOLO (panel detect), MobileSAM (smart select), DeOldify (colorize); all in web workers for non-blocking UI |
 
 **Architecture diagram:**
@@ -163,23 +168,24 @@ graph TB
     
     Proxy["Vite Dev Server :5173<br/>Proxy /api → :3000<br/>Proxy /uploads → :3000"]
     
-    API["api/ (NestJS 11)<br/>- 26 domain modules<br/>- JwtAuthGuard<br/>- RolesGuard<br/>- DbService"]
+    API["api/ (NestJS 11)<br/>- 26 domain modules<br/>- ThrottlerGuard (global 120/min)<br/>- JwtAuthGuard<br/>- RolesGuard<br/>- StorageService S3<br/>- DbService + transaction()"]
     DB["MySQL 8<br/>:3308 (Docker)<br/>29 tables"]
-    Uploads["./uploads/<br/>(static assets)"]
+    S3["SeaweedFS S3<br/>:8333 (Docker)<br/>Object storage"]
     
     Browser --> Proxy
     Proxy --> Web
-    Proxy --> Uploads
+    Proxy -->|/uploads/:key<br/>GET with guard| API
     Web --> Shared
     Web --> WasmCanvas
     
     Proxy -->|/api| API
     API --> DB
-    API --> Uploads
+    API -->|PUT/GET| S3
     
     style Web fill:#e1f5ff
     style API fill:#fff3e0
     style DB fill:#f3e5f5
+    style S3 fill:#fff9c4
     style Shared fill:#e0f2f1
     style WasmCanvas fill:#ede7f6
 ```
@@ -190,15 +196,17 @@ graph TB
 
 ### Module Registration
 
-NestJS `app.module.ts` imports 26 domain modules (plus ConfigModule and DbModule):
+NestJS `app.module.ts` imports 26 domain modules plus infrastructure (ConfigModule, DbModule, StorageModule, ThrottlerModule):
 
 **Core infrastructure:**
-- `DbModule` — MySQL connection, DbService (query/queryOne/insert helpers)
+- `DbModule` — MySQL connection, DbService (query/queryOne/insert/transaction helpers)
+- `StorageModule` — StorageService for S3-compatible object storage (@aws-sdk/client-s3, forcePathStyle, ensureBucket on boot)
+- `ThrottlerModule` — Global rate limiting (120 requests/min), applied via APP_GUARD
 - `ConfigModule` — Environment variables via @nestjs/config
-- `AuthModule` — JwtStrategy, AuthController (login, Google OAuth), auth guards
+- `AuthModule` — JwtStrategy, AuthController (login, Google OAuth, /auth/me), JWT + RolesGuards
 
 **Domain modules (module-per-domain pattern):**
-- `UsersModule` — User entity, profile fetching
+- `UsersModule` — User entity, profile fetching (GET/PATCH /users/me), assistants/editors listing
 - `ProposalsModule` — Series proposal lifecycle (MANGAKA author, BOARD decide)
 - `SeriesModule` — Series status, editor assignment
 - `ChaptersModule` — Chapter lifecycle, Tantou editor review
@@ -219,11 +227,15 @@ NestJS `app.module.ts` imports 26 domain modules (plus ConfigModule and DbModule
 - `UploadsModule` — Multer file upload, disk persistence
 - `SeedModule` — Database seeding for dev
 
-### Guard & DTO Architecture
+### Guard & Error Filter Architecture
+
+**ThrottlerGuard** (APP_GUARD, global) — rate limits all requests to 120/min; login has stricter limit (20/min via @Throttle decorator).
 
 **JwtAuthGuard** — extracts Bearer token from `Authorization: Bearer <JWT>`, verifies signature via `@nestjs/jwt` (strategy in AuthModule).
 
 **RolesGuard** — reads `@Roles(Role.X, Role.Y)` decorator metadata; allows request if user's role is in the list.
+
+**AllExceptionsFilter** (global via main.ts) — catches all exceptions; HttpExceptions returned as-is (preserving validation error details); unhandled errors logged server-side and respond with generic 500 (no SQL/stack leaks).
 
 **Class-validator/transformer pipeline** — `ValidationPipe({whitelist: true, transform: true})` registered globally in `main.ts`. DTOs define allowed fields + type coercion.
 
@@ -247,7 +259,7 @@ classDiagram
     class DbService {
         +query(sql, params): T[]
         +queryOne(sql, params): T | null
-        +insert(sql, params): {insertId: number}
+        +insert(sql, params): InsertResult
     }
     
     class TaskPriceRule {
@@ -285,7 +297,7 @@ classDiagram
 // In db.service.ts
 export class DbService {
   async query<T>(sql: string, params: any[]): Promise<T[]> {
-    const [rows] = await this.connection.execute(sql, params);
+    const [rows] = await this.pool.query(sql, params);
     return rows as T[];
   }
 
@@ -294,26 +306,65 @@ export class DbService {
     return rows[0] || null;
   }
 
-  async insert(sql: string, params: any[]): Promise<{ insertId: number }> {
-    const [result] = await this.connection.execute(sql, params);
-    return { insertId: result.insertId };
+  async insert(sql: string, params: any[]): Promise<number> {
+    const [result] = await this.pool.query(sql, params);
+    return (result as any).insertId as number;
+  }
+
+  // Atomic transaction with rollback on error
+  async transaction<T>(fn: (tx: ITransactionContext) => Promise<T>): Promise<T> {
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const tx: ITransactionContext = { query, queryOne, insert };
+      const result = await fn(tx);
+      await connection.commit();
+      return result;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      await connection.release();
+    }
   }
 }
 
-// In a service:
+// In a service (non-transactional):
 async createTask(pageId: number, regionId: number, assigneeId: number) {
   const rule = await this.db.queryOne<TaskPriceRule>(
     `SELECT * FROM Task_Price_Rule WHERE region_type = ? AND is_active = 1 LIMIT 1`,
     [regionType]
   );
   
-  const { insertId } = await this.db.insert(
+  const insertId = await this.db.insert(
     `INSERT INTO Task (region_id, page_id, assignee_user_id, payment_amount, ...)
      VALUES (?, ?, ?, ?, ...)`,
     [regionId, pageId, assigneeId, rule.base_price, ...]
   );
   
   return { task_id: insertId };
+}
+
+// In a service (transactional, e.g., submit + approve):
+async submitAndApproveSubmission(submissionId: number, feedback: string) {
+  return this.db.transaction(async (tx) => {
+    // Update submission status and feedback atomically
+    await tx.query(
+      `UPDATE Submission SET submission_status = ?, feedback = ? WHERE submission_id = ?`,
+      ['APPROVED', feedback, submissionId]
+    );
+    // Update assistant earnings in same transaction
+    const sub = await tx.queryOne<any>(
+      `SELECT task_id, assistant_user_id FROM Submission WHERE submission_id = ?`,
+      [submissionId]
+    );
+    const task = await tx.queryOne<any>(`SELECT payment_amount FROM Task WHERE task_id = ?`, [sub.task_id]);
+    await tx.query(
+      `UPDATE Assistant_Profile SET total_earnings = total_earnings + ? WHERE user_id = ?`,
+      [task.payment_amount, sub.assistant_user_id]
+    );
+    return { success: true };
+  });
 }
 ```
 
@@ -645,11 +696,15 @@ sequenceDiagram
     participant Web as Web SPA
     participant Proxy as Vite Proxy<br/>:5173
     participant API as NestJS API<br/>:3000
-    participant Guard as JwtAuthGuard<br/>+ RolesGuard
+    participant Throttle as ThrottlerGuard
+    participant JWT as JwtAuthGuard
+    participant Roles as RolesGuard
+    participant Validate as ValidationPipe
     participant Ctrl as Controller
     participant Svc as Service
     participant DbSvc as DbService
     participant MySQL as MySQL<br/>:3308
+    participant Error as AllExceptionsFilter
     
     Browser->>Web: axios.post('/api/tasks', {pageId, assigneeId})
     activate Web
@@ -659,30 +714,36 @@ sequenceDiagram
     deactivate Web
     
     activate API
-    API->>Guard: JwtAuthGuard.canActivate()
-    Guard->>Guard: Extract & verify JWT
-    Guard->>API: ✓ User attached to request
+    API->>Throttle: ThrottlerGuard.canActivate()
+    Throttle->>Throttle: Check 120/min limit
+    Throttle->>API: ✓ Rate limit OK
     
-    API->>Guard: RolesGuard.canActivate()
-    Guard->>Guard: Check @Roles(Role.MANGAKA)
-    Guard->>API: ✓ Role authorized
+    API->>JWT: JwtAuthGuard.canActivate()
+    JWT->>JWT: Extract & verify JWT
+    JWT->>API: ✓ User attached to request
     
-    API->>API: ValidationPipe: validate CreateTaskDto
+    API->>Roles: RolesGuard.canActivate()
+    Roles->>Roles: Check @Roles(Role.MANGAKA)
+    Roles->>API: ✓ Role authorized
+    
+    API->>Validate: ValidationPipe.transform(CreateTaskDto)
+    Validate->>API: ✓ DTO valid & coerced
+    
     API->>Ctrl: Controller.createTask(dto)
     
     activate Ctrl
     Ctrl->>Svc: TaskService.create(dto)
     
     activate Svc
-    Svc->>DbSvc: query TaskPriceRule
+    Svc->>DbSvc: queryOne TaskPriceRule
     DbSvc->>MySQL: SELECT * FROM Task_Price_Rule WHERE ...
     MySQL-->>DbSvc: {rule_id, base_price, ...}
     DbSvc-->>Svc: rule
     
     Svc->>DbSvc: insert(sql, [regionId, pageId, assigneeId, base_price])
     DbSvc->>MySQL: INSERT INTO Task (...)
-    MySQL-->>DbSvc: {insertId: 42}
-    DbSvc-->>Svc: {insertId: 42}
+    MySQL-->>DbSvc: insertId: 42
+    DbSvc-->>Svc: 42
     
     Svc->>Svc: NotificationsService.notify(assigneeId, 'TASK_ASSIGNMENT', ...)
     Svc-->>Ctrl: {task_id: 42, payment_amount: 50.00}
@@ -690,6 +751,8 @@ sequenceDiagram
     
     Ctrl-->>API: HTTP 200 JSON response
     deactivate Ctrl
+    
+    API-->>Error: (no error)
     deactivate API
     
     API-->>Proxy: response
@@ -700,14 +763,16 @@ sequenceDiagram
     deactivate Web
 ```
 
-**Key checkpoints:**
-1. **Bearer token** — Web adds `Authorization: Bearer <JWT>` header.
-2. **JwtAuthGuard** — verifies signature, extracts `sub` (user_id) and `role` from payload.
-3. **RolesGuard** — checks if user's role is in the controller method's `@Roles(...)` list.
-4. **ValidationPipe** — coerces/validates incoming DTO fields (class-validator decorators).
-5. **Service layer** — applies business logic, calls DbService for normalized queries.
-6. **DbService** — wraps mysql2 connection, parameterized queries for SQL injection safety.
-7. **Response** — controller returns DTO/plain object; NestJS serializes to JSON.
+**Key checkpoints (execution order):**
+1. **ThrottlerGuard** (APP_GUARD, global) — rate limit check (120/min globally, 20/min for login).
+2. **Bearer token** — Web adds `Authorization: Bearer <JWT>` header.
+3. **JwtAuthGuard** — verifies signature, extracts `sub` (user_id) and `role` from payload.
+4. **RolesGuard** — checks if user's role is in the controller method's `@Roles(...)` list.
+5. **ValidationPipe** — coerces/validates incoming DTO fields (class-validator decorators).
+6. **Service layer** — applies business logic, calls DbService for normalized queries.
+7. **DbService** — wraps mysql2 pool, parameterized queries for SQL injection safety; optional transaction() for atomic multi-step operations.
+8. **Response** — controller returns DTO/plain object; NestJS serializes to JSON.
+9. **AllExceptionsFilter** (global, catches all) — HttpExceptions returned as-is; unhandled errors logged + generic 500 response (no SQL/stack leak).
 
 ---
 
@@ -845,10 +910,23 @@ async someMethod() {
 
 ---
 
+---
+
+## 9. Status & Testing
+
+**Snapshot (2026-06-05):**
+- Backend: NestJS 11, 13 spec files, ~50 unit tests
+- Frontend: React 19, 25 test files, coverage via Vitest
+- Integration: 5 smoke test suites (sprint5, sprint6, sprint7, storage, ux-upgrade)
+- REST API: ~72 endpoints across 26 domain modules
+- Database: 29 tables, 5 role profiles, full state machines for series/chapters/tasks/submissions/decisions
+
+---
+
 ## Cross-References
 
 Related documentation:
-- `../03-database/01-database-design.md` — 29 table schema, primary keys, foreign keys, indices, enum definitions.
-- `../04-security/01-security-and-rbac.md` — JWT flow, RolesGuard implementation, password hashing, Google OAuth, CORS policy.
-- `../03-api/01-api-reference.md` — REST endpoint catalog with request/response examples, status codes, error handling.
+- `../02-database-design.md` — 29 table schema, primary keys, foreign keys, indices, enum definitions.
+- `../04-security-and-rbac.md` — JWT flow, RolesGuard implementation, password hashing, Google OAuth, CORS policy.
+- `../03-domain-model-and-state-machines.md` — State machine validators, transition rules, enum definitions.
 

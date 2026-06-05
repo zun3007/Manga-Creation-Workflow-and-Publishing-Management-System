@@ -2,7 +2,9 @@
 
 **Purpose:** Canonical schema for the manga-studio production & publishing management system. Defines all 29 tables, enumerations, relationships, and optimization indexes for a MySQL 8 backend.
 
-**Tech stack:** MySQL 8, utf8mb4 collation, raw SQL via mysql2 (no ORM); single schema `manga_creation_workflow_and_publishing_management_system`.
+**Tech stack:** MySQL 8, utf8mb4 collation, raw SQL via mysql2 (no ORM); single schema `manga_creation_workflow_and_publishing_management_system`. Upload files stored in S3-compatible SeaweedFS (:8333); image URLs point to `/uploads/<key>` served by NestJS API with path-traversal guard.
+
+**Last updated:** 2026-06-05 — 29 tables, verified against actual schema.
 
 ---
 
@@ -92,7 +94,7 @@ erDiagram
 | `email` | VARCHAR(255) | NO | UQ | Unique per user; login identifier |
 | `password_hash` | VARCHAR(255) | YES | — | Nullable for OAuth-only users (auth_provider='GOOGLE') |
 | `full_name` | VARCHAR(100) | NO | — | Display name across the system |
-| `avatar_url` | VARCHAR(500) | YES | — | URL to avatar image |
+| `avatar_url` | VARCHAR(500) | YES | — | URL to avatar image; S3 key or URL, stored in SeaweedFS; used by profile editing (PATCH /users/me) |
 | `role` | ENUM | NO | IDX | `MANGAKA`, `ASSISTANT`, `TANTOU_EDITOR`, `EDITORIAL_BOARD`, `ADMIN` |
 | `auth_provider` | ENUM | NO | — | `LOCAL` (email/password), `GOOGLE` (OAuth); default `LOCAL` |
 | `google_id` | VARCHAR(255) | YES | UQ | Google "sub" ID; unique per Google account; nullable for LOCAL users |
@@ -294,7 +296,7 @@ erDiagram
 | `page_version_id` | BIGINT | NO | PK, AI | Auto-increment |
 | `page_id` | BIGINT | YES | FK | References Page(page_id) ON DELETE CASCADE |
 | `version_number` | INT | NO | UQ(page_id) | Version sequence |
-| `image_url` | VARCHAR(500) | NO | — | URL to raster image (PNG/JPG) |
+| `image_url` | VARCHAR(500) | NO | — | S3 key or URL to raster image (PNG/JPG); stored in SeaweedFS, served via /uploads/<key> |
 | `uploaded_by_user_id` | BIGINT | YES | FK | References User(user_id); uploader |
 | `upload_note` | VARCHAR(500) | YES | — | Optional annotation on version |
 | `created_at` | DATETIME | NO | — | Upload timestamp |
@@ -311,7 +313,7 @@ erDiagram
 | `manuscript_id` | BIGINT | NO | PK, AI | Auto-increment |
 | `chapter_id` | BIGINT | YES | FK | References Chapter(chapter_id) |
 | `version_number` | INT | NO | UQ(chapter_id) | Version sequence |
-| `file_url` | VARCHAR(500) | NO | — | URL to file (PDF/ZIP) |
+| `file_url` | VARCHAR(500) | NO | — | S3 key or URL to file (PDF/ZIP); stored in SeaweedFS |
 | `manuscript_status` | ENUM | NO | — | `DRAFT`, `REVIEWING`, `FINAL`; default `DRAFT` |
 | `uploaded_by_user_id` | BIGINT | YES | FK | References User(user_id); uploader |
 | `uploaded_at` | DATETIME | NO | — | Upload timestamp |
@@ -398,7 +400,7 @@ erDiagram
 | `page_id` | BIGINT | YES | FK | References Page(page_id); page being submitted |
 | `assistant_user_id` | BIGINT | YES | FK | References User(user_id); assistant submitting |
 | `version_number` | INT | NO | UQ(task_id) | Version sequence per task |
-| `file_url` | VARCHAR(500) | NO | — | URL to submitted work file |
+| `file_url` | VARCHAR(500) | NO | — | S3 key or URL to submitted work file; stored in SeaweedFS |
 | `version_note` | VARCHAR(500) | YES | — | Submission note |
 | `submission_status` | ENUM | NO | IDX | `PENDING`, `UNDER_REVIEW`, `REVISION_REQUIRED`, `APPROVED`, `REJECTED`; default `PENDING` |
 | `feedback` | TEXT | YES | — | Reviewer feedback |
@@ -408,7 +410,7 @@ erDiagram
 
 **Constraints:** UQ `(task_id, version_number)`, IDX `task_id`, IDX `submission_status`.
 
-**State machine:** PENDING → UNDER_REVIEW → (APPROVED, REVISION_REQUIRED, or REJECTED); terminal states are APPROVED/REJECTED. On APPROVED, `Assistant_Profile.total_earnings += Task.payment_amount`.
+**State machine:** PENDING → UNDER_REVIEW → (APPROVED, REVISION_REQUIRED, or REJECTED); terminal states are APPROVED/REJECTED. On APPROVED, `Assistant_Profile.total_earnings += Task.payment_amount`. Submission state transitions typically wrapped in `DbService.transaction()` for atomicity.
 
 ---
 
@@ -691,11 +693,12 @@ erDiagram
 
 ## 5. Design Notes
 
-### Raw SQL + No ORM
-The API uses **mysql2** with raw SQL queries (DbService.query/queryOne/insert) instead of a traditional ORM (e.g., TypeORM, Prisma). This choice:
+### Raw SQL + No ORM + Transactions
+The API uses **mysql2** with raw SQL queries (DbService.query/queryOne/insert/transaction) instead of a traditional ORM (e.g., TypeORM, Prisma). This choice:
 - Enforces schema awareness and explicit control over queries.
 - Avoids ORM performance pitfalls (N+1, lazy-loading surprises).
 - Keeps compiled queries cacheable at the database layer.
+- `DbService.transaction(async fn)` provides atomic multi-step operations with automatic rollback on error (used by submission approval, dispute resolution, proposal approval, and decision workflows).
 
 ### Foreign Key Constraints
 All foreign keys are defined with **ON DELETE CASCADE** (except a few reference rows in audit/config that exist independently). This ensures data integrity and cascading deletes (e.g., deleting a User cascades through all profiles, tasks, submissions, etc.).
@@ -732,6 +735,14 @@ Three tables exist in the schema but are not yet integrated into the main flow:
 - **System_Config** — Runtime configuration store. Schema is present; no config endpoints yet.
 
 These tables are available for future integration.
+
+### File Storage & S3 Integration
+**SeaweedFS S3-compatible object storage** replaces disk-based file uploads:
+- All `*_url` columns (image_url, avatar_url, file_url) store S3 keys or full URLs pointing to SeaweedFS.
+- NestJS **StorageService** (@aws-sdk/client-s3, forcePathStyle=true) handles PUT/GET operations.
+- **GET /uploads/:key** in main.ts serves files publicly with path-traversal protection (`/^[A-Za-z0-9._-]+$/`); includes legacy disk fallback for pre-S3 files.
+- Docker container: `seaweedfs:latest` on :8333 (S3 API) + :8888 (filer HTTP).
+- Environment variables: S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY (dev defaults in .env).
 
 ### Known Schema Quirks
 1. **Typo in Mangaka_Profile:** Column `years_experrence` (should be `years_experience`). Preserved as-is to match deployed schema.

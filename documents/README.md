@@ -2,7 +2,7 @@
 
 The complete documentation set for the **internal manga-studio production & publishing platform**
 (this is an operational tool, **not** a public manga reader). Every document here is written from the
-**actual shipped code** as of **2026-05-31** (database schema, shared enums + state machines,
+**actual shipped code** as of **2026-06-05** (database schema, shared enums + state machines,
 NestJS controllers, React routes) — not from aspirational design notes.
 
 > These documents **supersede** the older `docs/architecture.md` and `docs/domain-model.md`, which are
@@ -37,7 +37,7 @@ NestJS controllers, React routes) — not from aspirational design notes.
 - [04 Security & RBAC](02-architecture/04-security-and-rbac.md) — authentication (JWT + Google OAuth), guards, the full permission matrix, data-level authorization, secrets handling.
 
 ### 03 · API
-- [01 API Reference](03-api/01-api-reference.md) — all 66 REST endpoints across 21 modules: roles, params, request/response bodies, side effects.
+- [01 API Reference](03-api/01-api-reference.md) — all 72 REST endpoints across the backend modules: roles, params, request/response bodies, side effects.
 
 ### 04 · Diagrams
 - [01 Use-Case Diagrams](04-diagrams/01-use-case-diagrams.md) — system + per-role use cases (Mermaid).
@@ -72,6 +72,6 @@ NestJS controllers, React routes) — not from aspirational design notes.
 
 ## At a glance
 
-- **5 roles** · **29 database tables** · **66 REST endpoints** · **6 enforced state machines**
-- **~30 Mermaid diagrams** (ER, class, sequence, state, use-case, activity) · **2 slide decks**
-- Verified state: api 46 tests + build · web 124 tests + `tsc -b` + build · 3 live end-to-end smokes (all green).
+- **5 roles** · **29 database tables** · **72 REST endpoints** · **6 enforced state machines**
+- **58 Mermaid diagrams** (ER, class, sequence, state, use-case, activity) · **2 slide decks**
+- Verified state (2026-06-05): api 50 tests + build · web 185 tests + `tsc -b` + build · 5 live end-to-end smokes (all green) · self-hosted SeaweedFS S3 storage.

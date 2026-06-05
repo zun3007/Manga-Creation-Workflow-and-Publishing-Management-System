@@ -115,12 +115,12 @@ Each stateful entity follows strict allowed transitions defined in `packages/sha
 
 **Enum values** (ProposalStatus): `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `APPROVED`, `REJECTED`
 
-**Transitions**:
+**Transitions** (verified from `packages/shared/src/enums/transitions.ts`):
 - DRAFT → SUBMITTED: Mangaka submits proposal for board review.
 - SUBMITTED → UNDER_REVIEW: Editorial board begins deliberation.
-- SUBMITTED → APPROVED: Board approves; auto-creates Series.
+- SUBMITTED → APPROVED: Board approves; auto-creates Series within **DbService.transaction()**, then notifies all EDITORIAL_BOARD members and the MANGAKA after commit.
 - SUBMITTED → REJECTED: Board rejects.
-- UNDER_REVIEW → APPROVED: Board approves after review.
+- UNDER_REVIEW → APPROVED: Board approves after review; auto-creates Series within **DbService.transaction()**.
 - UNDER_REVIEW → REJECTED: Board rejects after review.
 - APPROVED: Terminal. Series now live.
 - REJECTED: Terminal. No series created.
@@ -130,9 +130,9 @@ stateDiagram-v2
     [*] --> DRAFT
     DRAFT --> SUBMITTED: Mangaka submits
     SUBMITTED --> UNDER_REVIEW: Board reviews
-    SUBMITTED --> APPROVED: Board approves
+    SUBMITTED --> APPROVED: Board approves<br/>creates Series (txn)
     SUBMITTED --> REJECTED: Board rejects
-    UNDER_REVIEW --> APPROVED: Board approves
+    UNDER_REVIEW --> APPROVED: Board approves<br/>creates Series (txn)
     UNDER_REVIEW --> REJECTED: Board rejects
     APPROVED --> [*]
     REJECTED --> [*]
@@ -149,12 +149,12 @@ stateDiagram-v2
 
 **Enum values** (ChapterStatus): `DRAFT`, `IN_PROGRESS`, `READY_FOR_EDITOR_REVIEW`, `EDITOR_APPROVED`, `PUBLISHED`
 
-**Transitions**:
+**Transitions** (verified from `packages/shared/src/enums/transitions.ts`):
 - DRAFT → IN_PROGRESS: Mangaka starts work.
 - IN_PROGRESS → READY_FOR_EDITOR_REVIEW: Mangaka marks ready for Tantou editor review.
 - READY_FOR_EDITOR_REVIEW → EDITOR_APPROVED: Tantou editor approves chapter; Publication_Schedule created.
 - READY_FOR_EDITOR_REVIEW → IN_PROGRESS: Tantou editor requests rework.
-- EDITOR_APPROVED → PUBLISHED: Mangaka publishes (triggers Publication_Schedule publish_status = PUBLISHED).
+- EDITOR_APPROVED → PUBLISHED: Mangaka publishes within **DbService.transaction()** (updates Chapter.status and creates/updates Publication_Schedule). Requires **all pages must be COMPLETED** before publishing.
 - PUBLISHED: Terminal.
 
 ```mermaid
@@ -164,7 +164,7 @@ stateDiagram-v2
     IN_PROGRESS --> READY_FOR_EDITOR_REVIEW: Mangaka marks ready
     READY_FOR_EDITOR_REVIEW --> EDITOR_APPROVED: Tantou editor approves
     READY_FOR_EDITOR_REVIEW --> IN_PROGRESS: Tantou editor requests changes
-    EDITOR_APPROVED --> PUBLISHED: Mangaka publishes
+    EDITOR_APPROVED --> PUBLISHED: Mangaka publishes (txn)<br/>all pages COMPLETED required
     PUBLISHED --> [*]
 ```
 
@@ -180,11 +180,11 @@ stateDiagram-v2
 
 **Enum values** (PageStatus): `RAW`, `ASSIGNED`, `IN_PROGRESS`, `REVIEWING`, `COMPLETED`
 
-**Transitions**:
+**Transitions** (verified from `packages/shared/src/enums/transitions.ts`):
 - RAW → ASSIGNED: Mangaka assigns regions/tasks to assistants.
 - ASSIGNED → IN_PROGRESS: Assistant begins work.
 - IN_PROGRESS → REVIEWING: Assistant submits; Mangaka reviews submission.
-- REVIEWING → COMPLETED: Mangaka approves submission.
+- REVIEWING → COMPLETED: Mangaka approves submission within **DbService.transaction()** (updates Submission + Task + Assistant_Profile + Page).
 - REVIEWING → IN_PROGRESS: Mangaka requests revision.
 - COMPLETED: Terminal.
 
@@ -194,7 +194,7 @@ stateDiagram-v2
     RAW --> ASSIGNED: Regions assigned to tasks
     ASSIGNED --> IN_PROGRESS: Assistant starts
     IN_PROGRESS --> REVIEWING: Assistant submits
-    REVIEWING --> COMPLETED: Mangaka approves
+    REVIEWING --> COMPLETED: Mangaka approves (txn)
     REVIEWING --> IN_PROGRESS: Mangaka requests revision
     COMPLETED --> [*]
 ```
@@ -211,10 +211,10 @@ stateDiagram-v2
 
 **Enum values** (TaskStatus): `ASSIGNED`, `IN_PROGRESS`, `SUBMITTED`, `REVISION_REQUIRED`, `APPROVED`
 
-**Transitions**:
+**Transitions** (verified from `packages/shared/src/enums/transitions.ts`):
 - ASSIGNED → IN_PROGRESS: Assistant accepts task.
 - IN_PROGRESS → SUBMITTED: Assistant completes and submits work (via Submission POST).
-- SUBMITTED → APPROVED: Mangaka approves submission. Increments Assistant_Profile.total_earnings += payment_amount.
+- SUBMITTED → APPROVED: Mangaka approves submission within **DbService.transaction()** (updates Submission + Task + Assistant_Profile.total_earnings += payment_amount). Notifications sent after commit.
 - SUBMITTED → REVISION_REQUIRED: Mangaka requests changes.
 - REVISION_REQUIRED → IN_PROGRESS: Assistant resumes work.
 - REVISION_REQUIRED → SUBMITTED: Assistant resubmits (after revision).
@@ -225,7 +225,7 @@ stateDiagram-v2
     [*] --> ASSIGNED
     ASSIGNED --> IN_PROGRESS: Assistant starts
     IN_PROGRESS --> SUBMITTED: Assistant submits
-    SUBMITTED --> APPROVED: Mangaka approves
+    SUBMITTED --> APPROVED: Mangaka approves (txn)<br/>accrue earnings
     SUBMITTED --> REVISION_REQUIRED: Mangaka requests revision
     REVISION_REQUIRED --> IN_PROGRESS: Assistant resumes
     REVISION_REQUIRED --> SUBMITTED: Assistant resubmits
@@ -244,24 +244,26 @@ stateDiagram-v2
 
 **Enum values** (SubmissionStatus): `PENDING`, `UNDER_REVIEW`, `APPROVED`, `REVISION_REQUIRED`, `REJECTED`
 
-**Transitions**:
-- PENDING → UNDER_REVIEW: Mangaka opens for review (implicit on dashboard load or explicit review action).
-- PENDING → APPROVED: Direct approval by Mangaka.
+**Transitions** (verified from `packages/shared/src/enums/transitions.ts`):
+- PENDING → UNDER_REVIEW: Mangaka opens for review.
+- PENDING → APPROVED: Direct approval by Mangaka within **DbService.transaction()**.
 - PENDING → REVISION_REQUIRED: Direct revision request.
-- PENDING → REJECTED: Rare; direct rejection.
-- UNDER_REVIEW → APPROVED/REVISION_REQUIRED/REJECTED: Mangaka reviews and decides.
-- APPROVED: Terminal. Accrues earnings. Creates notification.
-- REVISION_REQUIRED: Intermediate terminal (no further transitions; Assistant must resubmit as new Submission).
+- PENDING → REJECTED: Direct rejection.
+- UNDER_REVIEW → APPROVED: Mangaka approves within **DbService.transaction()** (atomically updates Submission, Task, and Assistant_Profile.total_earnings).
+- UNDER_REVIEW → REVISION_REQUIRED: Mangaka requests revision.
+- UNDER_REVIEW → REJECTED: Mangaka rejects.
+- APPROVED: Terminal. Earnings accrued. Notification sent after commit.
+- REVISION_REQUIRED: Terminal (no further transitions; Assistant must resubmit as new Submission).
 - REJECTED: Terminal.
 
 ```mermaid
 stateDiagram-v2
     [*] --> PENDING
     PENDING --> UNDER_REVIEW: Mangaka reviews
-    PENDING --> APPROVED: Mangaka approves
+    PENDING --> APPROVED: Mangaka approves (txn)
     PENDING --> REVISION_REQUIRED: Mangaka requests revision
     PENDING --> REJECTED: Mangaka rejects
-    UNDER_REVIEW --> APPROVED: Mangaka approves
+    UNDER_REVIEW --> APPROVED: Mangaka approves (txn)
     UNDER_REVIEW --> REVISION_REQUIRED: Mangaka requests revision
     UNDER_REVIEW --> REJECTED: Mangaka rejects
     APPROVED --> [*]
@@ -281,23 +283,23 @@ stateDiagram-v2
 
 **Enum values** (EarningDisputeStatus): `OPEN`, `UNDER_REVIEW`, `RESOLVED`, `REJECTED`
 
-**Transitions**:
+**Transitions** (verified from `packages/shared/src/enums/transitions.ts`):
 - OPEN → UNDER_REVIEW: Admin begins investigation.
-- OPEN → RESOLVED: Admin resolves with outcome (rare direct path).
-- OPEN → REJECTED: Admin rejects dispute outright.
-- UNDER_REVIEW → RESOLVED: Admin completes investigation; optional adjustedAmount updates Task.payment_amount and Assistant_Profile.total_earnings by delta.
-- UNDER_REVIEW → REJECTED: Admin denies claim.
-- RESOLVED: Terminal. Notify ASSISTANT of outcome.
-- REJECTED: Terminal. Notify ASSISTANT.
+- OPEN → RESOLVED: Admin resolves with outcome within **DbService.transaction()** (optional adjustedAmount updates Task.payment_amount and Assistant_Profile.total_earnings by delta).
+- OPEN → REJECTED: Admin rejects dispute outright within **DbService.transaction()**.
+- UNDER_REVIEW → RESOLVED: Admin completes investigation within **DbService.transaction()**; optional adjustedAmount adjusts earnings atomically.
+- UNDER_REVIEW → REJECTED: Admin denies claim within **DbService.transaction()**.
+- RESOLVED: Terminal. Notification sent to ASSISTANT after commit.
+- REJECTED: Terminal. Notification sent to ASSISTANT after commit.
 
 ```mermaid
 stateDiagram-v2
     [*] --> OPEN
     OPEN --> UNDER_REVIEW: Admin reviews
-    OPEN --> RESOLVED: Admin resolves
-    OPEN --> REJECTED: Admin rejects
-    UNDER_REVIEW --> RESOLVED: Admin decides
-    UNDER_REVIEW --> REJECTED: Admin denies
+    OPEN --> RESOLVED: Admin resolves (txn)
+    OPEN --> REJECTED: Admin rejects (txn)
+    UNDER_REVIEW --> RESOLVED: Admin decides (txn)
+    UNDER_REVIEW --> REJECTED: Admin denies (txn)
     RESOLVED --> [*]
     REJECTED --> [*]
 ```
@@ -373,15 +375,15 @@ if (!canTransition(CHAPTER_TRANSITIONS, currentStatus, newStatus)) {
 
 ## 4. Business Rules
 
-1. **Proposal Approval Auto-Creates Series**: When an EDITORIAL_BOARD member approves a Series_Proposal (PATCH `/api/proposals/:id/decision` with decision=APPROVED), the service immediately creates a Series record with publication_frequency copied from proposal.proposed_frequency, and series_status set to ACTIVE.
+1. **Proposal Approval Auto-Creates Series**: When an EDITORIAL_BOARD member approves a Series_Proposal (PATCH `/api/proposals/:id/decision` with decision=APPROVED), the service executes within a **DbService.transaction()** to immediately create a Series record with publication_frequency copied from proposal.proposed_frequency and series_status set to ACTIVE. Notifications are sent to the MANGAKA and all EDITORIAL_BOARD members **after the transaction commits**.
 
 2. **Tantou Editor Assignment Gate**: Only the currently assigned Tantou editor (Series_Tantou_Editor.unassigned_at IS NULL) can review chapters in the series or create annotations targeting pages in chapters of the series. Assignment and unassignment via EDITORIAL_BOARD (PUT/DELETE `/api/series/:id/editor`). Notifies editor on assignment; notifies mangaka when unassigned.
 
 3. **Task Auto-Pricing**: When a MANGAKA creates a Task (POST `/api/tasks`), the service looks up the active Task_Price_Rule for the region_type. If found, Task.payment_amount is auto-set. If multiple rules active, the latest effective_from is used. If no rule, payment_amount defaults to 0 or a fallback amount (implementation detail).
 
-4. **Submission Approval Accrues Earnings**: On PATCH `/api/submissions/:id/review` with action=APPROVED, the service increments Assistant_Profile.total_earnings by Task.payment_amount. This happens atomically with submission status update. Submission.reviewed_by_user_id and reviewed_at are recorded. Notification (type=SUBMISSION) sent to ASSISTANT.
+4. **Submission Approval Accrues Earnings**: On PATCH `/api/submissions/:id/review` with action=APPROVED, the service executes within a **DbService.transaction()** to atomically increment Assistant_Profile.total_earnings by Task.payment_amount, update Submission status, and update Task status. Submission.reviewed_by_user_id and reviewed_at are recorded. Notification (type=REVIEW) is sent to ASSISTANT **after the transaction commits**.
 
-5. **Dispute Adjust Earnings**: On PATCH `/api/disputes/:id/resolve` with adjustedAmount (positive or negative delta), the service updates Task.payment_amount by the delta and adjusts Assistant_Profile.total_earnings accordingly. Notification (type=DISPUTE) sent to ASSISTANT. Resolution_note and resolved_at are recorded.
+5. **Dispute Adjust Earnings**: On PATCH `/api/disputes/:id/resolve` with a status and optional adjustedAmount (positive or negative delta), the service executes within a **DbService.transaction()** to atomically update Dispute.status, Task.payment_amount by the delta, and adjust Assistant_Profile.total_earnings accordingly. Notification (type=DISPUTE) is sent to ASSISTANT **after the transaction commits**. Resolution_note and resolved_at are recorded.
 
 6. **One Vote Per Board Member Per Period**: Vote table has unique constraint (vote_period_id, board_user_id). Enforced at DB level. Attempting to vote twice returns constraint violation; client should prevent or handle gracefully.
 
@@ -396,16 +398,19 @@ if (!canTransition(CHAPTER_TRANSITIONS, currentStatus, newStatus)) {
 
 9. **Last Admin Guard**: When updating user role to/from ADMIN via PATCH `/api/admin/users/:id`, if the user is the last ADMIN in the system, reject the operation (HTTP 400). Prevents accidental admin-lockout.
 
-10. **Notifications on Key Events**: NotificationsService.notify() fires on:
+10. **Chapter Publish Requires All Pages Completed**: When MANGAKA attempts to transition a Chapter to PUBLISHED status, the service enforces that all pages in the chapter have page_status = COMPLETED. If any pages remain in RAW, ASSIGNED, IN_PROGRESS, or REVIEWING, the transition is rejected (HTTP 400). The chapter must also have at least one page.
+
+11. **Notifications on Key Events**: NotificationsService.notify() fires on:
     - Task assignment (type=TASK_ASSIGNMENT to ASSISTANT).
     - Submission received (type=SUBMISSION to MANGAKA).
     - Submission reviewed with REVISION_REQUIRED (type=REVISION to ASSISTANT).
+    - Submission reviewed with APPROVED (type=REVIEW to ASSISTANT, sent after transaction commit).
     - Editor chapter review decision (type=REVIEW to MANGAKA).
-    - Proposal approved/rejected (type=PROPOSAL_DECISION to MANGAKA).
+    - Proposal approved/rejected (type=PROPOSAL_DECISION to MANGAKA and all EDITORIAL_BOARD, sent after transaction commit).
     - Editor assigned/unassigned (type=GENERAL to both parties).
     - Series flagged AT_RISK (type=RISK_ALERT to MANGAKA).
     - Board decision issued (type=DECISION to MANGAKA).
-    - Dispute opened/resolved (type=DISPUTE to ASSISTANT).
+    - Dispute opened/resolved (type=DISPUTE to ASSISTANT, sent after transaction commit).
 
 ---
 

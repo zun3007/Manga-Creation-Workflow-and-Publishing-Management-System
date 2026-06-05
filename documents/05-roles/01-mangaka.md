@@ -63,6 +63,7 @@ flowchart LR
 | — | `/series/:id` | `SeriesDetail.tsx` | Manage a single series: view metadata, create new chapters with title and deadline. Click a chapter to edit. |
 | — | `/series/:seriesId/chapters/:chapterId` | `ChapterWorkspace.tsx` | Production workspace: upload page images, draw regions (panel/background/character/dialogue/effect), assign priced tasks to assistants. |
 | Chờ duyệt | `/review` | `ReviewQueue.tsx` | Submissions from assistants: review each submission with file preview, approve (assistant earns), or request revision with feedback. |
+| Hồ sơ | `/users/me` | `Profile.tsx` | Update profile: edit name, bio, upload avatar to self-hosted S3; view account settings. |
 
 ---
 
@@ -221,7 +222,7 @@ The Mangaka **sends** (triggers):
 
 - ✓ Create, view, and submit proposals (DRAFT → SUBMITTED).
 - ✓ View and manage your own Series (one per approved proposal).
-- ✓ Create chapters with title and deadline.
+- ✓ Create chapters with title and deadline; publish chapters only after ALL pages are COMPLETED.
 - ✓ Upload pages and mark regions (panels, backgrounds, characters, bubbles, effects).
 - ✓ Create tasks for any region, assign to any ASSISTANT, set instruction and deadline.
 - ✓ Auto-priced tasks: payment_amount is set from Task_Price_Rule by region_type at creation time.
@@ -229,6 +230,9 @@ The Mangaka **sends** (triggers):
 - ✓ Review assistant submissions: approve (payment accrues) or request revision.
 - ✓ Update page versions (via Studio in-browser drawing, stored as Page_Version).
 - ✓ View annotations from Tantou Editor on your chapters.
+- ✓ Edit profile (name, bio, avatar upload to self-hosted S3) via `/users/me`.
+- ✓ Receive near-realtime notifications (bell polls every 20s); notifications cover proposals, submissions, editor reviews, board decisions, risk alerts.
+- ✓ Role-route guard: cannot access assistant, editor, or board pages (403 Forbidden).
 
 ### Forbidden
 

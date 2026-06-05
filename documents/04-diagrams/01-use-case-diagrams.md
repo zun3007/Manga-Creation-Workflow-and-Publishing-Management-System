@@ -7,6 +7,7 @@
 ## Table of Contents
 1. [System Overview](#1-system-overview-all-actors)
 2. [Mangaka](#2-mangaka)
+2b. [Profile Management](#2b-manage-profile--upload-avatar-all-roles)
 3. [Assistant](#3-assistant)
 4. [Tantou Editor](#4-tantou-editor)
 5. [Editorial Board](#5-editorial-board)
@@ -110,6 +111,33 @@ flowchart LR
 | Approve or Request Changes | `PATCH /api/submissions/:id/review` (APPROVED accrues earnings; REVISION_REQUIRED loops), Route: `/review` |
 | Advance Chapter Lifecycle | `PATCH /api/chapters/:id/status` (lifecycle, writes Publication_Schedule on PUBLISHED), Route: ChapterWorkspace |
 | Draw in Studio with AI Assists | `POST /api/studio/page-versions`, `POST /api/studio/docs`, Route: `/studio/page/:pageId` (canvas Studio) |
+
+---
+
+## 2b. Manage Profile & Upload Avatar (All Roles)
+
+All authenticated users can view and edit their profile, including upload avatar to S3.
+
+```mermaid
+flowchart LR
+    USER["ALL<br/>USERS"]
+    
+    subgraph "Profile Management"
+        UC1(["View My<br/>Profile"])
+        UC2(["Edit Full Name"])
+        UC3(["Upload &<br/>Update Avatar"])
+    end
+    
+    USER --> UC1
+    USER --> UC2
+    USER --> UC3
+```
+
+| Use Case | Realizing Endpoints & Pages |
+|----------|---------------------------|
+| View My Profile | `GET /api/users/me`, Route: `/profile` (all roles) |
+| Edit Full Name | `PATCH /api/users/me` (fullName), Route: `/profile` |
+| Upload & Update Avatar | `POST /api/uploads` (file → S3), then `PATCH /api/users/me` (avatarUrl), Route: `/profile` |
 
 ---
 

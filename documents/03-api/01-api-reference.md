@@ -35,7 +35,7 @@ Complete REST API documentation for the Manga Creation Workflow & Publishing Man
 
 **Request Format:** JSON bodies; unknown properties are stripped by global `ValidationPipe`. Multipart file uploads use `multipart/form-data`.
 
-**Response Format:** Standard Nest error shape on failure: `{ statusCode: number, message: string, error: string }`. Success payloads vary by endpoint (see examples below).
+**Response Format:** Standard Nest error shape on failure: `{ statusCode: number, message: string, error: string }` (sanitized via `AllExceptionsFilter` to remove stack traces and SQL details). Success payloads vary by endpoint (see examples below).
 
 **Status Codes:** 
 - `200` OK (GET, PATCH success)
@@ -57,6 +57,8 @@ Public endpoints for login and OAuth. All other endpoints require `Authorization
 #### POST /api/auth/login
 
 **Roles:** Public
+
+**Rate Limit:** 20 requests per minute per IP (via `@Throttle()`)
 
 **Request body:**
 ```json
@@ -80,7 +82,7 @@ Public endpoints for login and OAuth. All other endpoints require `Authorization
 }
 ```
 
-**Notes:** Token valid for JWT lifetime (configured in app). Password must be ≥6 chars. Email case-insensitive.
+**Notes:** Rate-limited to prevent brute-force attacks while tolerating shared NAT scenarios. Token valid for JWT lifetime (configured in app). Password must be ≥6 chars. Email case-insensitive.
 
 ---
 
@@ -119,6 +121,29 @@ Public endpoints for login and OAuth. All other endpoints require `Authorization
 ```
 
 **Notes:** Endpoint kept for symmetry; JWT is stateless. Client drops token on logout.
+
+---
+
+#### PATCH /api/auth/password
+
+**Roles:** Any authenticated user
+
+**Request body:**
+```json
+{
+  "currentPassword": "Dung123456@",
+  "newPassword": "NewPassword123@"
+}
+```
+
+**Response (200):**
+```json
+{
+  "ok": true
+}
+```
+
+**Notes:** Changes password for authenticated user. Current password validation enforced. Only available for LOCAL auth (not Google OAuth users).
 
 ---
 
@@ -1854,7 +1879,59 @@ Admin-only tools for user management and system overview.
 
 ## Users
 
-Fetch list of available staff by role.
+User profile management and staff roster endpoints.
+
+#### GET /api/users/me
+
+**Roles:** Any authenticated user
+
+**Request body:** None
+
+**Response (200):**
+```json
+{
+  "id": 1,
+  "email": "mangaka@studio.local",
+  "fullName": "Taro Mangaka",
+  "avatarUrl": "https://lh3.googleusercontent.com/...",
+  "role": "MANGAKA"
+}
+```
+
+**Notes:** Returns current authenticated user's profile. Includes full name and avatar URL.
+
+---
+
+#### PATCH /api/users/me
+
+**Roles:** Any authenticated user
+
+**Request body:**
+```json
+{
+  "fullName": "Taro Mangaka Updated",
+  "avatarUrl": "https://new-avatar-url.com/avatar.png"
+}
+```
+
+**Request validation:**
+- `fullName`: optional, max 120 characters
+- `avatarUrl`: optional, max 500 characters
+
+**Response (200):**
+```json
+{
+  "id": 1,
+  "email": "mangaka@studio.local",
+  "fullName": "Taro Mangaka Updated",
+  "avatarUrl": "https://new-avatar-url.com/avatar.png",
+  "role": "MANGAKA"
+}
+```
+
+**Notes:** Updates user profile. Email and role cannot be changed via this endpoint. Both fields optional; omitted fields remain unchanged.
+
+---
 
 #### GET /api/users/assistants
 
@@ -1937,7 +2014,7 @@ Available manga genres for proposal/series tagging.
 
 ## Uploads
 
-Multipart file upload to disk storage. Served as static files.
+File upload to SeaweedFS S3-compatible storage. Public read via `GET /uploads/:key`.
 
 #### POST /api/uploads
 
@@ -1945,18 +2022,53 @@ Multipart file upload to disk storage. Served as static files.
 
 **Request body:** multipart/form-data
 ```
-file: <binary file>
+file: <binary file, max 30MB>
 ```
 
 **Response (201):**
 ```json
 {
-  "url": "/uploads/uuid-1234.png",
+  "url": "/uploads/550e8400-e29b-41d4-a716-446655440000.png",
   "originalName": "page-01.png"
 }
 ```
 
-**Notes:** File saved to `./uploads/` with UUID name + original extension. URL path includes `/uploads/` prefix (served as static route). Multer handles storage on disk.
+**Notes:** 
+- File uploaded to SeaweedFS S3 storage with UUID filename + original extension
+- 30MB file size cap enforced by multer
+- Returns stable `/uploads/<key>` URL for retrieval
+- Requires JWT authentication
+
+---
+
+#### GET /uploads/:key
+
+**Roles:** Public (no authentication required)
+
+**Path params:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| key | string | yes | File key (UUID + extension, e.g., `550e8400-e29b-41d4-a716-446655440000.png`) |
+
+**Response (200):**
+Binary file content with appropriate `Content-Type` and `Cache-Control: public, max-age=86400` headers.
+
+**Response (404):**
+```
+Not found
+```
+
+**Response (400):**
+```
+Invalid key
+```
+
+**Notes:**
+- Public endpoint served from main.ts express route (not a controller endpoint)
+- Key validated with regex `^[A-Za-z0-9._-]+$` to prevent path traversal attacks
+- Falls back to legacy on-disk storage at `./uploads/:key` if S3 fetch fails
+- Suitable for `<img src="/uploads/...">` embedding in web pages (no auth required)
+- Cache-Control header allows browser caching of images for 24 hours
 
 ---
 
@@ -2078,9 +2190,10 @@ Hello from the API
 
 | Method | Path | Roles | Purpose |
 |--------|------|-------|---------|
-| POST | `/api/auth/login` | Public | Email+password login → JWT |
+| POST | `/api/auth/login` | Public | Email+password login → JWT (rate-limited 20/min per IP) |
 | GET | `/api/auth/me` | Any auth | Current user from JWT |
 | POST | `/api/auth/logout` | Any auth | Client-side token drop |
+| PATCH | `/api/auth/password` | Any auth | Change password (LOCAL auth only) |
 | GET | `/api/auth/google` | Public | Start Google OAuth flow |
 | GET | `/api/auth/google/callback` | Public | OAuth redirect → token |
 | POST | `/api/proposals` | MANGAKA | Create proposal (DRAFT) |
@@ -2139,10 +2252,13 @@ Hello from the API
 | GET | `/api/admin/users` | ADMIN | All users (with activation/role) |
 | GET | `/api/admin/overview` | ADMIN | System metrics |
 | PATCH | `/api/admin/users/:id` | ADMIN | Activate/deactivate, change role (last-admin guard) |
+| GET | `/api/users/me` | Any auth | Current user profile (fullName, avatarUrl, role, email) |
+| PATCH | `/api/users/me` | Any auth | Update profile (fullName ≤120, avatarUrl ≤500) |
 | GET | `/api/users/assistants` | MANGAKA | Active assistants for task assignment |
 | GET | `/api/users/editors` | EDITORIAL_BOARD | Active Tantou editors for assignment |
 | GET | `/api/genres` | Any auth | All genres |
-| POST | `/api/uploads` | Any auth | Upload file (multipart) → {url, originalName} |
+| POST | `/api/uploads` | Any auth | Upload file (multipart, 30MB max) to SeaweedFS S3 → {url, originalName} |
+| GET | `/uploads/:key` | Public | Retrieve uploaded file from S3 (path-traversal guarded, cache-friendly) |
 | POST | `/api/studio/page-versions` | MANGAKA | Save canvas export as page version |
 | POST | `/api/studio/docs` | MANGAKA | Save studio manifest (layers, history, state) |
 | GET | `/api/studio/docs/:pageId` | MANGAKA | Load latest manifest |
@@ -2150,6 +2266,6 @@ Hello from the API
 
 ---
 
-**Total endpoints documented:** 66
+**Total endpoints documented:** 70
 
-**Last updated:** 2026-05-31 (verified from controllers + DTOs + brief §6/§9)
+**Last updated:** 2026-06-05 (verified from controllers + DTOs, AllExceptionsFilter, main.ts)

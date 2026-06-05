@@ -37,15 +37,16 @@ How each role uses the system, screen by screen, with deep dives into core featu
 
 ---
 
-## Role: Mangaka (Tổng quan / Đề xuất / Series / Chờ duyệt)
+## Role: Mangaka (Tổng quan / Đề xuất / Series / Chờ duyệt / Hồ sơ)
 
 ### Navigation & Screens
 | VN Label | Route | Purpose |
 |----------|-------|---------|
-| Tổng quan | `/` | Dashboard (series count, submissions pending, tasks in progress) |
+| Tổng quan | `/` | Dashboard (series count, submissions pending, tasks in progress, notifications bell) |
 | Đề xuất | `/proposals` | Author series proposals; see review queue status |
-| Series | `/series` | Manage chapters, pages, regions, tasks for approved series |
+| Series | `/series` | Manage chapters, pages, regions, tasks for approved series; chapter publish requires ALL pages COMPLETED |
 | Chờ duyệt | `/review` | Review assistant submissions; approve or request changes |
+| Hồ sơ | `/users/me` | Edit profile (name, bio), upload avatar to S3; view account settings |
 
 **Key Endpoints:**
 - `POST /api/proposals` — create new proposal (DRAFT)
@@ -69,14 +70,15 @@ See: `../05-roles/01-mangaka.md`
 
 ---
 
-## Role: Assistant (Tổng quan / Việc của tôi / Thu nhập)
+## Role: Assistant (Tổng quan / Việc của tôi / Thu nhập / Hồ sơ)
 
 ### Navigation & Screens
 | VN Label | Route | Purpose |
 |----------|-------|---------|
-| Tổng quan | `/` | Dashboard (total earnings, current tasks, disputes) |
-| Việc của tôi | `/my-tasks` | List assigned tasks; start work, upload submission |
-| Thu nhập | `/earnings` | Lifetime earnings; per-task breakdown; open disputes |
+| Tổng quan | `/` | Dashboard (total earnings, current tasks, disputes, notifications bell) |
+| Việc của tôi | `/my-tasks` | List assigned tasks; start work, upload submission; optimistic revert on error |
+| Thu nhập | `/earnings` | Lifetime earnings; per-task breakdown; open disputes; optimistic revert on error |
+| Hồ sơ | `/users/me` | Edit profile (name, bio), upload avatar to S3; view account settings |
 
 **Key Endpoints:**
 - `GET /api/tasks/mine` — assigned tasks (ASSIGNED, IN_PROGRESS, SUBMITTED)
@@ -91,24 +93,28 @@ See: `../05-roles/01-mangaka.md`
 2. Click a task → see region on page (Studio draw canvas embedded or linked)
 3. Click **Start Work** (ASSIGNED → IN_PROGRESS; task locked from reassignment)
 4. Open `/studio/region/:taskId` → in-browser drawing + AI assists
-   - Use Studio brush/fill/panel/line/text/bubble tools
-   - Enable AI: YOLO panel detect, SAM smart-select, colorize
-   - Download work or auto-save to canvas docs
-5. Return to task, click **Submit** → upload file + note (SUBMITTED; mangaka notified)
-6. Check `/earnings` → on mangaka's APPROVE, earnings show + "earnedAt" timestamp
+   - Use Studio tools: **Brush, Fill, Eraser, Selection (marching ants), Transform, Text, Bubble, Panel Border**
+   - **Colors**: pick foreground/background; swap with **X** or **D** key
+   - **Layer Ops**: duplicate, merge, flatten, paste layers; all reversible with **Undo/Redo**
+   - **Autosave**: work auto-saves every 30s to IndexedDB; restore-draft on crash; unsaved-changes guard
+   - Enable **AI** (if available): YOLO panel detect, SAM smart-select, DeOldify colorize; **cancellable** with fallback
+5. Click **Save & Submit** → upload file + note (SUBMITTED; mangaka notified)
+6. Check `/earnings` → on mangaka's APPROVE, earnings show + "earnedAt" timestamp with optimistic revert on error
 7. If disputed by admin later, see resolution note + possible amount adjustment
+8. **Notifications bell** shows task assignments, revision requests, approvals, dispute resolutions (20s polling)
 
 See: `../05-roles/02-assistant.md`
 
 ---
 
-## Role: Tantou Editor (Tổng quan / Duyệt chương)
+## Role: Tantou Editor (Tổng quan / Duyệt chương / Hồ sơ)
 
 ### Navigation & Screens
 | VN Label | Route | Purpose |
 |----------|-------|---------|
-| Tổng quan | `/` | Dashboard (assigned series count, reviews pending) |
-| Duyệt chương | `/editor/review` | Chapter review queue (scoped to assigned series) |
+| Tổng quan | `/` | Dashboard (assigned series count, reviews pending, notifications bell) |
+| Duyệt chương | `/editor/review` | Chapter review queue (scoped to assigned series only); series assignments and chapter updates (20s polling) |
+| Hồ sơ | `/users/me` | Edit profile (name, bio), upload avatar to S3; view account settings |
 
 **Key Endpoints:**
 - `GET /api/chapters/review-queue` — chapters READY_FOR_EDITOR_REVIEW (assigned series only)
@@ -135,15 +141,16 @@ See: `../05-roles/03-tantou-editor.md`
 
 ---
 
-## Role: Editorial Board (Tổng quan / Duyệt đề xuất / Phân công BT / Xếp hạng)
+## Role: Editorial Board (Tổng quan / Duyệt đề xuất / Phân công BT / Xếp hạng / Hồ sơ)
 
 ### Navigation & Screens
 | VN Label | Route | Purpose |
 |----------|-------|---------|
-| Tổng quan | `/` | Dashboard (proposals pending, series at risk, pending votes) |
-| Duyệt đề xuất | `/board/proposals` | Review & approve/reject proposals → auto-creates Series |
-| Phân công BT | `/board/series` | Assign Tantou editors to series (1 editor per series at a time) |
-| Xếp hạng | `/board/rankings` | Open vote periods, cast votes, close period → compute rankings, decide fate |
+| Tổng quan | `/` | Dashboard (proposals pending, series at risk, pending votes, notifications bell) |
+| Duyệt đề xuất | `/board/proposals` | Review & approve/reject proposals → auto-creates Series; proposal submissions (20s polling) |
+| Phân công BT | `/board/series` | Assign Tantou editors to series (1 editor per series at a time); series status updates |
+| Xếp hạng | `/board/rankings` | Open vote periods, cast votes, close period → compute rankings, decide fate; risk alerts |
+| Hồ sơ | `/users/me` | Edit profile (name, bio), upload avatar to S3; view account settings |
 
 **Key Endpoints:**
 - `GET /api/proposals/review-queue` — proposals SUBMITTED/UNDER_REVIEW
@@ -181,14 +188,15 @@ See: `../05-roles/04-editorial-board.md`
 
 ---
 
-## Role: Admin (Tổng quan / Quản trị / Khiếu nại)
+## Role: Admin (Tổng quan / Quản trị / Khiếu nại / Hồ sơ)
 
 ### Navigation & Screens
 | VN Label | Route | Purpose |
 |----------|-------|---------|
-| Tổng quan | `/` | Dashboard (active users, recent disputes, system health) |
-| Quản trị | `/admin` | User management: activate accounts, assign roles (with last-admin guard) |
-| Khiếu nại | `/admin/disputes` | Resolve assistant earning disputes (with amount adjustment) |
+| Tổng quan | `/` | Dashboard (active users, recent disputes, system health, notifications bell) |
+| Quản trị | `/admin` | User management: activate accounts, assign roles (with last-admin guard); rate-limiting & security monitoring |
+| Khiếu nại | `/admin/disputes` | Resolve assistant earning disputes (with amount adjustment); exception filtering & path-traversal guards |
+| Hồ sơ | `/users/me` | Edit profile (name, bio), upload avatar to S3; view account settings |
 
 **Key Endpoints:**
 - `GET /api/admin/users` — list all users (created, activated, role)
@@ -548,21 +556,27 @@ Earning_Dispute:
 **Location:** `/studio/page/:pageId` (full-screen, no shell) or `/studio/region/:taskId` (focused on region)
 
 **Architecture:** `apps/web/src/lib/studio/` modules:
-- **document** — layers, page structure
-- **history** — undo/redo stack
-- **view** — pan, zoom, viewport
-- **engine** — rendering loop, event dispatch
-- **tools/** — brush, fill, selection, transform, panel outline, line, text, bubble
-- **color** — palette, opacity
-- **io** — import/export (file load/save)
+- **document** — layers, page structure, layer ops (duplicate, merge, flatten, paste)
+- **history** — undo/redo stack with full reversibility for all operations
+- **view** — pan, zoom, viewport, grid overlay
+- **engine** — rendering loop, event dispatch, marching-ants animation
+- **tools/** — brush (with high-speed gap-fill), fill, eraser, selection (marching ants, 8-connected), transform, panel outline, line, text, bubble
+- **color** — foreground/background picker, swap with X/D keys, per-layer opacity
+- **io** — import/export (PNG, JSON), auto-save to IndexedDB, draft recovery
+- **persist** — IndexedDB-backed autosave (every 30s), unsaved-changes guard, restore-draft
 
-**Capabilities:**
-- Raster drawing (brush, fill, eraser)
-- Shape tools (panel outline, line, text, bubble containers)
-- Transform (move, scale, rotate)
-- Undo/redo
-- Multi-layer support
+**Capabilities (shipped 2026-06-05):**
+- Raster drawing (brush with opacity/hardness, fill, eraser)
+- Shape tools (panel outline, line, text with re-editing, bubble containers)
+- Transform (move, scale, rotate, skew)
+- **Undo/redo** with full history (linear, no branching)
+- **Layer ops**: add, delete, duplicate, merge, flatten, paste; each reversible
+- **Selection**: rectangle, freehand, magic-wand 8-connected with marching-ants animation
+- **Colors**: foreground/background with swap keys (X, D)
+- **Text**: fully re-editable regions; change font, size, color
+- **Autosave**: IndexedDB auto-save every 30s; unsaved-changes warning; restore-draft button
 - Zoom & pan
+- Multi-layer support with opacity and blend modes
 
 ### On-Device AI (Optional, Privacy-First)
 **Architecture:** `apps/web/src/lib/studio/ai/` + `packages/canvas-wasm`
@@ -571,25 +585,31 @@ Earning_Dispute:
 1. **YOLO Panel Detection** — auto-detect manga panel boundaries on raw artwork
    - Creates panel outlines (Region records with ai_suggested=true)
    - No server cost; runs on user's device
+   - **Cancellable**: user can abort during inference; heuristic fallback automatically used
 
 2. **MobileSAM Smart-Select** — intelligent selection tool
    - Runs in web worker (sam.worker.ts)
    - Click to select character/object outline
-   - Returns smart polygon
+   - Returns smart polygon; integrates with marching-ants selection
+   - **Cancellable**: halt search during inference
 
 3. **DeOldify Colorization** — auto-colorize grayscale artwork
    - In-browser ONNX model; chunked processing
    - Worker-based (colorize.worker.ts)
+   - Integrates into undo/redo history
+   - **Cancellable**: stop colorization mid-process
 
-4. **Heuristic Fallback** — always-on simple edge-detection + color analysis
-   - Runs if ONNX models unavailable or user disables AI
+4. **Heuristic Fallback** — always-on edge-detection + color analysis
+   - Runs if ONNX models unavailable, user disables AI, or cancels AI inference
    - Region detection, baseline smart-select
+   - Fallback note displayed: "AI inference cancelled; using heuristic fallback"
 
 **Privacy & Cost:**
 - **Zero server calls** — all inference on client device (WASM + ONNX Runtime Web)
 - **Zero API cost** — no per-use charge (unlike cloud AI services)
 - **User device requirements** — GPU optional (falls back to CPU; slower but works)
 - **Model availability probe** — system checks if models can load; disables features if unavailable
+- **Cancellation UX** — immediate halt; fallback note explains what happened
 
 **Demo Path (AI-Assisted Drawing):**
 1. Open `/studio/region/:taskId` for panel region
@@ -625,9 +645,9 @@ For deeper dives into system design, architecture, and reference documentation:
 - **Code Organization:** `../10-code-structure.md` — monorepo layout, key files per module
 
 ### Live Verification
-- **Test Coverage:** `api/` 46 jest tests, `web/` 124 vitest tests (all green)
-- **Build:** `pnpm -F @manga/api build && pnpm -F @manga/web build` (verified 2026-05-31)
-- **Live Smoke Tests:** `node docs/superpowers/smoke-sprint{5,6,7}.mjs` (end-to-end flows)
+- **Test Coverage:** `api/` 50 jest tests, `web/` 185 vitest tests (all green)
+- **Build:** `pnpm -F @manga/api build && pnpm -F @manga/web build` (verified 2026-06-05)
+- **Live Smoke Tests:** `node docs/superpowers/smoke-{sprint5,sprint6,sprint7,ux-upgrade,storage}.mjs` (5 end-to-end flows)
 - **Database:** Docker MySQL `localhost:3308` (dev environment)
 - **Demo Logins:** see `../01-overview.md` (pwd: Dung123456@)
 

@@ -38,7 +38,7 @@ flowchart TD
     CheckRisk -->|YES| SetAtRisk["Series→AT_RISK<br/>(notify mangaka)"]
     CheckRisk -->|NO| SeriesOK["Series→ACTIVE"]
     SetAtRisk --> Decision
-    SeriesOK --> Decision{Decision:<br/>CONTINUE|<br/>CANCEL|<br/>HIATUS|<br/>CHANGE_FREQ}
+    SeriesOK --> Decision{"Decision: CONTINUE / CANCEL / HIATUS / CHANGE_FREQ"}
     Decision -->|CONTINUE| SeriesCont["Series→ACTIVE<br/>(continue schedule)"]
     Decision -->|CANCEL| SeriesCancl["Series→CANCELLED"]
     Decision -->|HIATUS| SeriesHiat["Series→HIATUS"]
@@ -51,7 +51,7 @@ flowchart TD
     DisputeCheck -->|NO| End1([Complete])
     DisputeCheck -->|YES| OpenDispute["Open Dispute<br/>(OPEN)"]
     OpenDispute --> AdminReview["Admin Reviews<br/>(UNDER_REVIEW)"]
-    AdminReview --> ResolveDisp{Resolve:<br/>RESOLVED|<br/>REJECTED}
+    AdminReview --> ResolveDisp{"Resolve: RESOLVED / REJECTED"}
     ResolveDisp -->|RESOLVED| UpdatePayment["Optional: adjust<br/>payment_amount<br/>& earnings"]
     ResolveDisp -->|REJECTED| DispReject["Dispute REJECTED"]
     UpdatePayment --> End2([Complete])
@@ -215,6 +215,64 @@ flowchart TD
 ```
 
 **State machine source:** PROPOSAL (vote_period.status OPEN→CLOSED), Ranking (risk_level assignment), Series (AT_RISK, HIATUS, CANCELLED transitions via Decision, §5); `/vote-periods/*`, `/votes`, `/rankings`, `/decisions` endpoints (§6).
+
+---
+
+## 7. File Upload to S3-Compatible Storage
+
+User selects file (avatar, submission, etc.), validates constraints, uploads to SeaweedFS S3, with fallback to disk if S3 unavailable.
+
+```mermaid
+flowchart TD
+    SelectFile["User Selects<br/>File (avatar,<br/>submission, etc)"]
+    SelectFile --> Validate["Validate File<br/>Size ≤ 30MB<br/>Type allowed"]
+    
+    Validate --> SizeCheck{File<br/>Size<br/>OK?}
+    SizeCheck -->|NO| SizeError["Reject:<br/>File too large"]
+    SizeError --> End1([Upload Rejected])
+    
+    SizeCheck -->|YES| TypeCheck{File Type<br/>Allowed?}
+    TypeCheck -->|NO| TypeError["Reject:<br/>Unsupported type"]
+    TypeError --> End1
+    
+    TypeCheck -->|YES| ReadBuffer["Read file to<br/>memory buffer<br/>(Multer)"]
+    ReadBuffer --> GenerateKey["Generate key:<br/>randomUUID()<br/>+ extension"]
+    GenerateKey --> S3Upload["Attempt<br/>POST /api/uploads<br/>→ StorageService.put()"]
+    
+    S3Upload --> S3Check{S3<br/>Endpoint<br/>Available?}
+    
+    S3Check -->|YES| S3Put["S3Client:<br/>PutObjectCommand<br/>(Bucket, Key, Body,<br/>ContentType)"]
+    S3Put --> S3OK["S3: Object stored"]
+    S3OK --> ReturnURL["Return stable URL<br/>/uploads/{key}"]
+    
+    S3Check -->|NO| FallbackDisk["Fallback:<br/>StorageService.put()<br/>writes to disk<br/>/uploads/{key}"]
+    FallbackDisk --> ReturnURL
+    
+    ReturnURL --> URLReady["URL ready for<br/>profile/submission<br/>form use"]
+    URLReady --> ServeReady["Later:<br/>GET /uploads/{key}<br/>served from S3/disk<br/>with path-traversal guard"]
+    ServeReady --> End2([Upload Complete])
+
+    style SelectFile fill:#E0E0FF
+    style Validate fill:#FFFFE0
+    style SizeCheck fill:#FFE4B5
+    style TypeCheck fill:#FFE4B5
+    style SizeError fill:#FFB6C6
+    style TypeError fill:#FFB6C6
+    style ReadBuffer fill:#E0FFFF
+    style GenerateKey fill:#E0FFFF
+    style S3Upload fill:#F0E68C
+    style S3Check fill:#FFE4B5
+    style S3Put fill:#C8E6C9
+    style S3OK fill:#90EE90
+    style FallbackDisk fill:#FFE0E0
+    style ReturnURL fill:#90EE90
+    style URLReady fill:#90EE90
+    style ServeReady fill:#C8E6C9
+    style End1 fill:#FFB6C6
+    style End2 fill:#90EE90
+```
+
+**Storage implementation:** `apps/api/src/s3/storage.service.ts` uses `@aws-sdk/client-s3` with `forcePathStyle: true` for self-hosted SeaweedFS; environment: `S3_ENDPOINT` (default `:8333`), `S3_BUCKET` (default `manga-uploads`); `GET /uploads/{key}` served via `StorageService.get()` stream with path-traversal guard.
 
 ---
 

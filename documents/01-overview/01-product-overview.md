@@ -101,8 +101,35 @@ Series Proposal → Board approval → Series → Tantou Editor assigned → Cha
 - Admins review disputes, resolve with optional amount adjustment.
 - Dispute resolution notifies the assistant.
 
-**Notifications**
-- Real-time alerts on task assignment, submission, review decision, editor review outcome, proposal decisions, editor (un)assignment, ranking risk, board decisions, dispute status.
+**Notifications & Real-time Updates**
+- Multi-user fan-out on key events: editor notified when chapter reaches READY_FOR_EDITOR_REVIEW & PUBLISHED; board notified on proposal approval; mangaka notified on editor assignment, decision, and risk alerts.
+- Web notifications Bell (20s polling) for near-real-time delivery of in-app alerts.
+- Notification types: TASK_ASSIGNMENT, SUBMISSION, REVISION, REVIEW, PROPOSAL_DECISION, RISK_ALERT, DECISION, DISPUTE, GENERAL, DEADLINE.
+
+**Profile & Avatar Management**
+- Users can view and edit their profile: fullName (≤120 chars), avatarUrl (≤500 chars).
+- Avatar upload to S3 (SeaweedFS) object storage; persistent cross-session storage.
+- Endpoints: `GET /api/users/me` (profile view), `PATCH /api/users/me` (profile edit + avatar update).
+- Web Profile page with avatar upload preview and S3 integration.
+
+**Self-Hosted Object Storage (SeaweedFS S3)**
+- Replaces local-disk uploads with S3-compatible object storage in Docker (port 8333).
+- POST `/api/uploads` stores files to S3 (30MB cap), returns stable `/uploads/:key` URL.
+- GET `/uploads/:key` served from S3 with path-traversal guard (`[A-Za-z0-9._-]+`); fallback to disk for migration.
+- Avatar images, page versions, and all submissions stored durably in SeaweedFS.
+- Security: Environment-driven endpoint, access key, region (dev defaults: `http://localhost:8333`, `manga`/`manga-s3-dev-secret`).
+
+**Transactional Integrity & Data Safety**
+- Database transactions (ACID) enforce atomicity on critical operations: proposal approval, submission review, dispute resolution, chapter publication.
+- `DbService.transaction()` wraps all writes; notifications fire AFTER commit to prevent orphaned alerts.
+- Implemented in: proposals.service (approval→Series creation), submissions.service (review→earnings accrual), disputes.service (resolution→payment delta), chapters.service (publication→Publication_Schedule).
+
+**Security Hardening**
+- Global rate-limiting via `@nestjs/throttler`: 120 requests/min default, 20/min on login (blocks brute-force on shared NAT).
+- All exception responses sanitized: generic HTTP status codes, no SQL/stack traces leaked via `AllExceptionsFilter`.
+- Path-traversal guard on `/uploads` endpoint: key validated against `[A-Za-z0-9._-]+` regex.
+- Frontend `RoleProtected` route guard on all sensitive pages; 403 Forbidden page shown for unauthorized access.
+- JWT secret boot warning if not configured; environment-driven for production.
 
 **Admin & Audit**
 - User activation and role management.
@@ -162,12 +189,12 @@ Series Proposal → Board approval → Series → Tantou Editor assigned → Cha
 
 ## Project Status
 
-**As of 2026-05-31:**
-- API: 46 jest tests + build green.
-- Web: 124 vitest tests + `tsc -b` type check + build green.
-- Live smoke tests: 3 integration runs (sprints 5, 6, 7) with 19, 13, 11 scenarios; 0 failures.
-- Integration branch: `dev/sprint3-studio` → base `development`.
-- PR #5 open (Sprint 7 final review).
+**As of 2026-06-05:**
+- API: 50+ jest tests + build green.
+- Web: 185+ vitest tests + `tsc -b` type check + build green.
+- 72 endpoints deployed (core workflows + S3 storage + profile + notifications).
+- Live smoke tests: 5 integration runs (sprints 5, 6, 7, storage, UX-upgrade) with 70+ scenarios; 0 failures.
+- PR #7 merged (Sprint 7 + storage upgrade + profile/notifications).
 - All feature gates active; demo credentials available.
 
 ---

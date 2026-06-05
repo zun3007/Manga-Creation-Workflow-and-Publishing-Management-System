@@ -40,6 +40,7 @@ The Tantou Editor sits between chapter production and publication, ensuring qual
 | Dashboard | `/` | Tổng quan | Role-aware summary; notifications bell for review assignments |
 | Review Queue | `/editor/review` | Duyệt chương | List of chapters awaiting editor review for your assigned series |
 | Chapter Review | `/editor/review/:chapterId` | Duyệt chương — đọc trang | Full-page viewer, annotation placement, and final decision |
+| Hồ sơ | `/users/me` | Hồ sơ | Update profile: edit name, bio, upload avatar to self-hosted S3; view account settings. |
 
 ### Review Queue (`/editor/review`)
 
@@ -203,11 +204,18 @@ You can be assigned to **multiple series** simultaneously. The review queue show
 
 ## Notifications
 
+The Editor **receives** the following notification types (near-realtime via 20s polling):
+
 | Trigger | From | Content | Action |
 |---------|------|---------|--------|
-| Series assignment | Editorial Board | "You are now editor for [Series Title]" | none; check review queue to start |
-| Chapter ready for review | System | "[Series #X] Chapter #N is ready for your review" | link to `/editor/review/:chapterId` |
-| (Future) Review request | Mangaka (if rejected) | "[Series] Author requests your urgent review of Chapter #N" | (for future notification prioritization) |
+| Series assignment | Editorial Board | "You are now editor for [Series Title]" | navigate to `/editor/review` to start |
+| Chapter ready for review | System | "[Series Title] Chapter #N is ready for your review" | link to `/editor/review/:chapterId` |
+| Chapter revision requested | Mangaka | "[Series] Chapter #N returned for revisions by author" | link to `/editor/review/:chapterId` to re-review |
+| Series decision made | Editorial Board | "Board decision on [Series]: [CONTINUE/CANCEL/HIATUS/CHANGE_FREQUENCY]" | informational; may affect review queue |
+
+The Editor **sends** (triggers):
+- Chapter approval/revision decisions notify the Mangaka
+- Annotations do not trigger notifications (internal editorial feedback)
 
 ---
 
@@ -218,10 +226,10 @@ You can be assigned to **multiple series** simultaneously. The review queue show
 - View chapter pages and page versions
 - Create, list, and resolve annotations on pages
 - Approve or request changes on chapters
-- Receive editor assignment notifications
+- Receive editor assignment notifications and near-realtime chapter updates (20s polling)
 - View dashboard summary (role-aware)
-- Read own profile
-- Change password, update profile (basic)
+- Read and edit own profile (`/users/me`): name, bio, avatar upload to self-hosted S3
+- Change password, update profile
 
 **Cannot do:**
 - Create proposals or series (Editorial Board only)
@@ -229,9 +237,10 @@ You can be assigned to **multiple series** simultaneously. The review queue show
 - Assign editors to series (Editorial Board only)
 - Approve submissions (Mangaka only)
 - Vote or make editorial decisions (Editorial Board only)
-- Access chapters from non-assigned series
+- Access chapters from non-assigned series (403 Forbidden)
 - Delete annotations (soft-delete only via resolution flag)
 - Override chapter status outside editor-review endpoints
+- Access mangaka, assistant, or board pages (role-route guard, 403 Forbidden)
 
 See [Security & RBAC](../02-architecture/04-security-and-rbac.md) for technical enforcement (`@Roles(Role.TANTOU_EDITOR)` and series-level authorization checks).
 
