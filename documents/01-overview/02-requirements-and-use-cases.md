@@ -1,6 +1,6 @@
 # Requirements & Use Cases
 
-A comprehensive specification of functional, non-functional requirements, and detailed use cases for the Manga Creation Workflow & Publishing Management System—derived from the shipped REST API, database schema, and web routes (as of 2026-05-31).
+A comprehensive specification of functional, non-functional requirements, and detailed use cases for the Manga Creation Workflow & Publishing Management System—derived from the shipped REST API, database schema, and web routes (as of 2026-06-05).
 
 **Table of Contents**
 - [Actors](#actors)
@@ -269,6 +269,45 @@ Grouped by module, each requirement maps to an endpoint and/or web page. All end
 |----|-------------|----------|-------------|
 | FR-HEALTH-1 | System shall provide a health/root endpoint for monitoring. | System | `GET /api`; returns {message: "API is running"} or similar |
 
+### FR-23: Profile & Avatar Management
+
+| ID | Requirement | Actor(s) | Realized by |
+|----|-------------|----------|-------------|
+| FR-PROF-1 | User shall view their own profile (email, fullName, avatarUrl, role). | Any | `GET /api/users/me`; web: Profile page (accessible from Header) |
+| FR-PROF-2 | User shall update their profile (fullName ≤120 chars, avatarUrl ≤500 chars). | Any | `PATCH /api/users/me` with optional fullName and avatarUrl; web: Profile form with save button |
+| FR-PROF-3 | User shall upload an avatar image (PNG, JPEG, WebP, GIF; ≤5MB) to S3 object storage. | Any | File upload via `POST /api/uploads` → S3 → returns `/uploads/:key` URL; assigned to avatarUrl on PATCH |
+| FR-PROF-4 | System shall validate avatar image format and size before upload. | System | Client-side validation in Profile.tsx; server-side Multer limit 30MB (files culled at upload if mimetype/size mismatch) |
+
+### FR-24: Self-Hosted Object Storage (SeaweedFS S3)
+
+| ID | Requirement | Actor(s) | Realized by |
+|----|-------------|----------|-------------|
+| FR-S3-1 | System shall store uploaded files (page versions, avatars, submissions) in S3-compatible object storage (SeaweedFS Docker container). | System | `StorageService` (s3/storage.service.ts) uses AWS SDK with S3Client endpoint=http://localhost:8333 (dev) |
+| FR-S3-2 | File upload endpoint POST `/api/uploads` accepts multipart file, stores to S3, returns stable `/uploads/:key` URL. | Any | UploadsController.uploadFile() → StorageService.put(key, buffer) → returns {url: `/uploads/:key`, originalName} |
+| FR-S3-3 | File retrieval GET `/api/uploads/:key` serves from S3 with path-traversal protection; fallback to disk for migration. | System | main.ts express.get('/uploads/:key') validates key against regex `[A-Za-z0-9._-]+`; calls StorageService.get(); 404 if not found |
+| FR-S3-4 | S3 credentials and endpoint driven by environment variables (S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET, S3_REGION). | System | StorageService constructor reads process.env; dev defaults: endpoint=http://localhost:8333, bucket=manga-uploads, region=us-east-1 |
+| FR-S3-5 | S3 bucket auto-created on module init if not present. | System | StorageService.onModuleInit() attempts HeadBucketCommand; catches error and CreateBucketCommand on 404 |
+| FR-S3-6 | File size limit: 30MB per file. | System | Multer fileSize limit: 30 * 1024 * 1024 bytes in UploadsController |
+
+### FR-25: Near-Real-Time Notifications
+
+| ID | Requirement | Actor(s) | Realized by |
+|----|-------------|----------|-------------|
+| FR-NOTIF-6 | Editor notified when chapter transitions to READY_FOR_EDITOR_REVIEW (multi-user fan-out if multiple editors assigned). | System | chapters.service.setStatus sends REVIEW notification to all active Series_Tantou_Editor (unassigned_at IS NULL) |
+| FR-NOTIF-7 | Editor notified when chapter transitions to PUBLISHED (multi-user fan-out). | System | chapters.service.setStatus sends GENERAL notification to all active editors after Publication_Schedule created in transaction |
+| FR-NOTIF-8 | Board members notified when proposal is approved. | System | proposals.service.decide sends PROPOSAL_DECISION notification to all EDITORIAL_BOARD users |
+| FR-NOTIF-9 | Mangaka notified when assigned a Tantou Editor. | System | series.service.assignEditor sends REVIEW notification with "You have been assigned to series..." message |
+| FR-NOTIF-10 | Web notifications fetched via 20-second polling; bell icon in Header shows unread count and displays dropdown list. | Any | Notifications page / Header bell component calls `GET /api/notifications` on 20s interval; lists unread first |
+
+### FR-26: Transactional Integrity (ACID Data Safety)
+
+| ID | Requirement | Actor(s) | Realized by |
+|----|-------------|----------|-------------|
+| FR-TRANS-1 | Proposal approval (decision→Series creation + genre copy + notification) executes atomically: all succeed or all rollback. | System | proposals.service.decide() wraps writes in DbService.transaction(); notification sent AFTER commit |
+| FR-TRANS-2 | Submission review (decision→Task status update + earnings accrual + notification) executes atomically. | System | submissions.service.review() uses DbService.transaction() for Task + Assistant_Profile updates; notify AFTER commit |
+| FR-TRANS-3 | Dispute resolution (outcome→Task payment delta + earnings adjustment + notification) executes atomically. | System | disputes.service.resolve() wraps all writes in transaction; mangaka notified AFTER commit |
+| FR-TRANS-4 | Chapter publication (status→Publication_Schedule creation + notification) executes atomically. | System | chapters.service.setStatus(PUBLISHED) wraps Chapter + Publication_Schedule writes in transaction; notify AFTER commit |
+
 ---
 
 ## Non-Functional Requirements
@@ -282,6 +321,13 @@ Grouped by module, each requirement maps to an endpoint and/or web page. All end
 | NFR-SEC-5 | Security | Cross-Origin Resource Sharing (CORS) configured to CLIENT_URL only; no wildcard. | NestJS CORS middleware in main.ts; origin validated against env var. |
 | NFR-SEC-6 | Security | Ownership checks enforced: user can only modify own entities (proposals, series submissions, disputes, notifications). | Service layer validates user_id matches entity user_id before update/delete. |
 | NFR-SEC-7 | Security | Last-admin guard prevents demotion/deactivation of sole ADMIN. | Admin controller checks count of active ADMIN role before patch; rejects if count=1. |
+| NFR-SEC-8 | Security | Path-traversal attack prevention on GET `/uploads/:key`: key validated against safe pattern `[A-Za-z0-9._-]+`. | main.ts express.get('/uploads/:key') rejects keys with `/`, `..`, or special chars; returns 400 Bad Request. |
+| NFR-SEC-9 | Security | All exception responses sanitized: HTTP status codes returned, no SQL errors or stack traces leaked to client. | AllExceptionsFilter catches all exceptions; returns generic 500 message in Vietnamese ("Lỗi máy chủ...") for non-HttpException errors. |
+| NFR-SEC-10 | Security | JWT secret required and warned if missing; should be at least 32 chars in production. | Bootstrap logs warn if JWT_SECRET not set; env var required for AppModule forRoot. |
+| NFR-ABUSE-1 | Abuse Prevention | Global rate-limiting: 120 requests per minute per IP (default throttle). | @nestjs/throttler ThrottlerModule.forRoot applied globally via AppModule. |
+| NFR-ABUSE-2 | Abuse Prevention | Login endpoint rate-limited to 20 attempts per minute (stricter than global). | auth.controller.ts @Throttle({default: {ttl: 60000, limit: 20}}) on POST login to block brute-force. |
+| NFR-STORAGE-1 | Data Persistence | Object storage (SeaweedFS) provides durable file persistence for avatars, page versions, submissions. | StorageService S3Client with CreateBucketCommand auto-init; files persisted server-side in SeaweedFS container. |
+| NFR-STORAGE-2 | Data Persistence | File URLs stable across restarts and deployments: `/uploads/:key` format consistent. | StorageService keys generated as UUID + original extension; same key always maps to same object. |
 | NFR-PERF-1 | Performance | Database connection pooling via mysql2 pool (configurable max connections). | mysql2.createPool() in DbService; reused connections per request. |
 | NFR-PERF-2 | Performance | AI models (YOLO, MobileSAM, DeOldify) lazy-loaded in browser; do not block page load. | onnx runtime loads on-demand in Studio; heuristic fallback available. |
 | NFR-PERF-3 | Performance | Pagination supported on list endpoints (series, proposals, tasks, notifications, users). | Query params limit/offset passed to service; SQL LIMIT/OFFSET applied. |
@@ -299,9 +345,9 @@ Grouped by module, each requirement maps to an endpoint and/or web page. All end
 | NFR-PORT-1 | Portability | Minimum Node.js version: 20; TypeScript 5.7 (api), ~6.0 (web). | package.json engines.node; tsc config via tsconfig.json per package. |
 | NFR-PORT-2 | Portability | MySQL 8 (Docker, host port 3308→container 3306). | docker-compose.yml defines MySQL service; DbService connects via env var. |
 | NFR-PORT-3 | Portability | Environment variables: NODE_ENV, DATABASE_URL, JWT_SECRET, CLIENT_URL, GOOGLE_CLIENT_ID/SECRET. | Loaded via @nestjs/config; .env file (dev only, not committed). |
-| NFR-TEST-1 | Testability | API: jest 30 + ts-jest; 46 test suites; build green. | test files in apps/api/src/**/*.spec.ts; jest.config.js in root. |
-| NFR-TEST-2 | Testability | Web: vitest 4 + @testing-library/react + jsdom; 124 test suites; tsc -b green. | test files in apps/web/src/**/*.test.tsx; vitest.config.ts; no testing-library/user-event (use fireEvent). |
-| NFR-TEST-3 | Testability | Live smoke tests (3 suites: sprint5/6/7) run against real DB; 19+13+11 tests / 0 fail. | node docs/superpowers/smoke-sprint{5,6,7}.mjs (real MySQL + login + workflows). |
+| NFR-TEST-1 | Testability | API: jest 30 + ts-jest; 50+ test suites; build green. | test files in apps/api/src/**/*.spec.ts; jest.config.js in root. |
+| NFR-TEST-2 | Testability | Web: vitest 4 + @testing-library/react + jsdom; 185+ test suites; tsc -b green. | test files in apps/web/src/**/*.test.tsx; vitest.config.ts; no testing-library/user-event (use fireEvent). |
+| NFR-TEST-3 | Testability | Live smoke tests (5 suites: sprint5/6/7, storage, ux-upgrade) run against real DB; 70+ scenarios / 0 fail. | node docs/superpowers/smoke-sprint{5,6,7}.mjs + smoke-storage.mjs + smoke-ux-upgrade.mjs (real MySQL + login + workflows). |
 | NFR-BUILD-1 | Build & Delivery | Build: `pnpm build` compiles web (Vite) & api (tsc); outputs dist/ or .next/. | apps/web build → dist/; apps/api build → dist/. |
 | NFR-BUILD-2 | Build & Delivery | TypeScript strict mode enabled (api decorators OK, web erasableSyntaxOnly=NO enums). | tsconfig.json compilerOptions.strict; api allows decorators, web forbids enums. |
 

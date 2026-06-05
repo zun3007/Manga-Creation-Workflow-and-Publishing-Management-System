@@ -45,6 +45,10 @@ A comprehensive reference of terms, entities, and state enums used throughout th
 | **Vote Period** | A time window (WEEKLY or MONTHLY) during which Board members vote on a Series. Status: OPEN → CLOSED. Closing triggers Ranking computation and risk alert notifications. |
 | **WASM** | WebAssembly (AssemblyScript-compiled); used in the Studio for accelerated pixel operations (brush rendering, fill, layer blending, etc.). |
 | **on-device AI** | Optional client-side AI inference (ONNX Runtime Web) running in the browser: panel detection (YOLO), smart selection (MobileSAM), colorization (DeOldify). No external API dependency; heuristic fallback if unavailable. |
+| **Object Storage / S3** | SeaweedFS-based S3-compatible object storage (self-hosted in Docker, port 8333). Stores durable file objects (avatars, page versions, submissions) with stable keys; served at `/uploads/:key` with path-traversal protection. |
+| **Transaction** | Database-level atomic operation (ACID): multiple statements grouped via `DbService.transaction()` such that all succeed or all rollback together. Used for proposal approval, submission review, dispute resolution, chapter publication to ensure data consistency. |
+| **Rate Limiting / Throttling** | Request-per-minute limits enforced via `@nestjs/throttler` to prevent abuse: global 120/min, login 20/min. Returns 429 Too Many Requests if exceeded. |
+| **Exception Filter** | Global error handler (`AllExceptionsFilter`) that sanitizes all exception responses: HTTP status codes returned, no SQL/stack traces leaked; generic Vietnamese error message for unhandled 500 errors. |
 
 ## Status Enum Quick Reference
 

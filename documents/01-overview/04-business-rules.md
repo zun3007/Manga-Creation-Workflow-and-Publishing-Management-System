@@ -38,7 +38,7 @@ Enforcement-verified rules from the shipped codebase (API, guards, services, DTO
 | ID | Rule | Enforced where |
 |---|---|---|
 | BR-FLOW-005 | Chapter transitions: DRAFT → IN_PROGRESS → READY_FOR_EDITOR_REVIEW → EDITOR_APPROVED → PUBLISHED; READY_FOR_EDITOR_REVIEW can revert to IN_PROGRESS; PUBLISHED is terminal. | CHAPTER_TRANSITIONS in shared/enums/transitions.ts; chapters.service.setStatus/editorReview enforce canTransition() |
-| BR-FLOW-006 | Chapter reaches PUBLISHED only after editor EDITOR_APPROVED. Mangaka can publish only if status=EDITOR_APPROVED. | chapters.service.setStatus verifies canTransition(EDITOR_APPROVED → PUBLISHED); also auto-creates Publication_Schedule row with publish_status='PUBLISHED' |
+| BR-FLOW-006 | Chapter reaches PUBLISHED only after editor EDITOR_APPROVED AND all pages are COMPLETED. Transition rejected if any page status <> COMPLETED. | chapters.service.setStatus(PUBLISHED) queries Page WHERE page_status <> 'COMPLETED'; throws BadRequestException if found; also auto-creates Publication_Schedule row |
 | BR-FLOW-007 | Only assigned Tantou editor can approve chapter (READY_FOR_EDITOR_REVIEW → EDITOR_APPROVED) or request revisions (→ IN_PROGRESS). | chapters.service.editorReview queries Series_Tantou_Editor join, throws ForbiddenException if editor_user_id mismatch or unassigned_at IS NOT NULL |
 | BR-FLOW-008 | Chapter_number is unique per series; auto-incremented on create. | chapters.service.create computes MAX(chapter_number)+1; schema has UNIQUE(series_id, chapter_number) |
 
@@ -96,14 +96,15 @@ Enforcement-verified rules from the shipped codebase (API, guards, services, DTO
 
 | ID | Rule | Enforced where |
 |---|---|---|
-| BR-MONEY-001 | Task payment_amount auto-priced from active Task_Price_Rule by region_type at creation. Multiple rules per type; selects most recent effective rule (ORDER BY effective_from DESC). | tasks.service.assign queries Task_Price_Rule; base_price set as payment_amount |
-| BR-MONEY-002 | Assistant total_earnings accrues only when submission is APPROVED. Amount = Task.payment_amount at approval time. | submissions.service.review if decision='APPROVED': UPDATE Assistant_Profile total_earnings += (SELECT payment_amount FROM Task) |
-| BR-MONEY-003 | Dispute with adjustedAmount updates Task.payment_amount and deltas Assistant.total_earnings. | disputes.service.resolve if status='RESOLVED' && adjustedAmount != null: delta = adjustedAmount - old_payment; UPDATE Task.payment_amount, UPDATE Assistant_Profile.total_earnings += delta |
-| BR-MONEY-004 | One Vote per board member per Vote_Period (unique key). Upsert behavior: re-vote updates score/comment. | rankings.service.castVote uses INSERT ... ON DUPLICATE KEY UPDATE; Vote table has UNIQUE(vote_period_id, board_user_id) |
-| BR-MONEY-005 | Vote score range: 1–5 (inclusive). | create-vote.dto.ts @Min(1) @Max(5) |
-| BR-MONEY-006 | Risk level determined by average vote score: HIGH (< 2.5), MEDIUM (2.5–3.5), LOW (≥ 3.5). Triggers Series AT_RISK status on HIGH. | rankings.service.closePeriod computes avg and assigns risk; if risk=HIGH, updates Series |
+| BR-MONEY-001 | Task payment_amount auto-priced from active Task_Price_Rule by region_type at creation. Multiple rules per type; selects most recent effective rule (ORDER BY effective_from DESC). If no rule exists, payment=0. | tasks.service.assign queries Task_Price_Rule; base_price set as payment_amount; if no rule found, payment=0 |
+| BR-MONEY-002 | Task creation with payment=0 (no rule found) triggers a priceWarning log and response flag. Logged as WARN; included in task response object. | tasks.service.assign checks if !rule, sets priceWarning string, logs via this.logger.warn(), returns priceWarning in response |
+| BR-MONEY-003 | Assistant total_earnings accrues only when submission is APPROVED. Amount = Task.payment_amount at approval time. | submissions.service.review if decision='APPROVED': UPDATE Assistant_Profile total_earnings += (SELECT payment_amount FROM Task) |
+| BR-MONEY-004 | Dispute with adjustedAmount updates Task.payment_amount and deltas Assistant.total_earnings. | disputes.service.resolve if status='RESOLVED' && adjustedAmount != null: delta = adjustedAmount - old_payment; UPDATE Task.payment_amount, UPDATE Assistant_Profile.total_earnings += delta |
+| BR-MONEY-005 | One Vote per board member per Vote_Period (unique key). Upsert behavior: re-vote updates score/comment. | rankings.service.castVote uses INSERT ... ON DUPLICATE KEY UPDATE; Vote table has UNIQUE(vote_period_id, board_user_id) |
+| BR-MONEY-006 | Vote score range: 1–5 (inclusive). | create-vote.dto.ts @Min(1) @Max(5) |
+| BR-MONEY-007 | Risk level determined by average vote score: HIGH (< 2.5), MEDIUM (2.5–3.5), LOW (≥ 3.5). Triggers Series AT_RISK status on HIGH. | rankings.service.closePeriod computes avg and assigns risk; if risk=HIGH, updates Series |
 
-**6 money rules, all Enforced.**
+**7 money rules (including pricing warning), all Enforced.**
 
 ---
 
@@ -166,7 +167,78 @@ Enforcement-verified rules from the shipped codebase (API, guards, services, DTO
 | BR-SEC-006 | Google OAuth users cannot call change-password endpoint (no local password). | auth.service.ts checks auth_provider='GOOGLE' and throws error |
 | BR-SEC-007 | All state-changing endpoints (PATCH, POST, PUT, DELETE) require JWT authentication. | @UseGuards(JwtAuthGuard) applied to all controllers globally or per-endpoint |
 
-**7 security rules, all Enforced.**
+| BR-SEC-008 | Path-traversal attacks blocked on `/api/uploads/:key` GET. Key validated against regex `[A-Za-z0-9._-]+`; rejects `/`, `..`, and special chars. | main.ts `/uploads/:key` handler checks regex; returns 400 Bad Request if invalid |
+| BR-SEC-009 | All exception responses sanitized: HTTP status codes returned, no SQL/stack traces leaked. Generic 500 message "Lỗi máy chủ..." in Vietnamese for unhandled errors. | AllExceptionsFilter catch block logs error server-side, returns generic response to client |
+| BR-SEC-010 | JWT_SECRET required and warned if missing at bootstrap. Production deployments should use 32+ char secret. | main.ts bootstraps @nestjs/config; log warns if JWT_SECRET not set |
+
+**10 security rules, all Enforced.**
+
+---
+
+## 8. Rate Limiting & Abuse Prevention (BR-RATE-*)
+
+| ID | Rule | Enforced where |
+|---|---|---|
+| BR-RATE-001 | Global rate-limiting: 120 requests per minute per IP. Requests exceeding limit receive 429 Too Many Requests. | AppModule ThrottlerModule.forRoot([{ttl: 60000, limit: 120}]); ThrottlerGuard applied globally |
+| BR-RATE-002 | Login endpoint (POST /api/auth/login) rate-limited to 20 attempts per minute (stricter than global) to block brute-force. | auth.controller.ts @Throttle({default: {ttl: 60000, limit: 20}}) on login method |
+
+**2 rate-limiting rules, all Enforced.**
+
+---
+
+## 9. Data Persistence & Object Storage (BR-STORE-*)
+
+| ID | Rule | Enforced where |
+|---|---|---|
+| BR-STORE-001 | File uploads stored in self-hosted SeaweedFS S3-compatible object storage (Docker container, port 8333 dev). Credentials and endpoint via environment variables (S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET, S3_REGION). | StorageService constructor reads process.env; S3Client configured with endpoint + credentials |
+| BR-STORE-002 | Upload endpoint POST /api/uploads accepts multipart file (30MB limit), stores to S3, returns stable `/uploads/:key` URL (uuid + extension). | UploadsController.uploadFile() uses Multer fileSize limit; StorageService.put() uploads to S3 |
+| BR-STORE-003 | Retrieval endpoint GET /api/uploads/:key serves from S3 with path-traversal guard; fallback to disk for migration. | main.ts express.get('/uploads/:key') validates key, calls StorageService.get(), returns stream; fallback to disk if S3 404 |
+| BR-STORE-004 | S3 bucket auto-created on module init if not present (CreateBucketCommand on HeadBucketCommand 404). | StorageService.onModuleInit() attempts bucket creation |
+| BR-STORE-005 | File URLs stable across restarts: `/uploads/:key` format consistent; same key always returns same object. | Key generation: randomUUID() + extname ensures uniqueness and persistence |
+
+**5 storage rules, all Enforced.**
+
+---
+
+## 10. Transactional Integrity & Data Safety (BR-TRANS-*)
+
+| ID | Rule | Enforced where |
+|---|---|---|
+| BR-TRANS-001 | Proposal approval (APPROVED decision → Series creation + Proposal_Genre → Series_Genre copy) executes atomically. All writes succeed or all rollback. | proposals.service.decide() wraps INSERT Series, INSERT INTO Series_Genre in DbService.transaction() |
+| BR-TRANS-002 | Submission review (decision=APPROVED → Task status update + Assistant_Profile.total_earnings accrual) executes atomically. | submissions.service.review() uses DbService.transaction() for UPDATE Task + UPDATE Assistant_Profile |
+| BR-TRANS-003 | Dispute resolution (status=RESOLVED → Task.payment_amount update + Assistant_Profile delta accrual) executes atomically. | disputes.service.resolve() wraps Task + Assistant_Profile updates in DbService.transaction() |
+| BR-TRANS-004 | Chapter publication (status=PUBLISHED → Chapter + Publication_Schedule creation) executes atomically. | chapters.service.setStatus(PUBLISHED) uses DbService.transaction() for both writes |
+| BR-TRANS-005 | Notifications fire AFTER transaction commit to prevent orphaned alerts on rollback. | All services call notify() AFTER transaction succeeds or within finally block after commit |
+
+**5 transactional rules, all Enforced.**
+
+---
+
+## 11. Profile & Avatar Management (BR-PROF-*)
+
+| ID | Rule | Enforced where |
+|---|---|---|
+| BR-PROF-001 | User fullName maximum 120 characters; avatarUrl maximum 500 characters. | update-profile.dto.ts @MaxLength(120) fullName, @MaxLength(500) avatarUrl |
+| BR-PROF-002 | Avatar URL stored as S3 object path (e.g., `/uploads/uuid.jpg`); served from S3 with Content-Type/Cache-Control headers. | Profile.tsx uploads to POST /api/uploads → returns `/uploads/:key`; stored in User.avatar_url |
+| BR-PROF-003 | Avatar upload file types: PNG, JPEG, WebP, GIF. File size limit 5MB client-side, 30MB server-side Multer cap. | Profile.tsx validateUpload() checks mimetype in ['image/png', 'image/jpeg', 'image/webp', 'image/gif']; Multer fileSize 30MB |
+| BR-PROF-004 | Users can only update their own profile (fullName, avatarUrl). Endpoint: `PATCH /api/users/me` with JWT identity. | users.service.updateProfile(userId, fullName, avatarUrl) verifies userId matches JWT user_id |
+
+**4 profile rules, all Enforced.**
+
+---
+
+## 12. Notifications & Real-time Updates (BR-NOTIF-NEW-*)
+
+| ID | Rule | Enforced where |
+|---|---|---|
+| BR-NOTIF-NEW-001 | Editor notified when chapter transitions to READY_FOR_EDITOR_REVIEW (multi-user fan-out if multiple editors assigned to series). | chapters.service.setStatus(READY_FOR_EDITOR_REVIEW) queries Series_Tantou_Editor, loops editors, sends REVIEW notification to each |
+| BR-NOTIF-NEW-002 | Editor notified when chapter transitions to PUBLISHED (multi-user fan-out). | chapters.service.setStatus(PUBLISHED) sends GENERAL notification to all active Series_Tantou_Editor after Publication_Schedule transaction commits |
+| BR-NOTIF-NEW-003 | All board members notified when proposal is APPROVED. | proposals.service.decide(APPROVED) queries User WHERE role='EDITORIAL_BOARD', sends PROPOSAL_DECISION to each |
+| BR-NOTIF-NEW-004 | Mangaka notified when assigned a Tantou Editor. | series.service.assignEditor() sends REVIEW notification to assigned editor_user_id with "assigned to series" message |
+| BR-NOTIF-NEW-005 | Web notifications polled at 20-second intervals; bell icon in Header shows unread count. | Header component calls GET /api/notifications every 20s; re-renders unread count badge |
+| BR-NOTIF-NEW-006 | Notifications ordered: unread first (is_read ASC), then by created_at DESC. | notifications.service.listForUser() ORDER BY is_read ASC, created_at DESC LIMIT 50 |
+
+**6 notification rules, all Enforced.**
 
 ---
 
@@ -184,14 +256,19 @@ These are schema-present but not yet enforced by code:
 ## Summary
 
 - **Authorization:** 11 rules enforced (RBAC, data scoping, last-admin guard)
-- **Workflow & State Machines:** 26 rules enforced (6 state machines + series/vote/publication status)
-- **Domain & Money:** 6 rules enforced (auto-pricing, earnings accrual, dispute resolution, voting)
+- **Workflow & State Machines:** 26 rules enforced (6 state machines + series/vote/publication status, publish requires all pages COMPLETED)
+- **Domain & Money:** 7 rules enforced (auto-pricing, pricing warning, earnings accrual, dispute resolution, voting)
 - **Validation:** 18 rules enforced (DTOs + global ValidationPipe)
 - **Integrity:** 11 rules enforced (FKs, unique keys, 1:1/M-N relationships)
-- **Security:** 7 rules enforced (bcrypt, JWT, CORS, stateless auth)
+- **Security:** 10 rules enforced (bcrypt, JWT, CORS, path-traversal guard, exception sanitization, JWT secret warning)
+- **Rate Limiting & Abuse Prevention:** 2 rules enforced (global 120/min, login 20/min throttle)
+- **Data Persistence & Object Storage:** 5 rules enforced (SeaweedFS S3, file upload/retrieval, path-traversal guard, bucket auto-init, URL stability)
+- **Transactional Integrity & Data Safety:** 5 rules enforced (atomicity on approval/review/resolution/publication, notifications post-commit)
+- **Profile & Avatar Management:** 4 rules enforced (field limits, S3 storage, file type/size validation, ownership checks)
+- **Notifications & Real-time Updates:** 6 rules enforced (multi-user fan-out, editor/board/mangaka alerts, polling, ordering)
 - **Advisory:** 2 rules backlog (Audit_Log, System_Config)
 
-**Total: 79 rules, 77 Enforced, 2 Advisory.**
+**Total: 107 rules, 105 Enforced, 2 Advisory.**
 
 ---
 

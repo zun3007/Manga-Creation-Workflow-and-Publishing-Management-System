@@ -58,7 +58,7 @@ The Board sits at **two gates**:
 
 ## Navigation & Screens
 
-The Editorial Board has four navigation items (Vietnamese labels in app):
+The Editorial Board has five navigation items (Vietnamese labels in app):
 
 | Screen | Route | Purpose |
 |--------|-------|---------|
@@ -66,6 +66,7 @@ The Editorial Board has four navigation items (Vietnamese labels in app):
 | Duyệt đề xuất | `/board/proposals` | Proposal review queue; approve or reject each proposal |
 | Phân công BT | `/board/series` | Active series list; assign or unassign Tantou editor via dropdown |
 | Xếp hạng | `/board/rankings` | Leaderboard view; cast votes, close voting periods, make editorial decisions |
+| Hồ sơ | `/users/me` | Update profile: edit name, bio, upload avatar to self-hosted S3; view account settings. |
 
 ### Screen: Duyệt Đề xuất (Proposal Review)
 
@@ -332,16 +333,23 @@ The Board **initiates or enables** these transitions through approval, editor as
 
 ## Notifications
 
-The Board's actions trigger these notification types (sent to affected users):
+The Board **receives** the following notification types (near-realtime via 20s polling):
+
+| Trigger | From | Content | Action |
+|---------|------|---------|--------|
+| New proposal submitted | Mangaka | "[Mangaka] submitted proposal: [Title]" | link to `/board/proposals` to review |
+| Series at risk alert | System | "[Series Title] flagged AT_RISK (risk level: MEDIUM/HIGH)" | link to `/board/rankings` to decide |
+
+The Board's **actions trigger** these notification types (sent to affected users):
 
 | Trigger | Notification Type | Recipient | Content |
 |---------|-------------------|-----------|---------|
-| Approve proposal | `PROPOSAL_DECISION` | Mangaka | Approval of series; series is now ACTIVE |
-| Reject proposal | `PROPOSAL_DECISION` | Mangaka | Rejection reason (if provided) |
-| Assign editor | (Custom) | Tantou Editor | Assignment to a series |
-| Unassign editor | (Custom) | Tantou Editor | Unassignment from a series |
-| Close vote period with risk | `RISK_ALERT` | Mangaka | Series flagged AT_RISK; risk level disclosed |
-| Make decision | `DECISION` | Mangaka | Decision type, reason, and next steps |
+| Approve proposal | `PROPOSAL_DECISION` | Mangaka | "Your proposal '[Title]' was approved! Series now ACTIVE." |
+| Reject proposal | `PROPOSAL_DECISION` | Mangaka | "Your proposal was rejected." |
+| Assign editor | (Custom) | Tantou Editor | "You have been assigned as editor for [Series Title]" |
+| Unassign editor | (Custom) | Tantou Editor | "You have been unassigned from [Series Title]" |
+| Close vote period with risk | `RISK_ALERT` | Mangaka | "[Series Title] flagged AT_RISK; risk level: MEDIUM/HIGH. Board may make editorial decision." |
+| Make decision | `DECISION` | Mangaka | "Board decision on [Series Title]: [CONTINUE/CANCEL/HIATUS/CHANGE_FREQUENCY]. Reason: [reason text]" |
 
 All notifications include related entity ID and type for deep linking in the UI.
 
@@ -357,6 +365,8 @@ The Editorial Board role (`EDITORIAL_BOARD`) is **strictly limited** to governan
 - Open, vote, close voting periods (`/board/rankings`)
 - Make editorial decisions (`/board/rankings`)
 - Read-only access to series, editors, rankings, decisions
+- Edit own profile (`/users/me`): name, bio, avatar upload to self-hosted S3
+- Receive near-realtime notifications (20s polling) for proposals, risk alerts, and voting updates
 
 **Not Allowed**:
 - Create or author proposals (mangaka only)

@@ -134,15 +134,15 @@ flowchart LR
 # Data & Workflow Engine
 
 **29 tables** grouped by concern:
-- Users & Profiles (5 role profiles)
-- Genre & Series (proposals → series)
-- Chapter / Page / Manuscript / Region
-- Task & Submission (work assignment & handoff)
-- Annotation (editorial feedback)
-- Publishing (schedules)
-- Voting / Ranking / Decision (board governance)
-- Earnings & Disputes
-- Cross-cutting (Notification, Audit_Log, System_Config)
+- Users & Profiles (5 role profiles, profile editing + avatar upload to S3)
+- Genre & Series (proposals → series, auto-assignment of Tantou editors)
+- Chapter / Page / Manuscript / Region (with page status gates: all pages must be COMPLETED before publish)
+- Task & Submission (work assignment & handoff, cancellable AI assists, autosave + draft recovery)
+- Annotation (editorial feedback, polymorphic feedback on pages/submissions)
+- Publishing (schedules, auto-triggered on editor approval)
+- Voting / Ranking / Decision (board governance with risk levels)
+- Earnings & Disputes (auto-priced tasks, retroactive dispute adjustments)
+- Cross-cutting (Notification with 20s polling, Audit_Log, System_Config, rate-limiting, exception filtering)
 
 **State Machines** (verified at service layer):
 - Proposal: DRAFT → SUBMITTED → UNDER_REVIEW → APPROVED/REJECTED
@@ -170,6 +170,25 @@ A full-featured drawing editor in the browser (assistants & mangaka):
 - **WASM Acceleration:** pixel operations (blur, filters, etc.) compiled from AssemblyScript
 
 No server-side rendering — all ops client-side.
+
+---
+
+# Latest Features (2026-06-05)
+
+**User Experience:**
+- **Profile Editing & Avatar Upload**: All roles can edit profile (`/users/me`), upload avatar to self-hosted S3
+- **Near-Realtime Notifications**: Bell polls every 20s; unread badge; mark-read + read-all actions
+- **Role-Route Guards**: Users locked to their role's pages; 403 on unauthorized access
+
+**Studio Enhancements:**
+- **Autosave & Draft Recovery**: IndexedDB auto-saves every 30s; restore-draft on crash; unsaved-changes guard
+- **Advanced Tools**: Marching-ants selection, foreground/background colors with X/D swap, re-editable text, layer ops (duplicate/merge/flatten/paste)
+- **Cancellable AI**: User can abort AI inference; heuristic fallback used if available
+
+**Data Integrity & Security:**
+- **Chapter Publish Gate**: ALL pages must be COMPLETED before chapter can publish
+- **Self-Hosted S3**: All uploads to SeaweedFS (`:8333`); no disk storage; signed S3 URLs
+- **Security Hardening**: Login rate-limiting (throttler), global exception filter, path-traversal guards
 
 ---
 
@@ -255,19 +274,23 @@ Decisions + risk updates notify mangaka immediately.
 # Quality & Verification
 
 **API (NestJS):**
-- 46 jest tests + `pnpm build` → green
-- Coverage: auth, proposals, series, chapters, tasks, submissions, rankings, disputes, earnings
+- **50 jest tests** + `pnpm build` → green
+- Coverage: auth, proposals, series, chapters, tasks, submissions, rankings, disputes, earnings, storage, notifications
+- Auth: JWT + role guards + last-admin safeguard
+- Rate-limiting: login throttle + global exception filter + path-traversal guards
 
 **Web (React):**
-- 124 vitest tests + `tsc -b` (strict) + `pnpm build` → green
-- Coverage: auth, dashboard, nav, forms, hooks
+- **185 vitest tests** + `tsc -b` (strict) + `pnpm build` → green
+- Coverage: auth, dashboard, nav, forms, hooks, studio tools, marching ants, autosave, AI assists
+- Studio: layers, brushes, undo/redo, foreground/background colors, selection, text editing, cancellable AI
+- Notifications: 20s polling bell, unread counts, mark-read, read-all
 
 **Live End-to-End Smokes** (real DB, 5 demo logins):
-- Sprint 5 smoke: 19 assertions / 0 fail
-- Sprint 6 smoke: 13 assertions / 0 fail
-- Sprint 7 smoke: 11 assertions / 0 fail
-- **Total:** 43 / 0 fail
-- Run: `node docs/superpowers/smoke-sprint{5,6,7}.mjs`
+- **5 live smokes** covering full workflows: proposal → series → chapter → task → submission → approval → vote → decision → earnings
+- **72 endpoints** across the API
+- **29 database tables** with state machine enforcement
+- **6 state machines** enforced: Proposal, Chapter, Page, Task, Submission, Earning_Dispute
+- Run: `node docs/superpowers/smoke-*.mjs`
 
 **Integration:**
 - Dev branch `dev/sprint3-studio` merged to `development`
@@ -278,17 +301,26 @@ Decisions + risk updates notify mangaka immediately.
 
 # Roadmap & Backlog
 
+**Shipped (as of 2026-06-05):**
+- ✓ Profile editing for all roles (`/users/me`): edit name, bio, upload avatar to self-hosted S3
+- ✓ Near-realtime notifications: bell polls every 20s; unread counts; mark-read actions
+- ✓ Role-route guards: users cannot access other roles' pages (403 Forbidden)
+- ✓ Studio autosave + draft recovery: IndexedDB auto-save every 30s; unsaved-changes guard; restore-draft
+- ✓ Studio enhancements: undo/redo for layer ops (duplicate/merge/flatten/paste), marching-ants selection, foreground/background colors with X/D swap key bindings, re-editable text, high-speed brush gap-fill, magic-wand 8-connected
+- ✓ Cancellable AI assists: user can abort inference; heuristic fallback used if available
+- ✓ Self-hosted S3 storage (SeaweedFS): all uploads to `:8333`; signed URLs; no public enumeration
+- ✓ Security hardening: login rate-limiting (throttler), global exception filter (no internal leak), upload path-traversal guards
+- ✓ Chapter publish gate: ALL pages must be COMPLETED before chapter can be published
+
 **Near-term (post-demo):**
 - Wire `Audit_Log` → dashboard (admin audit trail view)
 - Wire `System_Config` → admin settings panel
-- Profile edit (users update own avatar, bio, etc.)
 - Task_Price_Rule admin UI (update pricing tiers)
 
 **Production hardening:**
-- Object storage (S3/MinIO) for uploads instead of disk
 - Refresh token rotation + expiry
-- Rate limiting (API endpoints)
 - Session management (concurrent login limit)
+- Email notifications (task assignment, decisions, etc.)
 
 **Optional enhancements:**
 - Email notifications (task assignment, decisions, etc.)

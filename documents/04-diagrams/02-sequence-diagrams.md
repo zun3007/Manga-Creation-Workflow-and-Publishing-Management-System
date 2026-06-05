@@ -19,7 +19,7 @@ sequenceDiagram
     DB-->>API: User row + password_hash
     API->>API: bcryptjs.compare(password, hash)
     alt Valid
-        API->>API: sign JWT {user_id, email, role}
+        API->>API: sign JWT {sub, email, role, name}
         API-->>Web: {access_token, user}
         Web->>Web: localStorage.setItem('token')
         Note over Web: Subsequent requests<br/>Header: Authorization: Bearer {token}
@@ -245,9 +245,83 @@ sequenceDiagram
     API-->>Web: {submission_id, task: {status: SUBMITTED}}
 ```
 
-## 6. Mangaka Reviews Submission
+## 6. Profile Edit & Update
 
-Mangaka reviews submitted work and either approves (accrue earnings) or requests revision (loop back to assistant).
+User views their profile, edits full name and avatar URL, and submits via `PATCH /api/users/me`.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Web as Web (React)
+    participant API as API (NestJS)
+    participant DB as DB (MySQL)
+
+    User->>Web: Navigate to profile settings
+    Web->>API: GET /api/users/me
+    API->>DB: SELECT User WHERE user_id=current_user
+    DB-->>API: user {user_id, email, full_name, avatar_url, role}
+    API-->>Web: {id, email, name, avatarUrl, role}
+    Web->>Web: Populate profile form
+    
+    User->>Web: Edit full name, select/upload avatar
+    Web->>Web: Local form state update
+    
+    User->>Web: Click "Save profile"
+    Web->>API: PATCH /api/users/me<br/>{fullName, avatarUrl}
+    
+    API->>API: validateUpdateProfileDto(fullName, avatarUrl)
+    API->>DB: UPDATE User<br/>SET full_name=?, avatar_url=? WHERE user_id=?
+    DB-->>API: OK
+    
+    API-->>Web: {id, email, name, avatarUrl, role}
+    Web-->>User: "Profile updated successfully"
+```
+
+## 6b. Avatar/File Upload to S3
+
+User selects a file, uploads it to `POST /api/uploads` which stores in SeaweedFS S3, returns stable URL for `GET /uploads/{key}`.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Web as Web (React)
+    participant API as API (NestJS)
+    participant S3 as SeaweedFS S3
+    participant Disk as Fallback Disk
+
+    User->>Web: Select file (avatar, submission, etc)
+    Web->>Web: Validate: size ≤ 30MB, type allowed
+    
+    alt Valid
+        Web->>API: POST /api/uploads<br/>multipart/form-data {file}
+        
+        API->>API: JwtAuthGuard.canActivate()
+        API->>API: Multer: read file to memory buffer
+        API->>API: Generate key: {randomUUID()}.{ext}
+        
+        API->>S3: PutObjectCommand<br/>(Bucket, Key, Body, ContentType)
+        
+        alt S3 success
+            S3-->>API: OK
+            API-->>Web: {url: "/uploads/{key}", originalName}
+            Note over Web: Stable URL ready for profile/form use
+        else S3 unavailable
+            S3-->>API: Error (timeout/endpoint down)
+            API->>Disk: Fallback: save to /uploads/{key} disk
+            Disk-->>API: File written
+            API-->>Web: {url: "/uploads/{key}", originalName}
+            Note over Web: Fallback disk serving enabled
+        end
+    else Invalid
+        Web-->>User: "File too large or unsupported type"
+    end
+    
+    Note over Web,API: Later, GET /uploads/{key} served via<br/>StorageService.get() → S3 stream,<br/>path-traversal guard blocks ../../etc
+```
+
+## 7. Mangaka Reviews Submission
+
+Mangaka reviews submitted work and either approves (accrue earnings in transaction) or requests revision (loop back to assistant). All database writes happen in a single transaction, with notifications fired AFTER commit.
 
 ```mermaid
 sequenceDiagram
@@ -270,22 +344,20 @@ sequenceDiagram
         Mangaka->>Web: Click "Approve"
         Web->>API: PATCH /api/submissions/{id}/review<br/>{decision: APPROVED}
         
-        API->>DB: SELECT Submission WHERE submission_id
-        DB-->>API: submission
-        API->>API: canTransition(SUBMISSION, PENDING, APPROVED)
-        API->>DB: UPDATE Submission SET status=APPROVED
+        API->>API: canTransition(SUBMISSION, PENDING, APPROVED)<br/>canTransition(TASK, SUBMITTED, APPROVED)
         
-        API->>DB: SELECT Task WHERE task_id
-        DB-->>API: task {status=SUBMITTED}
-        API->>API: canTransition(TASK, SUBMITTED, APPROVED)
-        API->>DB: UPDATE Task SET status=APPROVED
+        rect rgb(200, 220, 255)
+            Note over API,DB: BEGIN TRANSACTION
+            API->>DB: UPDATE Submission SET status=APPROVED,<br/>reviewed_by_user_id, reviewed_at=NOW()
+            DB-->>API: OK
+            API->>DB: UPDATE Task SET status=APPROVED
+            DB-->>API: OK
+            API->>DB: UPDATE Assistant_Profile<br/>SET total_earnings += Task.payment_amount
+            DB-->>API: OK
+            Note over DB: COMMIT TRANSACTION
+        end
         
-        API->>DB: SELECT Assistant_Profile WHERE user_id=submission.assistant_user_id
-        DB-->>API: profile {total_earnings}
-        API->>DB: UPDATE Assistant_Profile<br/>SET total_earnings = total_earnings + task.payment_amount
-        Note over DB: Earnings accrual on approval
-        
-        API->>Notif: notify(assistant_user_id, SUBMISSION,<br/>"Your submission approved", submission_id)
+        API->>Notif: notify(assistant_user_id, REVIEW,<br/>"Bài được duyệt", submission_id)
         Notif->>DB: INSERT Notification
         
         API-->>Web: {submission: {status: APPROVED}, task: {status: APPROVED}}
@@ -295,11 +367,16 @@ sequenceDiagram
         Mangaka->>Web: Click "Request revision" (optional feedback)
         Web->>API: PATCH /api/submissions/{id}/review<br/>{decision: REVISION_REQUIRED, feedback}
         
-        API->>DB: UPDATE Submission SET status=REVISION_REQUIRED
-        API->>DB: UPDATE Task SET status=REVISION_REQUIRED
-        Note over DB: Task loops back for rework
+        rect rgb(200, 220, 255)
+            Note over API,DB: BEGIN TRANSACTION
+            API->>DB: UPDATE Submission SET status=REVISION_REQUIRED,<br/>feedback, reviewed_by_user_id, reviewed_at=NOW()
+            DB-->>API: OK
+            API->>DB: UPDATE Task SET status=REVISION_REQUIRED
+            DB-->>API: OK
+            Note over DB: COMMIT TRANSACTION
+        end
         
-        API->>Notif: notify(assistant_user_id, REVISION,<br/>"Revision needed: {feedback}", task_id)
+        API->>Notif: notify(assistant_user_id, REVISION,<br/>"Cần chỉnh sửa: {feedback}", submission_id)
         Notif->>DB: INSERT Notification
         
         API-->>Web: {submission: {status: REVISION_REQUIRED}}
@@ -307,7 +384,7 @@ sequenceDiagram
     end
 ```
 
-## 7. Editor Chapter Review & Annotation
+## 8. Editor Chapter Review & Annotation
 
 Tantou Editor reviews chapter pages, adds annotations (visual feedback), and approves or requests changes.
 
@@ -358,7 +435,7 @@ sequenceDiagram
     end
 ```
 
-## 8. Publish a Chapter
+## 9. Publish a Chapter
 
 Mangaka (or Editor) transitions chapter EDITOR_APPROVED → PUBLISHED, auto-creating a Publication_Schedule.
 
@@ -390,7 +467,7 @@ sequenceDiagram
     Web-->>Mangaka: "Chapter published!"
 ```
 
-## 9. Voting & Risk Ranking
+## 10. Voting & Risk Ranking
 
 Editorial Board opens a vote period, casts votes, closes the period to compute rankings and flag at-risk series.
 
@@ -458,7 +535,7 @@ sequenceDiagram
     API-->>Web: {ranking: {rank_position, total_score, risk_level}}
 ```
 
-## 10. Editorial Decision
+## 11. Editorial Decision
 
 Editorial Board applies a decision (CONTINUE, CANCEL, CHANGE_FREQUENCY, HIATUS) to a Series.
 
@@ -501,9 +578,9 @@ sequenceDiagram
     Web-->>Mangaka: Notification received
 ```
 
-## 11. Earnings & Dispute Lifecycle
+## 12. Earnings & Dispute Lifecycle
 
-Assistant views earnings, opens a dispute on an approved task, admin reviews and resolves with optional payment adjustment.
+Assistant views earnings, opens a dispute on an approved task, admin reviews and resolves with optional payment adjustment in transaction.
 
 ```mermaid
 sequenceDiagram
@@ -550,30 +627,30 @@ sequenceDiagram
     end
     
     Admin->>Web: Click "Resolve" (decision + optional adjustedAmount)
-    Web->>API: PATCH /api/disputes/{id}/resolve<br/>{resolution_note, resolution: RESOLVED, adjustedAmount: 150}
+    Web->>API: PATCH /api/disputes/{id}/resolve<br/>{resolution_note, resolution: RESOLVED, adjustedAmount?}
     
     API->>API: canTransition(EARNING_DISPUTE, UNDER_REVIEW, RESOLVED)
-    API->>DB: UPDATE Earning_Dispute SET dispute_status=RESOLVED, resolution_note, resolved_by_user_id, resolved_at
     
-    alt adjustedAmount provided
-        API->>DB: SELECT Task WHERE task_id
-        DB-->>API: task {payment_amount: 100}
-        API->>API: delta = adjustedAmount - payment_amount = 150 - 100 = 50
-        API->>DB: UPDATE Task SET payment_amount=150
-        
-        API->>DB: SELECT Assistant_Profile WHERE user_id
-        DB-->>API: profile {total_earnings: 500}
-        API->>DB: UPDATE Assistant_Profile<br/>SET total_earnings = total_earnings + delta = 500 + 50 = 550
-        Note over DB: Earnings adjusted by delta
+    rect rgb(200, 220, 255)
+        Note over API,DB: BEGIN TRANSACTION
+        API->>DB: UPDATE Earning_Dispute<br/>SET dispute_status=RESOLVED, resolution_note, resolved_by_user_id, resolved_at
+        DB-->>API: OK
+        alt adjustedAmount provided
+            API->>DB: UPDATE Task SET payment_amount=adjustedAmount
+            DB-->>API: OK
+            API->>DB: UPDATE Assistant_Profile<br/>SET total_earnings += (adjustedAmount - original_amount)
+            DB-->>API: OK
+        end
+        Note over DB: COMMIT TRANSACTION
     end
     
     API->>Notif: notify(assistant_user_id, DISPUTE,<br/>"Dispute resolved: {resolution_note}", dispute_id)
     Notif->>DB: INSERT Notification
     
-    API-->>Web: {dispute: {status: RESOLVED}, adjusted_earnings: 550}
+    API-->>Web: {dispute: {status: RESOLVED}, adjusted_earnings: updated_value}
 ```
 
-## 12. On-Device AI Smart-Select in Studio
+## 13. On-Device AI Smart-Select in Studio
 
 Assistant uses Studio's MobileSAM (Segment Anything) for intelligent region selection, with all inference running in-browser.
 
@@ -591,7 +668,7 @@ sequenceDiagram
     
     Web->>ONNX: Probe available capabilities (can MobileSAM run?)
     ONNX-->>Web: {available: true, device: webgpu}
-    Note over Web: No server call yet; local capability check
+    Note over Web: No server call yet — local capability check
     
     Assistant->>Canvas: Upload/open page image
     Canvas->>Canvas: Draw base strokes or use brush

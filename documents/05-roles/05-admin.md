@@ -86,13 +86,14 @@ The Admin sits at the boundary of **user onboarding** (activation + role assignm
 
 ## 3. Navigation & Screens
 
-Admin has **three web routes**, accessible from the role-specific navigation menu:
+Admin has **four web routes**, accessible from the role-specific navigation menu:
 
 | Screen | Route | Vietnamese Label | Purpose |
 |--------|-------|-----------------|---------|
 | Dashboard (role-aware summary) | `/` | Tổng quan | Quick metrics: user count, series count, chapters, proposals, open tasks |
 | Console (Admin overview) | `/admin` | Quản trị | System metrics grid + user list with activation toggles and role selector |
 | Disputes | `/admin/disputes` | Khiếu nại | Earning dispute list, review state, resolution modal with notes and amount adjustment |
+| Hồ sơ | `/users/me` | Hồ sơ | Update profile: edit name, bio, upload avatar to self-hosted S3; view account settings. |
 
 ---
 
@@ -345,6 +346,13 @@ REJECTED → [] (terminal)
 - **Current backlog status:** `Audit_Log` is **not yet wired** by code. Admin actions (activate, deactivate, role change, dispute resolution) are **not logged** to the audit table as of 2026-05-31. This is a **planned hardening feature** for compliance and forensics.
 - Recommendation: Enable audit logging before production launch (track all user activation/deactivation, role changes, and dispute resolutions).
 
+**Security Hardening (shipped as of 2026-06-05):**
+
+- **Login Rate-Limiting:** API enforces throttler guard on login endpoint (`@Throttle()` via `@nestjs/throttler`). Failed login attempts are rate-limited to prevent brute-force attacks.
+- **Global Exception Filter:** All unhandled exceptions are caught by a global exception filter; internal error details are sanitized and not leaked to clients. Clients see generic error responses.
+- **Upload Path-Traversal Guard:** File upload endpoint validates uploaded filenames and keys to prevent path traversal attacks (e.g., `../../../etc/passwd`). Only safe alphanumeric + safe punctuation allowed.
+- **Self-Hosted S3 Storage:** Avatar and file uploads now go to self-hosted SeaweedFS (S3-compatible) at `:8333`, not disk. All uploads are protected behind signed S3 URLs (not publicly enumerable).
+
 **System configuration:**
 
 - The `System_Config` table (config_key PK, config_value, description, updated_by_user_id, updated_at) is present in schema but **not yet wired**. Future use cases: disable registration, set dispute approval workflow thresholds, configure pricing rules override.
@@ -367,6 +375,8 @@ REJECTED → [] (terminal)
 - **User management:** Activate/deactivate any user; assign roles to any user (except last-admin guard).
 - **Dispute adjudication:** List, review, and resolve all earning disputes; optionally adjust payment amounts and update assistant earnings retroactively.
 - **System visibility:** View real-time metrics (user counts, series counts, task counts) via Overview dashboard.
+- **Profile management:** Edit own profile (`/users/me`): name, bio, avatar upload to self-hosted S3.
+- **Security audit:** Admin is responsible for monitoring login attempt logs, exception patterns, and upload anomalies (via server logs and database audit trail when enabled).
 
 **Admin cannot:**
 

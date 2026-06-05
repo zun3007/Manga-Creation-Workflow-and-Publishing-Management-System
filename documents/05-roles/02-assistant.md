@@ -104,10 +104,15 @@ The Studio is a full-featured in-browser raster editor (pixel-based, like Photos
 
 ### Core features
 
-- **Layers**: stack and blend multiple drawing/fill layers; each layer tracks undo history
-- **Tools**: Brush (with size/opacity/hardness), Eraser, Fill Bucket, Selection (rectangle/freehand), Transform (rotate/scale), Panel Border (snap-to-grid), Line, Text, Speech Bubble
+- **Layers**: stack and blend multiple drawing/fill layers; each layer tracks undo history; duplicate, merge, flatten, and paste-layer operations with full undo/redo
+- **Tools**: Brush (with size/opacity/hardness), Eraser, Fill Bucket, Selection (rectangle/freehand with marching-ants animation), Transform (rotate/scale), Panel Border (snap-to-grid), Line, Text, Speech Bubble
+- **Colors**: foreground/background color picker; swap colors with **X** key or **D** key; opacity control per layer
+- **Selection**: marching-ants animated border; 8-connected selection for magic-wand; selection-aware fill/paint (honors alpha boundary)
+- **Text**: re-editable text regions; change font, size, color without destroying the layer
 - **View**: Pan (middle-click + drag), Zoom (scroll wheel or pinch), Grid overlay toggle, fit-to-screen
-- **WASM acceleration**: pixel operations (fill, blend, transform) run in AssemblyScript (compiled to WebAssembly) via `packages/canvas-wasm` for speed
+- **WASM acceleration**: pixel operations (fill, blend, transform, high-speed brush gap-fill) run in AssemblyScript (compiled to WebAssembly) via `packages/canvas-wasm` for speed
+- **Autosave & Draft Recovery**: local IndexedDB auto-saves work every 30s; unsaved-changes guard warns before closing; restore-draft button recovers from crashes
+- **Undo/Redo**: full history with linear undo/redo (no branching); layer operations are fully reversible
 
 ### AI assists (optional, privacy-friendly)
 
@@ -117,9 +122,11 @@ All AI runs **in the browser** on-device; no data is sent to a server.
 |--------|-------|----------|----------|
 | **Panel detect** | YOLO5 (onnxruntime-web) | User clicks → model detects comic panels in the image; draws panel borders | Edge-based heuristic in `HeuristicAI` |
 | **Smart select** | MobileSAM (web worker) | Click object → SAM refines selection boundary (smart hand-drawn selections) | Flood-fill + edge detection |
-| **Colorize** | DeOldify (web worker) | Colorize grayscale sketch; integrates into undo history | Not available (user must paint manually) |
+| **Colorize** | DeOldify (web worker) | Colorize grayscale sketch; integrates into undo history; supports cancellation | Not available (user must paint manually) |
 
 **Model availability**: on startup, `modelExists(MODELS.panels)` probes for cached ONNX models. If found, ONNX-powered AI is active; otherwise, Heuristic (always-on, no download) is used.
+
+**Cancellable AI**: during inference, user can click "Cancel" button; inference halts immediately. If heuristic fallback is available, a note explains the fallback was used ("AI inference cancelled; using edge-detection fallback").
 
 **Privacy**: no image data leaves the browser; inference is local. No cost to the studio (no API calls). Assistants can work offline (except file upload).
 
@@ -319,9 +326,11 @@ Assistants send notifications when:
 
 Assistants are **role-locked** at the API level (`@Roles(Role.ASSISTANT)` guards):
 
-- **Can read**: own tasks (`/tasks/mine`), own submissions (via task review), own earnings (`/earnings/mine`), own disputes (`/disputes/mine`)
-- **Can write**: start task, upload submission, file dispute
+- **Can read**: own tasks (`/tasks/mine`), own submissions (via task review), own earnings (`/earnings/mine`), own disputes (`/disputes/mine`), own profile (`/users/me`)
+- **Can write**: start task, upload submission, file dispute, edit profile (name, bio, avatar upload to self-hosted S3)
 - **Cannot**: view other assistants' work, modify other tasks, approve submissions, resolve disputes, reassign tasks
+- **Notifications**: receive near-realtime updates (bell polls every 20s) for task assignments, revision requests, submission approvals, dispute resolutions
+- **Role-route guard**: cannot access mangaka, editor, or board pages (403 Forbidden)
 
 Permissions are enforced via JWT authentication and database schema (foreign keys to current user).
 

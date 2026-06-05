@@ -9,33 +9,80 @@ classDiagram
   AppModule --> SubmissionsModule
   AppModule --> AuthModule
   AppModule --> NotificationsModule
+  AppModule --> StorageModule
   AppModule --> DbService
+  AppModule --> ThrottlerModule
+  AppModule --> AllExceptionsFilter
   
   SubmissionsModule --> SubmissionsController
   SubmissionsModule --> SubmissionsService
   
+  StorageModule --> UploadsController
+  StorageModule --> StorageService
+  
   SubmissionsController --> JwtAuthGuard
   SubmissionsController --> RolesGuard
   SubmissionsController --> SubmissionsService
+  
+  UploadsController --> JwtAuthGuard
+  UploadsController --> StorageService
   
   SubmissionsService --> DbService
   SubmissionsService --> NotificationsService
   SubmissionsService --> CreateSubmissionDto
   SubmissionsService --> ReviewSubmissionDto
   
+  StorageService --> S3Client
+  StorageService : +put(key, body, contentType)
+  StorageService : +get(key) Promise~StoredObject~
+  StorageService : +onModuleInit()
+  
   DbService --> Pool
-  DbService : +query<T>(sql, params)
-  DbService : +queryOne<T>(sql, params)
-  DbService : +insert(sql, params)
+  DbService : +query(sql, params) Promise~T[]~
+  DbService : +queryOne(sql, params) Promise~T or null~
+  DbService : +insert(sql, params) Promise~number~
+  DbService : +transaction(fn) Promise~T~
   
   NotificationsService --> DbService
   NotificationsService : +notify(recipientId, type, title, content, relEntityType, relEntityId)
+  
+  ThrottlerModule : ttl 60000ms
+  ThrottlerModule : limit 120 per min
+  
+  AllExceptionsFilter : +catch(exception, host)
   
   JwtAuthGuard : +canActivate(context)
   RolesGuard : +canActivate(context)
 ```
 
-All ~20 feature modules follow this shape: Controller (HTTP layer) → Service (business logic) → DbService (raw SQL queries) + optional cross-cutting services (NotificationsService, etc.). Guards are applied globally or per-endpoint via decorators. DTOs validate and transform incoming payloads via `class-validator` and `class-transformer`.
+All ~20 feature modules follow this shape: Controller (HTTP layer) → Service (business logic) → DbService (raw SQL queries with transaction support) + optional cross-cutting services (NotificationsService, StorageService). Guards (JwtAuthGuard, RolesGuard, ThrottlerGuard) are applied globally or per-endpoint. AllExceptionsFilter catches all exceptions, returning structured JSON with 500 fallback. DTOs validate via `class-validator` and `class-transformer`. StorageService uses `@aws-sdk/client-s3` with `forcePathStyle: true` for SeaweedFS S3 compatibility.
+
+## 1b. Database Transaction Interface
+
+```mermaid
+classDiagram
+  class DbService {
+    +transaction<T>(fn: (tx: ITransactionContext) => Promise~T~): Promise~T~
+  }
+  
+  class ITransactionContext {
+    +query<T>(sql, params?): Promise~T[]~
+    +queryOne<T>(sql, params?): Promise~T|null~
+    +insert(sql, params?): Promise~number~
+  }
+  
+  class TransactionImpl {
+    -connection: PoolConnection
+    +query<T>(sql, params?): Promise~T[]~
+    +queryOne<T>(sql, params?): Promise~T|null~
+    +insert(sql, params?): Promise~number~
+  }
+  
+  DbService --> ITransactionContext
+  ITransactionContext <|-- TransactionImpl
+  
+  note "DB writes in a transaction run BEGIN/COMMIT atomically — ROLLBACK on error — notifications sent AFTER commit"
+```
 
 ## 2. Shared Types & State Machines
 
@@ -170,7 +217,7 @@ classDiagram
 
 State transitions are enforced at the service layer via `canTransition()` and transition maps stored in `packages/shared/src/enums/transitions.ts`. Series status (ACTIVE ↔ AT_RISK, then → HIATUS/CANCELLED/COMPLETED) and Vote_Period status (OPEN → CLOSED) are managed directly in services. Publication status transitions (SCHEDULED → PUBLISHED/CANCELLED) are handled by the publication module.
 
-## 3. Frontend Studio Engine
+## 3. Frontend Studio Engine & Undo/History
 
 ```mermaid
 classDiagram
@@ -264,6 +311,22 @@ classDiagram
     +redo(): void
   }
   
+  class LayerOp {
+    +label: string
+    +targetLayerId: string
+    -changes: Partial~LayerData~
+    +undo(): void
+    +redo(): void
+  }
+  
+  class StrokeOp {
+    +label: string
+    -before: Uint8ClampedArray
+    -after: Uint8ClampedArray
+    +undo(): void
+    +redo(): void
+  }
+  
   class View <<interface>> {
     +zoom: number
     +panX: number
@@ -300,70 +363,6 @@ classDiagram
     +onUp(e, eng)
   }
   
-  class SelectEllipseTool {
-    +id: ToolId = 'select-ellipse'
-    +onDown(e, eng)
-    +onMove(e, eng)
-    +onUp(e, eng)
-  }
-  
-  class LassoTool {
-    +id: ToolId = 'lasso'
-    +onDown(e, eng)
-    +onMove(e, eng)
-    +onUp(e, eng)
-  }
-  
-  class WandTool {
-    +id: ToolId = 'wand'
-    +onDown(e, eng)
-    +onMove(e, eng)
-    +onUp(e, eng)
-  }
-  
-  class MoveTool {
-    +id: ToolId = 'move'|'transform'
-    +onDown(e, eng)
-    +onMove(e, eng)
-    +onUp(e, eng)
-  }
-  
-  class PanelTool {
-    +id: ToolId = 'panel'
-    +onDown(e, eng)
-    +onMove(e, eng)
-    +onUp(e, eng)
-  }
-  
-  class LineTool {
-    +id: ToolId = 'line'
-    +onDown(e, eng)
-    +onMove(e, eng)
-    +onUp(e, eng)
-  }
-  
-  class TextTool {
-    +id: ToolId = 'text'
-    +onDown(e, eng)
-    +onMove(e, eng)
-    +onUp(e, eng)
-  }
-  
-  class BubbleTool {
-    +id: ToolId = 'bubble'
-    +onDown(e, eng)
-    +onMove(e, eng)
-    +onUp(e, eng)
-  }
-  
-  class EyedropperTool {
-    -setColor: (c: RGBA) => void
-    +id: ToolId = 'eyedropper'
-    +onDown(e, eng)
-    +onMove(e, eng)
-    +onUp(e, eng)
-  }
-  
   class AiSelectTool {
     -aiSegment: (px, w, h, point) => Promise~void~
     +id: ToolId = 'ai-select'
@@ -379,22 +378,15 @@ classDiagram
   DocumentData --> LayerData
   LayerData --> TextData
   History --> Op
+  Op <|-- LayerOp
+  Op <|-- StrokeOp
   Tool <|-- BrushTool
   Tool <|-- BucketTool
   Tool <|-- SelectRectTool
-  Tool <|-- SelectEllipseTool
-  Tool <|-- LassoTool
-  Tool <|-- WandTool
-  Tool <|-- MoveTool
-  Tool <|-- PanelTool
-  Tool <|-- LineTool
-  Tool <|-- TextTool
-  Tool <|-- BubbleTool
-  Tool <|-- EyedropperTool
   Tool <|-- AiSelectTool
 ```
 
-The `StudioEngine` orchestrates the canvas state (document, layers, history). `DocumentData` is immutable; mutations return new versions. `History` implements undo/redo via a stack of `Op` operations. `LayerData` describes raster or vector properties (visibility, opacity, blend mode, clipping). The `Tool` interface abstracts pointer input; concrete tools (BrushTool, SelectRectTool, etc.) implement behavior. View transformations (zoom, pan, rotation) are handled separately in utility functions (`screenToDoc`, `docToScreen`).
+The `StudioEngine` orchestrates the canvas state (document, layers, history) using WASM for rendering. `DocumentData` is immutable; mutations via `Op` operations return new versions. `History` implements full undo/redo stack: `LayerOp` tracks structural changes (add/remove/reorder layers), `StrokeOp` tracks raster mutations with before/after buffers. Tools (BrushTool, SelectRectTool, AiSelectTool) handle pointer input via the Tool interface. All undo/redo operations preserve document consistency and trigger `onChange` listeners for UI synchronization.
 
 ## 4. Frontend AI Assist Layer
 
@@ -428,7 +420,7 @@ classDiagram
   }
   
   class SamClient <<module>> {
-    +segment(px, w, h, point): Promise~{mask, lw, lh, sw, sh}~
+    +segment(px, w, h, point): Promise~SamResult~
   }
   
   class ColorizeClient <<module>> {
@@ -436,7 +428,7 @@ classDiagram
   }
   
   class Models <<module>> {
-    +MODELS: {panels: string, sam: string, colorize: string}
+    +MODELS: ModelPaths
   }
   
   AIAssist <|-- OnnxAI
@@ -480,7 +472,7 @@ classDiagram
   }
   
   class AxiosInstance {
-    +interceptors: {request, response}
+    +interceptors: Interceptors
     +get(path, config?)
     +post(path, data, config?)
     +patch(path, data, config?)
@@ -563,6 +555,65 @@ classDiagram
 ```
 
 `AuthProvider` (React Context) manages login state and token lifecycle. `api` (axios instance) automatically injects `Authorization: Bearer {token}` headers and handles 401 responses by clearing the session and redirecting to login. `AppShell` wraps protected routes, sets the `data-role` CSS token (enabling role-themed skins), and renders the navigation bar. Each page component (grouped by role: mangaka, assistant, editor, board, admin, studio) queries the API and renders role-specific UI.
+
+## 5b. Frontend UI & Utility Components
+
+```mermaid
+classDiagram
+  class Button {
+    -variant: Variant
+    -loading: boolean
+    -disabled: boolean
+    +render(): React.ReactNode
+  }
+  
+  class Modal {
+    -title: string
+    -children: ReactNode
+    -onClose: () => void
+    +render(): React.ReactNode
+  }
+  
+  class ConfirmProvider {
+    -pending: ConfirmOptions | null
+    -resolveRef: ConfirmResolve | null
+    +children: ReactNode
+    +render(): React.ReactNode
+  }
+  
+  class useConfirm <<hook>> {
+    +confirm(opts: ConfirmOptions): Promise~boolean~
+  }
+  
+  class ConfirmOptions {
+    +title: string
+    +body?: string
+    +confirmText?: string
+    +cancelText?: string
+    +tone?: 'danger' | 'default'
+  }
+  
+  class RoleProtected {
+    +roles: Role[]
+    +children: ReactNode
+    +render(): React.ReactNode
+  }
+  
+  class validateUpload <<function>> {
+    +validateUpload(file): UploadValidation
+  }
+  
+  Button : +loading boolean
+  Modal : dialog, overlay, close-btn
+  ConfirmProvider --> useConfirm
+  ConfirmProvider --> Modal
+  ConfirmProvider --> Button
+  ConfirmProvider --> ConfirmOptions
+  RoleProtected : guards children by user role
+  validateUpload : checks size, type constraints
+```
+
+Primitive UI components: `Button` supports `loading` state with spinner, `Modal` for dialogs, `ConfirmProvider`/`useConfirm` for confirmation flows. `RoleProtected` wrapper component gates content by user roles (MANGAKA, ASSISTANT, EDITOR, BOARD, ADMIN). `validateUpload` utility validates file constraints before upload.
 
 ---
 
