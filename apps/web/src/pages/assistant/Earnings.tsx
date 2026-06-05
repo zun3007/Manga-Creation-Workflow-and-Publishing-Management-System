@@ -82,16 +82,9 @@ export default function Earnings() {
 
     setBusy(true);
     setError("");
+    const previousEarnings = earnings;
     try {
-      await api.post("/disputes", {
-        taskId,
-        reason: formData.reason,
-        expectedAmount: formData.expectedAmount
-          ? Number(formData.expectedAmount)
-          : undefined,
-      });
-
-      // Update local state
+      // Update local state optimistically
       if (earnings) {
         setEarnings((prev) =>
           prev
@@ -105,6 +98,14 @@ export default function Earnings() {
         );
       }
 
+      await api.post("/disputes", {
+        taskId,
+        reason: formData.reason,
+        expectedAmount: formData.expectedAmount
+          ? Number(formData.expectedAmount)
+          : undefined,
+      });
+
       // Refetch disputes
       const disputesRes = await api.get<Dispute[]>("/disputes/mine");
       setDisputes(disputesRes.data || []);
@@ -115,6 +116,8 @@ export default function Earnings() {
       toast.success('Đã gửi khiếu nại.');
     } catch (e) {
       console.error("Failed to submit dispute", e);
+      // Revert to previous state
+      setEarnings(previousEarnings);
       setError("Không thể gửi khiếu nại. Vui lòng thử lại.");
     } finally {
       setBusy(false);

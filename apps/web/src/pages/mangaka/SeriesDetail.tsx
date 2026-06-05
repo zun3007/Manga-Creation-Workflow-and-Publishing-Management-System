@@ -101,12 +101,13 @@ export default function SeriesDetail() {
   const handleUpdateChapterStatus = async (chapterId: number, newStatus: ChapterStatus) => {
     setSavingId(chapterId);
     setLifecycleError(null);
+    const previousChapters = chapters;
     try {
-      await api.patch(`/chapters/${chapterId}/status`, { status: newStatus });
       // Optimistic update: update the chapter's status in local state
       setChapters((prev) =>
         prev.map((ch) => (ch.id === chapterId ? { ...ch, status: newStatus } : ch))
       );
+      await api.patch(`/chapters/${chapterId}/status`, { status: newStatus });
       if (newStatus === "PUBLISHED") {
         toast.success('Đã xuất bản chương.');
       } else {
@@ -114,6 +115,8 @@ export default function SeriesDetail() {
       }
     } catch (e) {
       console.error("Failed to update chapter status", e);
+      // Revert to previous state
+      setChapters(previousChapters);
       setLifecycleError({
         chapterId,
         message: "Không thể cập nhật trạng thái. Vui lòng thử lại.",
