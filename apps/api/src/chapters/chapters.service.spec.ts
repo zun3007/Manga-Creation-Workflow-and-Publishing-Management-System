@@ -50,12 +50,17 @@ describe('ChaptersService.setStatus', () => {
           chapter_id: 10,
           chapter_status: ChapterStatus.EDITOR_APPROVED,
           series_id: 2,
+          mangaka_user_id: 5,
+          chapter_title: 'Ch 1',
         }) // ownership lookup
+        .mockResolvedValueOnce({ c: 0 }) // incomplete pages count
+        .mockResolvedValueOnce({ c: 5 }) // total pages count
         .mockResolvedValue({
           id: 10,
           status: ChapterStatus.PUBLISHED,
         }), // findOne
       query: jest.fn().mockResolvedValue([]),
+      transaction: jest.fn(async (fn) => fn(db)),
     };
     const notif: any = { notify: jest.fn().mockResolvedValue(undefined) };
     const s = new ChaptersService(db, notif);

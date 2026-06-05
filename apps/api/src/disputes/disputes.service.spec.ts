@@ -129,6 +129,7 @@ describe('DisputesService', () => {
             payment_amount: 100,
           }),
         query: jest.fn().mockResolvedValue([]),
+        transaction: jest.fn(async (fn) => fn(db)),
       };
       const notifications: any = {
         notify: jest.fn().mockResolvedValue(undefined),
@@ -197,6 +198,7 @@ describe('DisputesService', () => {
           assistant_user_id: 5,
         }),
         query: jest.fn().mockResolvedValue([]),
+        transaction: jest.fn(async (fn) => fn(db)),
       };
       const notifications: any = {
         notify: jest.fn().mockResolvedValue(undefined),

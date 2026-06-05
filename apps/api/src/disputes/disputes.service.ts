@@ -192,43 +192,46 @@ export class DisputesService {
       );
     }
 
-    // If resolving with adjusted amount, update task payment and assistant earnings
-    if (dto.status === 'RESOLVED' && dto.adjustedAmount != null) {
-      // Get current task payment
-      const task = await this.db.queryOne<{
-        payment_amount: number;
-      }>(
-        `SELECT payment_amount FROM \`Task\` WHERE task_id = ?`,
-        [dispute.task_id],
-      );
-
-      if (task) {
-        const old = Number(task.payment_amount);
-        const delta = dto.adjustedAmount - old;
-
-        // Update task payment amount
-        await this.db.query(
-          `UPDATE \`Task\` SET payment_amount = ? WHERE task_id = ?`,
-          [dto.adjustedAmount, dispute.task_id],
+    // Execute all DB writes in a single transaction
+    await this.db.transaction(async (tx) => {
+      // If resolving with adjusted amount, update task payment and assistant earnings
+      if (dto.status === 'RESOLVED' && dto.adjustedAmount != null) {
+        // Get current task payment
+        const task = await tx.queryOne<{
+          payment_amount: number;
+        }>(
+          `SELECT payment_amount FROM \`Task\` WHERE task_id = ?`,
+          [dispute.task_id],
         );
 
-        // Update assistant profile earnings
-        await this.db.query(
-          `UPDATE \`Assistant_Profile\` SET total_earnings = total_earnings + ? WHERE user_id = ?`,
-          [delta, dispute.assistant_user_id],
-        );
+        if (task) {
+          const old = Number(task.payment_amount);
+          const delta = dto.adjustedAmount - old;
+
+          // Update task payment amount
+          await tx.query(
+            `UPDATE \`Task\` SET payment_amount = ? WHERE task_id = ?`,
+            [dto.adjustedAmount, dispute.task_id],
+          );
+
+          // Update assistant profile earnings
+          await tx.query(
+            `UPDATE \`Assistant_Profile\` SET total_earnings = total_earnings + ? WHERE user_id = ?`,
+            [delta, dispute.assistant_user_id],
+          );
+        }
       }
-    }
 
-    // Update dispute resolution
-    await this.db.query(
-      `UPDATE \`Earning_Dispute\`
-       SET dispute_status = ?, resolution_note = ?, resolved_by_user_id = ?, resolved_at = NOW()
-       WHERE dispute_id = ?`,
-      [dto.status, dto.resolutionNote, adminId, id],
-    );
+      // Update dispute resolution
+      await tx.query(
+        `UPDATE \`Earning_Dispute\`
+         SET dispute_status = ?, resolution_note = ?, resolved_by_user_id = ?, resolved_at = NOW()
+         WHERE dispute_id = ?`,
+        [dto.status, dto.resolutionNote, adminId, id],
+      );
+    });
 
-    // Notify assistant of resolution
+    // Notify assistant after transaction commits
     const resolutionTitle =
       dto.status === 'RESOLVED' ? 'Khiếu nại đã được giải quyết' : 'Khiếu nại bị từ chối';
     await this.notifications.notify(

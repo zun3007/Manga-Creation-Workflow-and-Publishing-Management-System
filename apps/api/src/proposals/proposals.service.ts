@@ -148,27 +148,55 @@ export class ProposalsService {
 
     let seriesId: number | null = null;
 
+    // Execute all DB writes in a single transaction
+    await this.db.transaction(async (tx) => {
+      if (decision === 'APPROVED') {
+        seriesId = await tx.insert(
+          `INSERT INTO \`Series\` (proposal_id, mangaka_user_id, title, publication_frequency, series_status)
+           VALUES (?, ?, ?, ?, ?)`,
+          [proposalId, proposal.mangakaUserId, proposal.title, proposal.proposedFrequency, 'ACTIVE'],
+        );
+
+        await tx.query(
+          `INSERT INTO \`Series_Genre\` (series_id, genre_id)
+           SELECT ?, genre_id FROM \`Proposal_Genre\` WHERE proposal_id = ?`,
+          [seriesId, proposalId],
+        );
+      }
+
+      await tx.query(
+        `UPDATE \`Series_Proposal\` SET proposal_status = ?
+         WHERE proposal_id = ?`,
+        [decisionStatus, proposalId],
+      );
+    });
+
+    // Send notifications after transaction commits
     if (decision === 'APPROVED') {
-      seriesId = await this.db.insert(
-        `INSERT INTO \`Series\` (proposal_id, mangaka_user_id, title, publication_frequency, series_status)
-         VALUES (?, ?, ?, ?, ?)`,
-        [proposalId, proposal.mangakaUserId, proposal.title, proposal.proposedFrequency, 'ACTIVE'],
-      );
-
-      await this.db.query(
-        `INSERT INTO \`Series_Genre\` (series_id, genre_id)
-         SELECT ?, genre_id FROM \`Proposal_Genre\` WHERE proposal_id = ?`,
-        [seriesId, proposalId],
-      );
-
       await this.notifications.notify(
         proposal.mangakaUserId,
         NotificationType.PROPOSAL_DECISION,
         'Đề xuất được duyệt',
         `Series "${proposal.title}" đã được tạo.`,
         'Series',
-        seriesId,
+        seriesId!,
       );
+
+      // Notify all EDITORIAL_BOARD users
+      const boardMembers = await this.db.query<{ user_id: number }>(
+        `SELECT user_id FROM \`User\` WHERE role = 'EDITORIAL_BOARD' AND is_activated = 1`,
+      );
+
+      for (const member of boardMembers) {
+        await this.notifications.notify(
+          member.user_id,
+          NotificationType.PROPOSAL_DECISION,
+          `Series mới "${proposal.title}" đã được duyệt`,
+          `Proposal #${proposalId} đã được EDITORIAL_BOARD phê duyệt và tạo thành series.`,
+          'Series',
+          seriesId!,
+        );
+      }
     } else {
       await this.notifications.notify(
         proposal.mangakaUserId,
@@ -179,12 +207,6 @@ export class ProposalsService {
         proposalId,
       );
     }
-
-    await this.db.query(
-      `UPDATE \`Series_Proposal\` SET proposal_status = ?
-       WHERE proposal_id = ?`,
-      [decisionStatus, proposalId],
-    );
 
     return {
       proposalId,

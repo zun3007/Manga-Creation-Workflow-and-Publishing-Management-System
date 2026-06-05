@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -23,6 +24,8 @@ export class AuthController {
     private readonly config: ConfigService,
   ) {}
 
+  // 20/min per IP — blocks brute-force while tolerating shared NAT, demos, and smoke runs.
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.auth.validateLocal(dto.email, dto.password);

@@ -87,8 +87,10 @@ export class ChaptersService {
       chapter_id: number;
       chapter_status: ChapterStatus;
       series_id: number;
+      chapter_title: string;
+      mangaka_user_id: number;
     }>(
-      `SELECT c.chapter_id, c.chapter_status, c.series_id
+      `SELECT c.chapter_id, c.chapter_status, c.series_id, c.chapter_title, s.mangaka_user_id
        FROM \`Chapter\` c
        JOIN \`Series\` s ON c.series_id = s.series_id
        WHERE c.chapter_id = ? AND s.mangaka_user_id = ?`,
@@ -107,18 +109,98 @@ export class ChaptersService {
       );
     }
 
-    await this.db.query(`UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`, [
-      status,
-      chapterId,
-    ]);
-
+    // For PUBLISHED status, verify all pages are COMPLETED
     if (status === ChapterStatus.PUBLISHED) {
-      await this.db.query(
-        `INSERT INTO \`Publication_Schedule\` (chapter_id, release_date, publish_status, scheduled_by_user_id, published_at)
-         VALUES (?, NOW(), 'PUBLISHED', ?, NOW())
-         ON DUPLICATE KEY UPDATE publish_status='PUBLISHED', published_at=NOW()`,
-        [chapterId, userId],
+      const incompletePages = await this.db.queryOne<{ c: number }>(
+        `SELECT COUNT(*) AS c FROM \`Page\` WHERE chapter_id = ? AND page_status <> 'COMPLETED'`,
+        [chapterId],
       );
+
+      if ((incompletePages?.c ?? 0) > 0) {
+        throw new BadRequestException(
+          'Còn trang chưa hoàn thành — không thể xuất bản',
+        );
+      }
+
+      const totalPages = await this.db.queryOne<{ c: number }>(
+        `SELECT COUNT(*) AS c FROM \`Page\` WHERE chapter_id = ?`,
+        [chapterId],
+      );
+
+      if ((totalPages?.c ?? 0) === 0) {
+        throw new BadRequestException(
+          'Chương chưa có trang',
+        );
+      }
+    }
+
+    // Execute DB writes in transaction for PUBLISHED status, direct update otherwise
+    if (status === ChapterStatus.PUBLISHED) {
+      await this.db.transaction(async (tx) => {
+        await tx.query(`UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`, [
+          status,
+          chapterId,
+        ]);
+
+        await tx.query(
+          `INSERT INTO \`Publication_Schedule\` (chapter_id, release_date, publish_status, scheduled_by_user_id, published_at)
+           VALUES (?, NOW(), 'PUBLISHED', ?, NOW())
+           ON DUPLICATE KEY UPDATE publish_status='PUBLISHED', published_at=NOW()`,
+          [chapterId, userId],
+        );
+      });
+    } else {
+      await this.db.query(`UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`, [
+        status,
+        chapterId,
+      ]);
+    }
+
+    // Send notifications after transaction commits
+    if (status === ChapterStatus.READY_FOR_EDITOR_REVIEW) {
+      // Notify active assigned editors of this series
+      const editors = await this.db.query<{ editor_user_id: number }>(
+        `SELECT editor_user_id FROM \`Series_Tantou_Editor\` WHERE series_id = ? AND unassigned_at IS NULL`,
+        [chapter.series_id],
+      );
+
+      for (const editor of editors) {
+        await this.notifications.notify(
+          editor.editor_user_id,
+          NotificationType.REVIEW,
+          `Chương "${chapter.chapter_title}" chờ duyệt`,
+          'Một chương mới chờ duyệt của bạn.',
+          'Chapter',
+          chapterId,
+        );
+      }
+    } else if (status === ChapterStatus.PUBLISHED) {
+      // Notify mangaka (confirmation)
+      await this.notifications.notify(
+        chapter.mangaka_user_id,
+        NotificationType.GENERAL,
+        `Chương "${chapter.chapter_title}" đã xuất bản`,
+        'Chương của bạn đã được xuất bản thành công.',
+        'Chapter',
+        chapterId,
+      );
+
+      // Notify active assigned editors
+      const editors = await this.db.query<{ editor_user_id: number }>(
+        `SELECT editor_user_id FROM \`Series_Tantou_Editor\` WHERE series_id = ? AND unassigned_at IS NULL`,
+        [chapter.series_id],
+      );
+
+      for (const editor of editors) {
+        await this.notifications.notify(
+          editor.editor_user_id,
+          NotificationType.GENERAL,
+          `Chương "${chapter.chapter_title}" đã xuất bản`,
+          'Một chương đã được xuất bản.',
+          'Chapter',
+          chapterId,
+        );
+      }
     }
 
     return this.findOne(chapterId);

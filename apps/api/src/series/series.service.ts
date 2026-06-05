@@ -73,8 +73,8 @@ export class SeriesService {
   }
 
   async assignEditor(seriesId: number, editorUserId: number) {
-    const series = await this.db.queryOne(
-      `SELECT series_id FROM \`Series\` WHERE series_id = ?`,
+    const series = await this.db.queryOne<{ title: string; mangaka_user_id: number }>(
+      `SELECT title, mangaka_user_id FROM \`Series\` WHERE series_id = ?`,
       [seriesId],
     );
 
@@ -92,11 +92,22 @@ export class SeriesService {
       [seriesId, editorUserId],
     );
 
+    // Notify the editor
     await this.notifications.notify(
       editorUserId,
       NotificationType.GENERAL,
       'Bạn được phân công biên tập',
-      `Series #${seriesId}`,
+      `Series "${series.title}"`,
+      'Series',
+      seriesId,
+    );
+
+    // Notify the mangaka
+    await this.notifications.notify(
+      series.mangaka_user_id,
+      NotificationType.GENERAL,
+      `Series "${series.title}" đã được giao cho biên tập`,
+      'Series của bạn đã được giao cho một biên tập viên.',
       'Series',
       seriesId,
     );

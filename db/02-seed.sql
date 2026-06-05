@@ -9,13 +9,13 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 -- ===== Users =====
 INSERT INTO `User` (user_id, email, password_hash, full_name, avatar_url, role, auth_provider, google_id, is_activated) VALUES
-(1, 'dungminer69@gmail.com', NULL, 'Nguyễn Tiến Dũng', 'https://i.pravatar.cc/150?img=12', 'MANGAKA',     'LOCAL', NULL, 1),
-(2, 'mai.assistant@inkframe.studio',     NULL, 'Mai Nguyễn',     'https://i.pravatar.cc/150?img=47', 'ASSISTANT',       'LOCAL', NULL, 1),
-(3, 'kenji.assistant@inkframe.studio',   NULL, 'Kenji Sato',     'https://i.pravatar.cc/150?img=33', 'ASSISTANT',       'LOCAL', NULL, 1),
-(4, 'lan.assistant@inkframe.studio',     NULL, 'Lan Trần',       'https://i.pravatar.cc/150?img=45', 'ASSISTANT',       'LOCAL', NULL, 1),
-(5, 'hiroshi.editor@inkframe.studio',    NULL, 'Hiroshi Tanaka', 'https://i.pravatar.cc/150?img=15', 'TANTOU_EDITOR',   'LOCAL', NULL, 1),
-(6, 'yamamoto.board@inkframe.studio',    NULL, 'Yuki Yamamoto',  'https://i.pravatar.cc/150?img=11', 'EDITORIAL_BOARD', 'LOCAL', NULL, 1),
-(7, 'admin@inkframe.studio',             NULL, 'System Admin',   NULL,                                'ADMIN',           'LOCAL', NULL, 1);
+(1, 'dungminer69@gmail.com', NULL, 'Nguyễn Tiến Dũng', NULL, 'MANGAKA',     'LOCAL', NULL, 1),
+(2, 'mai.assistant@inkframe.studio',     NULL, 'Mai Nguyễn',     NULL, 'ASSISTANT',       'LOCAL', NULL, 1),
+(3, 'kenji.assistant@inkframe.studio',   NULL, 'Kenji Sato',     NULL, 'ASSISTANT',       'LOCAL', NULL, 1),
+(4, 'lan.assistant@inkframe.studio',     NULL, 'Lan Trần',       NULL, 'ASSISTANT',       'LOCAL', NULL, 1),
+(5, 'hiroshi.editor@inkframe.studio',    NULL, 'Hiroshi Tanaka', NULL, 'TANTOU_EDITOR',   'LOCAL', NULL, 1),
+(6, 'yamamoto.board@inkframe.studio',    NULL, 'Yuki Yamamoto',  NULL, 'EDITORIAL_BOARD', 'LOCAL', NULL, 1),
+(7, 'admin@inkframe.studio',             NULL, 'System Admin',   NULL, 'ADMIN',           'LOCAL', NULL, 1);
 
 -- ===== Profiles =====
 INSERT INTO `Mangaka_Profile` (user_id, pen_name, biography, years_experrence, studio_name, social_link) VALUES

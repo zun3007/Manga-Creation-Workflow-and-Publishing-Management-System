@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { DbService } from '../db/db.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -17,6 +18,8 @@ import { CreateTaskDto } from './dto/create-task.dto';
 
 @Injectable()
 export class TasksService {
+  private readonly logger = new Logger('TasksService');
+
   constructor(
     private readonly db: DbService,
     private readonly notifications: NotificationsService,
@@ -76,6 +79,15 @@ export class TasksService {
     const payment = rule?.base_price ?? 0;
     const ruleId = rule?.rule_id ?? null;
 
+    // Warn if no price rule found for this region type
+    let priceWarning: string | undefined;
+    if (!rule) {
+      priceWarning = 'Không có quy tắc giá cho loại vùng này — payment = 0';
+      this.logger.warn(
+        `No price rule found for region_type: ${region.region_type} (task for region_id: ${dto.regionId})`,
+      );
+    }
+
     // Create the task
     const taskId = await this.db.insert(
       `INSERT INTO \`Task\` (region_id, page_id, assignor_user_id, assignee_user_id, task_description, instruction, deadline, task_status, payment_amount, task_price_rule_id)
@@ -110,7 +122,11 @@ export class TasksService {
       taskId,
     );
 
-    return this.findOne(taskId);
+    const result = await this.findOne(taskId);
+    if (priceWarning && result) {
+      return { ...result, priceWarning };
+    }
+    return result;
   }
 
   async listMine(assistantUserId: number) {

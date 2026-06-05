@@ -26,6 +26,13 @@ async function bootstrap() {
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.get('/uploads/:key', async (req: Request, res: Response) => {
     const key = String(req.params.key);
+
+    // Validate key matches safe pattern (no path traversal)
+    if (!/^[A-Za-z0-9._-]+$/.test(key)) {
+      res.status(400).send('Invalid key');
+      return;
+    }
+
     try {
       const obj = await storage.get(key);
       if (obj.contentType) res.setHeader('Content-Type', obj.contentType);
