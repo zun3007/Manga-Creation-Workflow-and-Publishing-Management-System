@@ -2,9 +2,12 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { join } from 'path';
+import { existsSync } from 'fs';
+import type { Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
+import { StorageService } from './s3/storage.service';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -15,7 +18,29 @@ async function bootstrap() {
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new AllExceptionsFilter());
-  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
+
+  // Serve uploaded objects from S3 (SeaweedFS) at /uploads/<key>, with a legacy
+  // on-disk fallback for files written before the S3 cutover. Public read (matches
+  // <img src="/uploads/..."> which carries no auth) — same exposure as the old static mount.
+  const storage = app.get(StorageService);
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.get('/uploads/:key', async (req: Request, res: Response) => {
+    const key = String(req.params.key);
+    try {
+      const obj = await storage.get(key);
+      if (obj.contentType) res.setHeader('Content-Type', obj.contentType);
+      if (obj.contentLength != null) res.setHeader('Content-Length', String(obj.contentLength));
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      obj.stream.pipe(res);
+    } catch {
+      const diskPath = join(process.cwd(), 'uploads', key);
+      if (existsSync(diskPath)) {
+        res.sendFile(diskPath);
+        return;
+      }
+      res.status(404).send('Not found');
+    }
+  });
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Manga Creation Workflow & Publishing Management System API')

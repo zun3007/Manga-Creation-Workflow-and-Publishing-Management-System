@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { useToast } from "../components/ui/Toast";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Panel } from "../components/ui/Panel";
+import { Progress } from "../components/ui/Progress";
 import { Spinner } from "../components/ui/Spinner";
+import { validateUpload } from "../lib/fileValidation";
 
 interface ProfileData {
   id: number;
@@ -16,11 +18,15 @@ interface ProfileData {
 
 export default function Profile() {
   const toast = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState("");
 
   useEffect(() => {
     async function fetchProfile() {
@@ -39,6 +45,38 @@ export default function Profile() {
     }
     fetchProfile();
   }, [toast]);
+
+  async function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const v = validateUpload(f, {
+      maxMB: 5,
+      accept: ["image/png", "image/jpeg", "image/webp", "image/gif"],
+    });
+    if (!v.ok) {
+      setUploadError(v.message);
+      return;
+    }
+    setUploadError("");
+    setUploading(true);
+    setUploadProgress(0);
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      const { data } = await api.post<{ url: string }>("/uploads", fd, {
+        onUploadProgress: (ev) =>
+          setUploadProgress(Math.round((ev.loaded / (ev.total || ev.loaded)) * 100)),
+      });
+      setAvatarUrl(data.url);
+      toast.success("Đã tải ảnh lên — bấm Lưu để áp dụng.");
+    } catch (err) {
+      console.error("avatar upload failed", err);
+      setUploadError("Tải ảnh thất bại. Thử lại nhé.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   async function handleSave() {
     if (!profile) return;
@@ -120,6 +158,50 @@ export default function Profile() {
           </label>
         </div>
 
+        {/* Avatar — upload to self-hosted storage */}
+        <div>
+          <span className="mb-2 block font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft">
+            Ảnh đại diện
+          </span>
+          <div className="flex items-center gap-4">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="Ảnh đại diện"
+                className="h-16 w-16 shrink-0 rounded-full border border-line object-cover"
+              />
+            ) : (
+              <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full border border-line bg-bg text-xs text-ink-soft">
+                —
+              </div>
+            )}
+            <div className="flex-1">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                disabled={uploading}
+                onChange={handleAvatarFile}
+              />
+              <Button
+                type="button"
+                variant="soft"
+                loading={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Tải ảnh lên
+              </Button>
+              {uploading && (
+                <div className="mt-2">
+                  <Progress value={uploadProgress} max={100} />
+                </div>
+              )}
+              {uploadError && <p className="mt-1 text-sm text-danger">{uploadError}</p>}
+            </div>
+          </div>
+        </div>
+
         {/* Full Name */}
         <div>
           <Input
@@ -132,15 +214,15 @@ export default function Profile() {
           />
         </div>
 
-        {/* Avatar URL */}
+        {/* Avatar URL (advanced / fallback — auto-filled by upload above) */}
         <div>
           <Input
             label="URL ảnh đại diện"
-            type="url"
+            type="text"
             value={avatarUrl}
             onChange={(e) => setAvatarUrl(e.target.value)}
             maxLength={500}
-            placeholder="https://example.com/avatar.jpg"
+            placeholder="/uploads/… hoặc https://…"
           />
         </div>
 

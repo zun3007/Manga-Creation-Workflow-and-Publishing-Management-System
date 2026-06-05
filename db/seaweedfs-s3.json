@@ -1,0 +1,11 @@
+{
+  "identities": [
+    {
+      "name": "manga",
+      "credentials": [
+        { "accessKey": "manga", "secretKey": "manga-s3-dev-secret" }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
