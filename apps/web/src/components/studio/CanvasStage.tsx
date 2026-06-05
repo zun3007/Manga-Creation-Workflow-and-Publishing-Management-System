@@ -30,6 +30,8 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
   const panDrag = useRef<{ id: number; x: number; y: number; panX: number; panY: number } | null>(null);
   const marchingAntsAnimationRef = useRef<number | null>(null);
   const marchingAntsOffsetRef = useRef(0);
+  const cachedCompositeRef = useRef<Uint8ClampedArray | null>(null);
+  const compositeValidRef = useRef(false);
 
   // Single source of truth: mirror the latest view/overlays into refs so the
   // engine-change render callback (registered once) never reads stale values.
@@ -87,16 +89,28 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
     }
   };
 
+  const updateComposite = useCallback(() => {
+    const bitmap = ensureBitmap();
+    const { width: w, height: h } = props.engine.doc;
+    const bctx = bitmap.getContext('2d');
+    if (bctx) {
+      const composite = props.engine.composite();
+      cachedCompositeRef.current = composite;
+      bctx.putImageData(new ImageData(composite as any, w, h), 0, 0);
+    }
+    compositeValidRef.current = true;
+  }, [props.engine]);
+
   const render = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const cw = canvas.clientWidth, ch = canvas.clientHeight;
     if (cw <= 0 || ch <= 0) return;
 
-    const bitmap = ensureBitmap();
+    updateComposite();
+
+    const bitmap = bitmapRef.current!;
     const { width: w, height: h } = props.engine.doc;
-    const bctx = bitmap.getContext('2d');
-    if (bctx) bctx.putImageData(new ImageData(props.engine.composite() as any, w, h), 0, 0);
 
     const dpr = window.devicePixelRatio || 1;
     if (canvas.width !== Math.round(cw * dpr) || canvas.height !== Math.round(ch * dpr)) {
@@ -166,6 +180,79 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
     }
 
     ctx.restore();
+  }, [props.engine, updateComposite]);
+
+  const renderAntsOnly = useCallback(() => {
+    // Lightweight re-render that only updates marching ants offset without recompositing
+    const canvas = canvasRef.current;
+    if (!canvas || !compositeValidRef.current) return;
+    const cw = canvas.clientWidth, ch = canvas.clientHeight;
+    if (cw <= 0 || ch <= 0) return;
+
+    const bitmap = bitmapRef.current!;
+    const { width: w, height: h } = props.engine.doc;
+    const dpr = window.devicePixelRatio || 1;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const v = viewRef.current;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.save();
+    ctx.translate(v.panX, v.panY);
+    ctx.rotate(v.rotation);
+    ctx.scale(v.zoom, v.zoom);
+    ctx.imageSmoothingEnabled = v.zoom < 1;
+    ctx.drawImage(bitmap, 0, 0);
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 1 / v.zoom;
+    ctx.strokeRect(0, 0, w, h);
+
+    // Non-destructive frame overlays
+    const ov = overlaysRef.current;
+    if (ov && ov.length) {
+      ctx.save();
+      ctx.lineWidth = 2 / v.zoom;
+      ctx.textBaseline = 'top';
+      ctx.font = `${14 / v.zoom}px sans-serif`;
+      for (let i = 0; i < ov.length; i++) {
+        const o = ov[i];
+        const rx = o.x * w, ry = o.y * h, rw = o.width * w, rh = o.height * h;
+        ctx.fillStyle = 'rgba(255,90,95,0.12)';
+        ctx.fillRect(rx, ry, rw, rh);
+        ctx.strokeStyle = '#FF5A5F';
+        ctx.strokeRect(rx, ry, rw, rh);
+        ctx.fillStyle = '#FF5A5F';
+        ctx.textAlign = 'right';
+        ctx.fillText(String(i + 1), rx + rw - 4 / v.zoom, ry + 4 / v.zoom);
+      }
+      ctx.restore();
+    }
+
+    // Marching ants only
+    const sel = props.engine.selectionMask;
+    if (sel && sel.length === w * h) {
+      ctx.save();
+      ctx.lineWidth = 1.5 / v.zoom;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.setLineDash([6, 4]);
+      ctx.lineDashOffset = -(marchingAntsOffsetRef.current);
+
+      ctx.strokeStyle = '#000000';
+      ctx.globalAlpha = 0.5;
+      ctx.lineWidth = (3 / v.zoom);
+      drawSelectionContour(ctx, sel, w, h);
+
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = (1.5 / v.zoom);
+      drawSelectionContour(ctx, sel, w, h);
+
+      ctx.restore();
+    }
+
+    ctx.restore();
   }, [props.engine]);
 
   const fit = useCallback(() => {
@@ -183,8 +270,13 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
   }, [props.engine, props.onViewChange, render]);
 
   // Repaint on engine changes (stable render reads the latest viewRef).
+  // Invalidate cached composite when document changes.
   useEffect(() => {
-    const unsub = props.engine.onChange(render);
+    const unsub = props.engine.onChange(() => {
+      compositeValidRef.current = false;
+      render();
+    });
+    compositeValidRef.current = false;
     render();
     return unsub;
   }, [props.engine, render]);
@@ -219,6 +311,7 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
   // Marching-ants: animate only while a selection exists. Re-evaluated on every
   // engine change (subscribed below) so it STARTS on select and STOPS on deselect —
   // the effect deps alone can't see selection changes (the engine ref is stable).
+  // Uses renderAntsOnly for minimal overhead (no document recomposite on each frame).
   useEffect(() => {
     const stop = () => {
       if (marchingAntsAnimationRef.current !== null) {
@@ -232,7 +325,7 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
       if (hasSel && marchingAntsAnimationRef.current === null) {
         const animate = () => {
           marchingAntsOffsetRef.current += 2;
-          render();
+          renderAntsOnly();
           marchingAntsAnimationRef.current = requestAnimationFrame(animate);
         };
         marchingAntsAnimationRef.current = requestAnimationFrame(animate);
@@ -243,7 +336,7 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
     evaluate();
     const unsub = props.engine.onChange(evaluate);
     return () => { unsub(); stop(); };
-  }, [props.engine, render]);
+  }, [props.engine, renderAntsOnly]);
 
   const toDoc = (e: { clientX: number; clientY: number }): PointerSample => {
     const rect = canvasRef.current!.getBoundingClientRect();

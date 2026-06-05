@@ -70,13 +70,73 @@ export class StudioEngine {
   }
 
   // ---- layer mutations (mirror document.ts, keep buffers in sync) ----
-  addLayer(kind: LayerData['kind'], name?: string) { this.doc = addLayer(this.doc, kind, name); this.ensureBuffer(this.doc.activeLayerId!); this.revision++; this.emit(); }
+  private _addLayer(kind: LayerData['kind'], name?: string) {
+    this.doc = addLayer(this.doc, kind, name);
+    this.ensureBuffer(this.doc.activeLayerId!);
+  }
 
-  removeLayer(id: string) { this.doc = removeLayer(this.doc, id); this.buffers.delete(id); this.revision++; this.emit(); }
+  addLayer(kind: LayerData['kind'], name?: string) {
+    const before = this.doc;
+    this._addLayer(kind, name);
+    const newLayerId = this.doc.activeLayerId!;
+    const after = this.doc;
+    this.history.push({
+      label: 'Add layer',
+      undo: () => { this.doc = before; this.buffers.delete(newLayerId); this.revision++; this.emit(); },
+      redo: () => { this.doc = after; this.ensureBuffer(newLayerId); this.revision++; this.emit(); },
+    } as Op);
+    this.revision++; this.emit();
+  }
 
-  reorderLayer(id: string, to: number) { this.doc = reorderLayer(this.doc, id, to); this.revision++; this.emit(); }
+  private _removeLayer(id: string) {
+    this.doc = removeLayer(this.doc, id);
+    this.buffers.delete(id);
+  }
 
-  setActiveLayer(id: string) { this.doc = setActive(this.doc, id); this.revision++; this.emit(); }
+  removeLayer(id: string) {
+    const before = this.doc;
+    const buf = this.getBuffer(id).slice();
+    this._removeLayer(id);
+    const after = this.doc;
+    this.history.push({
+      label: 'Remove layer',
+      undo: () => { this.doc = before; this.setBuffer(id, buf); this.revision++; this.emit(); },
+      redo: () => { this.doc = after; this.buffers.delete(id); this.revision++; this.emit(); },
+    } as Op);
+    this.revision++; this.emit();
+  }
+
+  private _reorderLayer(id: string, to: number) {
+    this.doc = reorderLayer(this.doc, id, to);
+  }
+
+  reorderLayer(id: string, to: number) {
+    const before = this.doc;
+    this._reorderLayer(id, to);
+    const after = this.doc;
+    this.history.push({
+      label: 'Reorder layer',
+      undo: () => { this.doc = before; this.revision++; this.emit(); },
+      redo: () => { this.doc = after; this.revision++; this.emit(); },
+    } as Op);
+    this.revision++; this.emit();
+  }
+
+  private _setActiveLayer(id: string) {
+    this.doc = setActive(this.doc, id);
+  }
+
+  setActiveLayer(id: string) {
+    const before = this.doc;
+    this._setActiveLayer(id);
+    const after = this.doc;
+    this.history.push({
+      label: 'Set active layer',
+      undo: () => { this.doc = before; this.revision++; this.emit(); },
+      redo: () => { this.doc = after; this.revision++; this.emit(); },
+    } as Op);
+    this.revision++; this.emit();
+  }
 
   setLayerVisible(id: string, v: boolean) { this.doc = updateLayer(this.doc, id, { visible: v }); this.revision++; this.emit(); }
 
@@ -93,25 +153,66 @@ export class StudioEngine {
   setLayerText(id: string, text: import('./types').TextData) { this.doc = updateLayer(this.doc, id, { text }); this.revision++; this.emit(); }
 
   duplicateLayer(id: string) {
+    const before = { doc: this.doc, newLayerId: null as string | null, buffers: new Map<string, Uint8ClampedArray>() };
     const i = this.doc.layers.findIndex(l => l.id === id); if (i < 0) return;
-    const src = this.doc.layers[i]; this.doc = addLayer(this.doc, src.kind, `${src.name} copy`);
-    const nid = this.doc.activeLayerId!; this.ensureBuffer(nid).set(this.ensureBuffer(id));
-    this.doc = reorderLayer(this.doc, nid, i + 1); this.revision++; this.emit();
+    const src = this.doc.layers[i];
+    for (const l of this.doc.layers) before.buffers.set(l.id, this.ensureBuffer(l.id).slice());
+    this._addLayer(src.kind, `${src.name} copy`);
+    const nid = this.doc.activeLayerId!; before.newLayerId = nid;
+    this.ensureBuffer(nid).set(this.ensureBuffer(id));
+    this._reorderLayer(nid, i + 1);
+    const afterDoc = this.doc;
+    const afterBuffers = new Map(this.doc.layers.map(l => [l.id, this.ensureBuffer(l.id).slice()]));
+    this.history.push({
+      label: 'Duplicate layer',
+      undo: () => { this.doc = before.doc; this.buffers.clear(); for (const [id, buf] of before.buffers) this.setBuffer(id, buf); this.revision++; this.emit(); },
+      redo: () => { this.doc = afterDoc; this.buffers.clear(); for (const [id, buf] of afterBuffers) this.setBuffer(id, buf); this.revision++; this.emit(); },
+    } as Op);
+    this.revision++;
   }
 
   mergeDown(id: string) {
     const i = this.doc.layers.findIndex(l => l.id === id); if (i <= 0) return;
+    const before = {
+      doc: this.doc,
+      topBufferId: id,
+      topBuffer: this.ensureBuffer(id).slice(),
+      belowBufferId: this.doc.layers[i - 1].id,
+      belowBuffer: this.ensureBuffer(this.doc.layers[i - 1].id).slice(),
+    };
     const top = this.doc.layers[i], below = this.doc.layers[i - 1];
-    const base = this.ensureBuffer(below.id).slice();
-    this.wasm.composite(base, this.ensureBuffer(id), this.doc.width, this.doc.height, top.opacity, BLEND_INT[top.blendMode]);
-    this.ensureBuffer(below.id).set(base); this.removeLayer(id);
+    const base = before.belowBuffer.slice();
+    this.wasm.composite(base, before.topBuffer, this.doc.width, this.doc.height, top.opacity, BLEND_INT[top.blendMode]);
+    this.ensureBuffer(below.id).set(base);
+    this._removeLayer(id);
+    const afterDoc = this.doc;
+    const afterBuf = base.slice();
+    this.history.push({
+      label: 'Merge down',
+      undo: () => { this.doc = before.doc; this.setBuffer(before.topBufferId, before.topBuffer); this.setBuffer(before.belowBufferId, before.belowBuffer); this.revision++; this.emit(); },
+      redo: () => { this.doc = afterDoc; this.setBuffer(before.belowBufferId, afterBuf); this.revision++; this.emit(); },
+    } as Op);
+    this.revision++;
   }
 
   flattenImage() {
-    const out = this.composite(); const keepId = this.doc.layers[0].id;
-    for (const lid of this.doc.layers.slice(1).map(l => l.id)) this.removeLayer(lid);
+    const keepId = this.doc.layers[0].id;
+    const before = {
+      doc: this.doc,
+      buffers: new Map(this.doc.layers.map(l => [l.id, this.ensureBuffer(l.id).slice()])),
+    };
+    const out = this.composite();
+    for (const lid of this.doc.layers.slice(1).map(l => l.id)) this._removeLayer(lid);
     this.doc = updateLayer(this.doc, keepId, { opacity: 1, blendMode: 'normal', visible: true, clipped: false });
-    this.ensureBuffer(keepId).set(out); this.revision++; this.setActiveLayer(keepId); this.emit();
+    this.ensureBuffer(keepId).set(out);
+    const afterDoc = this.doc;
+    const afterOut = out.slice();
+    this.history.push({
+      label: 'Flatten image',
+      undo: () => { this.doc = before.doc; this.buffers.clear(); for (const [id, buf] of before.buffers) this.setBuffer(id, buf); this.revision++; this.emit(); },
+      redo: () => { this.doc = afterDoc; this.setBuffer(keepId, afterOut); this.revision++; this.emit(); },
+    } as Op);
+    this.revision++; this._setActiveLayer(keepId); this.emit();
   }
 
   // ---- selection & clipboard ----
@@ -125,7 +226,21 @@ export class StudioEngine {
     this.clipboard = out;
   }
 
-  paste() { if (!this.clipboard) return; this.addLayer('raster', 'Pasted'); this.ensureBuffer(this.doc.activeLayerId!).set(this.clipboard); this.revision++; this.emit(); }
+  paste() {
+    if (!this.clipboard) return;
+    const before = this.doc;
+    this._addLayer('raster', 'Pasted');
+    const newLayerId = this.doc.activeLayerId!;
+    this.ensureBuffer(newLayerId).set(this.clipboard);
+    const afterDoc = this.doc;
+    const clipboard = this.clipboard.slice();
+    this.history.push({
+      label: 'Paste',
+      undo: () => { this.doc = before; this.buffers.delete(newLayerId); this.revision++; this.emit(); },
+      redo: () => { this.doc = afterDoc; this.ensureBuffer(newLayerId).set(clipboard); this.revision++; this.emit(); },
+    } as Op);
+    this.revision++; this.emit();
+  }
 
   invertSelection() { const m = this.selectionMask; if (!m) return; const inv = new Uint8Array(m.length); for (let p = 0; p < m.length; p++) inv[p] = m[p] ? 0 : 255; this.selectionMask = inv; this.emit(); }
 

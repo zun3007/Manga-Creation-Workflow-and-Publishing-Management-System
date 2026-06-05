@@ -51,7 +51,11 @@ export default function StudioRegionPage() {
         if (shouldRestore) {
           const draft = await loadDraft(key);
           if (draft && draft.manifest) {
-            eng = await deserializeDoc(draft.manifest as any, wasm);
+            const result = await deserializeDoc(draft.manifest as any, wasm);
+            eng = result.engine;
+            if (result.warnings?.length) {
+              console.warn('[StudioRegionPage] Draft layer load warnings:', result.warnings);
+            }
           }
         } else {
           await clearDraft(key);

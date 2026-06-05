@@ -45,11 +45,15 @@ export async function serializeDoc(eng: StudioEngine) {
   for (const l of eng.doc.layers) { if (l.kind === 'group') continue; blobs[l.id] = await bufferToPNGBlob(eng.getBuffer(l.id), eng.doc.width, eng.doc.height); }
   return { manifest, blobs };
 }
-export async function deserializeDoc(manifest: LayerDocManifest, wasm: InkforgeWasm): Promise<StudioEngine> {
+export async function deserializeDoc(manifest: LayerDocManifest, wasm: InkforgeWasm): Promise<{ engine: StudioEngine; warnings?: string[] }> {
   const eng = new Engine(manifest.doc, wasm);
+  const warnings: string[] = [];
   for (const [id, url] of Object.entries(manifest.layerImages)) {
     try { const blob = await (await fetch(url)).blob(); const img = await loadImageFromBlob(blob);
-      eng.setBuffer(id, imageToBuffer(img, img.naturalWidth, img.naturalHeight, manifest.doc.width, manifest.doc.height)); } catch { /* skip missing layer image */ }
+      eng.setBuffer(id, imageToBuffer(img, img.naturalWidth, img.naturalHeight, manifest.doc.width, manifest.doc.height)); } catch (e) {
+        const layerName = manifest.doc.layers.find(l => l.id === id)?.name || id;
+        warnings.push(`Failed to load image for layer "${layerName}"`);
+      }
   }
-  return eng;
+  return { engine: eng, warnings: warnings.length > 0 ? warnings : undefined };
 }

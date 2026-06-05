@@ -40,7 +40,11 @@ export default function StudioPage() {
       const docRes = await api.get(`/studio/docs/${id}`).catch(() => ({ data: null as any }));
       let eng: StudioEngine;
       if (docRes.data && docRes.data.doc) {
-        eng = await deserializeDoc(docRes.data, wasm);
+        const result = await deserializeDoc(docRes.data, wasm);
+        eng = result.engine;
+        if (result.warnings?.length) {
+          console.warn('[StudioPage] Layer load warnings:', result.warnings);
+        }
       } else {
         // Always open a usable canvas: start blank, enrich with the page image if one exists.
         const w0 = 1000, h0 = 1414;
@@ -72,7 +76,11 @@ export default function StudioPage() {
         if (shouldRestore) {
           const draft = await loadDraft(key);
           if (draft && draft.manifest) {
-            eng = await deserializeDoc(draft.manifest as any, wasm);
+            const result = await deserializeDoc(draft.manifest as any, wasm);
+            eng = result.engine;
+            if (result.warnings?.length) {
+              console.warn('[StudioPage] Draft layer load warnings:', result.warnings);
+            }
           }
         } else {
           await clearDraft(key);

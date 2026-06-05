@@ -11,10 +11,11 @@ export function interpolateStamps(
     dy = to.y - from.y;
   const dist = Math.hypot(dx, dy);
   const step = Math.max(0.5, spacingPx);
-  const n = Math.floor(dist / step);
+  // Ensure at least one intermediate point for large gaps (high-speed strokes)
+  const n = Math.max(1, Math.floor(dist / step));
   const pts: { x: number; y: number }[] = [];
   for (let i = 1; i <= n; i++) {
-    const t = (i * step) / dist;
+    const t = i / n; // even spacing, endpoint-inclusive (n>=1 fills high-speed gaps)
     pts.push({ x: from.x + dx * t, y: from.y + dy * t });
   }
   return pts;
