@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ───────────────── Dependencies ─────────────────
 node_modules/
 .pnp
@@ -84,3 +85,35 @@ prompt.txt
 
 # ───────────────── MOOC learning platform (separate git repo, never pushed from here) ─────────────────
 /MOOC/
+=======
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+coverage/
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Upload files
+uploads/
+
+# Prisma local files
+*.db
+*.db-journal
+>>>>>>> 82c72b4 (chore: initialize project)
