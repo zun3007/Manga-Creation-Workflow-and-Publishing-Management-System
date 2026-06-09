@@ -5,6 +5,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DbModule } from './db/db.module';
+import { MailModule } from './mail/mail.module';
 import { StorageModule } from './s3/storage.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -39,6 +40,7 @@ import { DisputesModule } from './disputes/disputes.module';
     ]),
     StorageModule,
     DbModule,
+    MailModule,
     AuthModule,
     UsersModule,
     SeedModule,

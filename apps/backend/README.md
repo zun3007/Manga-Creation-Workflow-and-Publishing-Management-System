@@ -57,6 +57,38 @@ $ pnpm run test:e2e
 $ pnpm run test:cov
 ```
 
+## Environment — Email OTP two-factor auth (SMTP)
+
+Login uses email OTP 2FA for **all** users on **every** password login (Google OAuth is
+exempt). Configure an SMTP provider via env. The mailer is provider-agnostic — these vars
+work for Brevo (default), Gmail App Password, Mailtrap, Resend, etc.
+
+| Var | Default | Notes |
+|-----|---------|-------|
+| `SMTP_HOST` | — | e.g. `smtp-relay.brevo.com` |
+| `SMTP_PORT` | `587` | `465` if `SMTP_SECURE=true` |
+| `SMTP_SECURE` | `false` | `true` for port 465 (implicit TLS) |
+| `SMTP_USER` | — | provider SMTP login |
+| `SMTP_PASS` | — | provider SMTP key/password |
+| `MAIL_FROM` | `Manga Studio <no-reply@manga.local>` | sender shown to users |
+| `AUTH_2FA_ENABLED` | `true` | ops kill-switch — set `false` to bypass 2FA entirely |
+| `OTP_TTL_MINUTES` | `10` | code + challenge-token lifetime |
+| `OTP_DEV_ECHO` | `false` | DEV ONLY: echo the OTP in the API response (e2e smoke). Ignored when `NODE_ENV=production`. |
+
+Brevo free tier (300 mails/day) example:
+
+```bash
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=<your-brevo-login>
+SMTP_PASS=<your-brevo-smtp-key>
+MAIL_FROM="Manga Studio <you@yourdomain.com>"
+```
+
+When SMTP is **not** configured and `NODE_ENV` is not `production`, the OTP is logged to the
+console instead of mailed, so local dev works with zero credentials.
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
