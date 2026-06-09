@@ -3,7 +3,6 @@ import {
   OnModuleInit,
   Logger,
   UnauthorizedException,
-  BadRequestException,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
@@ -158,7 +157,9 @@ export class OtpService implements OnModuleInit {
         `UPDATE \`Email_Otp\` SET attempts = ? WHERE otp_id = ?`,
         [attempts, row.otp_id],
       );
-      throw new BadRequestException(
+      // 401 (not 400) so the web client's axios interceptor stays silent on /login
+      // and the OTP screen shows the error inline — consistent with wrong-password.
+      throw new UnauthorizedException(
         `Mã không đúng. Còn ${MAX_ATTEMPTS - attempts} lần thử.`,
       );
     }

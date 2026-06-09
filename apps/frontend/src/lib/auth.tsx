@@ -6,12 +6,25 @@ import {
   type ReactNode,
 } from "react";
 import { api, getToken, setToken, clearToken } from "./api";
-import type { AuthUser } from "@manga/shared";
+import {
+  isTwoFactorRequired,
+  type AuthUser,
+  type AuthSuccess,
+  type LoginResponse,
+  type ResendResult,
+} from "@manga/shared";
 
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  /**
+   * Start a login. Resolves to either an access-token success (session set) or a
+   * 2FA challenge (nothing set yet — caller must collect the OTP and call
+   * verifyTwoFactor).
+   */
+  login: (email: string, password: string) => Promise<LoginResponse>;
+  verifyTwoFactor: (challengeToken: string, code: string) => Promise<void>;
+  resendOtp: (challengeToken: string) => Promise<ResendResult>;
   loginWithToken: (token: string) => Promise<void>;
   logout: () => void;
 }
@@ -46,10 +59,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  async function login(email: string, password: string) {
-    const { data } = await api.post("/auth/login", { email, password });
+  function applySession(data: AuthSuccess) {
     setToken(data.accessToken);
     setUser(data.user);
+  }
+
+  async function login(email: string, password: string): Promise<LoginResponse> {
+    const { data } = await api.post<LoginResponse>("/auth/login", {
+      email,
+      password,
+    });
+    // Only an access-token response opens a session; a 2FA challenge does not.
+    if (!isTwoFactorRequired(data)) applySession(data);
+    return data;
+  }
+
+  async function verifyTwoFactor(challengeToken: string, code: string) {
+    const { data } = await api.post<AuthSuccess>("/auth/2fa/verify", {
+      challengeToken,
+      code,
+    });
+    applySession(data);
+  }
+
+  async function resendOtp(challengeToken: string): Promise<ResendResult> {
+    const { data } = await api.post<ResendResult>("/auth/2fa/resend", {
+      challengeToken,
+    });
+    return data;
   }
 
   async function loginWithToken(token: string) {
@@ -63,7 +100,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginWithToken, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        verifyTwoFactor,
+        resendOtp,
+        loginWithToken,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

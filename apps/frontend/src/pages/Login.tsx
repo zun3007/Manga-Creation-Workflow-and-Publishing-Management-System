@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Lock, Eye, EyeOff, ArrowRight, AlertTriangle } from "lucide-react";
+import { isTwoFactorRequired, type TwoFactorRequired } from "@manga/shared";
 import { useAuth } from "../lib/auth";
 import { googleLoginUrl } from "../lib/api";
 import { Panel } from "../components/ui/Panel";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
+import { TwoFactorChallenge } from "../components/auth/TwoFactorChallenge";
 
 function GoogleG() {
   return (
@@ -31,6 +33,7 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [challenge, setChallenge] = useState<TwoFactorRequired | null>(null);
 
   useEffect(() => {
     if (user) navigate("/", { replace: true });
@@ -71,8 +74,12 @@ export default function Login() {
     setBusy(true);
     setError("");
     try {
-      await login(email, password);
-      navigate("/", { replace: true });
+      const res = await login(email, password);
+      if (isTwoFactorRequired(res)) {
+        setChallenge(res);
+      } else {
+        navigate("/", { replace: true });
+      }
     } catch (err: any) {
       setError(err?.response?.data?.message ?? "Đăng nhập thất bại");
     } finally {
@@ -131,8 +138,18 @@ export default function Login() {
           </div>
         </motion.section>
 
-        {/* RIGHT — access form */}
+        {/* RIGHT — access form / OTP challenge */}
         <section className="flex items-center justify-center bg-bg px-6 py-12">
+          {challenge ? (
+            <TwoFactorChallenge
+              challenge={challenge}
+              onVerified={() => navigate("/", { replace: true })}
+              onBack={() => {
+                setChallenge(null);
+                setError("");
+              }}
+            />
+          ) : (
           <motion.div
             initial={{ y: 18, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -228,6 +245,7 @@ export default function Login() {
               <p className="font-mono text-xs text-ink">dungminer69@gmail.com · Dung123456@</p>
             </Panel>
           </motion.div>
+          )}
         </section>
       </div>
     </div>
