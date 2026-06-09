@@ -357,5 +357,5 @@ Decisions + risk updates notify mangaka immediately.
 
 For technical deep-dive: see the `documents/` set — API reference, database design, state machines, and role guides.
 
-For live code: `apps/api/src/`, `apps/web/src/`, `packages/shared/src/enums/`, `db/01-schema.sql`.
+For live code: `apps/backend/src/`, `apps/frontend/src/`, `packages/shared/src/enums/`, `db/01-schema.sql`.
 

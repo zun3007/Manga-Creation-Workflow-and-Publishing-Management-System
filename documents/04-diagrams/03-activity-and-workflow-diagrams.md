@@ -272,7 +272,7 @@ flowchart TD
     style End2 fill:#90EE90
 ```
 
-**Storage implementation:** `apps/api/src/s3/storage.service.ts` uses `@aws-sdk/client-s3` with `forcePathStyle: true` for self-hosted SeaweedFS; environment: `S3_ENDPOINT` (default `:8333`), `S3_BUCKET` (default `manga-uploads`); `GET /uploads/{key}` served via `StorageService.get()` stream with path-traversal guard.
+**Storage implementation:** `apps/backend/src/s3/storage.service.ts` uses `@aws-sdk/client-s3` with `forcePathStyle: true` for self-hosted SeaweedFS; environment: `S3_ENDPOINT` (default `:8333`), `S3_BUCKET` (default `manga-uploads`); `GET /uploads/{key}` served via `StorageService.get()` stream with path-traversal guard.
 
 ---
 

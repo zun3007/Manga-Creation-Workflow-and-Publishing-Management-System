@@ -763,5 +763,5 @@ All tables use **utf8mb4** charset and **utf8mb4_unicode_ci** collation, enablin
 ## Cross-References
 
 - **State machines & transitions:** See `packages/shared/src/enums/transitions.ts` and `docs/domain-model-and-state-machines.md`.
-- **API contracts & request/response shapes:** See `apps/api/src/<module>/*.controller.ts` and `*.dto.ts`.
+- **API contracts & request/response shapes:** See `apps/backend/src/<module>/*.controller.ts` and `*.dto.ts`.
 - **System architecture & service layer:** See `docs/03-system-architecture.md`.

@@ -335,12 +335,12 @@ Rate limiting is enforced via `@nestjs/throttler` module (ThrottlerModule, Throt
 ## 7. Client-Side & Privacy
 
 ### Token Storage
-- The web SPA (`apps/web/src/lib/api.ts`) stores the JWT accessToken in browser `localStorage` after login.
+- The web SPA (`apps/frontend/src/lib/api.ts`) stores the JWT accessToken in browser `localStorage` after login.
 - The token is attached to every outgoing API request via the `Authorization: Bearer` header using an axios interceptor.
 - On logout, the token is removed from localStorage (JWT is stateless; no server-side revocation required).
 
 ### Frontend Role-Protected Routes
-- The web app (`apps/web/src/App.tsx`) uses `<RoleProtected>` component to guard role-specific routes.
+- The web app (`apps/frontend/src/App.tsx`) uses `<RoleProtected>` component to guard role-specific routes.
 - `<RoleProtected roles={[Role.MANGAKA]}>` wraps routes that only MANGAKA can access; enforced client-side and server-side.
 - On unauthorized access (wrong role), displays a `<Forbidden>` page (HTTP 403 equivalent).
 - Routes are nested inside `<Protected>` (authentication guard), ensuring unauthenticated users are redirected to `/login`.

@@ -345,10 +345,10 @@ Grouped by module, each requirement maps to an endpoint and/or web page. All end
 | NFR-PORT-1 | Portability | Minimum Node.js version: 20; TypeScript 5.7 (api), ~6.0 (web). | package.json engines.node; tsc config via tsconfig.json per package. |
 | NFR-PORT-2 | Portability | MySQL 8 (Docker, host port 3308→container 3306). | docker-compose.yml defines MySQL service; DbService connects via env var. |
 | NFR-PORT-3 | Portability | Environment variables: NODE_ENV, DATABASE_URL, JWT_SECRET, CLIENT_URL, GOOGLE_CLIENT_ID/SECRET. | Loaded via @nestjs/config; .env file (dev only, not committed). |
-| NFR-TEST-1 | Testability | API: jest 30 + ts-jest; 50+ test suites; build green. | test files in apps/api/src/**/*.spec.ts; jest.config.js in root. |
-| NFR-TEST-2 | Testability | Web: vitest 4 + @testing-library/react + jsdom; 185+ test suites; tsc -b green. | test files in apps/web/src/**/*.test.tsx; vitest.config.ts; no testing-library/user-event (use fireEvent). |
+| NFR-TEST-1 | Testability | API: jest 30 + ts-jest; 50+ test suites; build green. | test files in apps/backend/src/**/*.spec.ts; jest.config.js in root. |
+| NFR-TEST-2 | Testability | Web: vitest 4 + @testing-library/react + jsdom; 185+ test suites; tsc -b green. | test files in apps/frontend/src/**/*.test.tsx; vitest.config.ts; no testing-library/user-event (use fireEvent). |
 | NFR-TEST-3 | Testability | Live smoke tests (5 suites: sprint5/6/7, storage, ux-upgrade) run against real DB; 70+ scenarios / 0 fail. | node docs/superpowers/smoke-sprint{5,6,7}.mjs + smoke-storage.mjs + smoke-ux-upgrade.mjs (real MySQL + login + workflows). |
-| NFR-BUILD-1 | Build & Delivery | Build: `pnpm build` compiles web (Vite) & api (tsc); outputs dist/ or .next/. | apps/web build → dist/; apps/api build → dist/. |
+| NFR-BUILD-1 | Build & Delivery | Build: `pnpm build` compiles web (Vite) & api (tsc); outputs dist/ or .next/. | apps/frontend build → dist/; apps/backend build → dist/. |
 | NFR-BUILD-2 | Build & Delivery | TypeScript strict mode enabled (api decorators OK, web erasableSyntaxOnly=NO enums). | tsconfig.json compilerOptions.strict; api allows decorators, web forbids enums. |
 
 ---

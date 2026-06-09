@@ -69,8 +69,8 @@ Raw: `reports/percentiles-results.json`. **0 errors across 3,000 requests.**
 
 ## 8. Unit tests
 
-- **API (jest):** 46/46 across 12 suites (`pnpm -F api test`). Line coverage ~21% — these are targeted service specs; black-box coverage is provided by the E2E + Postman integration runs.
-- **Web (vitest):** 124/124 across 36 files (`pnpm -F web test`).
+- **API (jest):** 46/46 across 12 suites (`pnpm -F backend test`). Line coverage ~21% — these are targeted service specs; black-box coverage is provided by the E2E + Postman integration runs.
+- **Web (vitest):** 124/124 across 36 files (`pnpm -F frontend test`).
 
 ---
 

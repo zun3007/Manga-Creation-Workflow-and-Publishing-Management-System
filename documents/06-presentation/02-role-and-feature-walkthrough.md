@@ -555,7 +555,7 @@ Earning_Dispute:
 ### Studio (In-Browser Drawing)
 **Location:** `/studio/page/:pageId` (full-screen, no shell) or `/studio/region/:taskId` (focused on region)
 
-**Architecture:** `apps/web/src/lib/studio/` modules:
+**Architecture:** `apps/frontend/src/lib/studio/` modules:
 - **document** — layers, page structure, layer ops (duplicate, merge, flatten, paste)
 - **history** — undo/redo stack with full reversibility for all operations
 - **view** — pan, zoom, viewport, grid overlay
@@ -579,7 +579,7 @@ Earning_Dispute:
 - Multi-layer support with opacity and blend modes
 
 ### On-Device AI (Optional, Privacy-First)
-**Architecture:** `apps/web/src/lib/studio/ai/` + `packages/canvas-wasm`
+**Architecture:** `apps/frontend/src/lib/studio/ai/` + `packages/canvas-wasm`
 
 **Models (lazy-loaded, in-browser inference via ONNX Runtime Web):**
 1. **YOLO Panel Detection** — auto-detect manga panel boundaries on raw artwork
@@ -652,7 +652,7 @@ For deeper dives into system design, architecture, and reference documentation:
 - **Demo Logins:** see `../01-overview.md` (pwd: Dung123456@)
 
 ### Questions?
-Refer to role-specific guides or feature specs in `documents/{05-roles,07-features}/`. API endpoint details in controller source: `apps/api/src/<module>/*.controller.ts`.
+Refer to role-specific guides or feature specs in `documents/{05-roles,07-features}/`. API endpoint details in controller source: `apps/backend/src/<module>/*.controller.ts`.
 
 ---
 
@@ -666,7 +666,7 @@ Refer to role-specific guides or feature specs in `documents/{05-roles,07-featur
 - **User management & disputes** → see `../05-roles/05-admin.md`
 
 **For architecture or API details:**
-- Controller source: `apps/api/src/<module>/`
+- Controller source: `apps/backend/src/<module>/`
 - State machine enums: `packages/shared/src/enums/transitions.ts`
 - Database schema: `db/01-schema.sql`
 

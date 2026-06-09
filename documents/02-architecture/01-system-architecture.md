@@ -86,7 +86,7 @@ Manga-Creation-Workflow-and-Publishing-Management-System/
 │   │   └── test/               # Jest spec files
 │   └── package.json
 │
-├── apps/web/                   # React 19 + Vite 8 frontend
+├── apps/frontend/                   # React 19 + Vite 8 frontend
 │   ├── src/
 │   │   ├── App.tsx             # Router: /login, /auth/callback, then <Protected><AppShell>
 │   │   ├── components/
@@ -140,8 +140,8 @@ Manga-Creation-Workflow-and-Publishing-Management-System/
 **Workspace build order:**
 1. `pnpm -F @manga/shared build` compiles TS → CJS (used by Node API).
 2. `pnpm -F canvas-wasm build` compiles AssemblyScript → WASM.
-3. `pnpm -F api build` builds NestJS app (uses shared CJS via `require`).
-4. `pnpm -F web build` builds React SPA (uses shared TS source via Vite alias; Vite compiles it inline).
+3. `pnpm -F backend build` builds NestJS app (uses shared CJS via `require`).
+4. `pnpm -F frontend build` builds React SPA (uses shared TS source via Vite alias; Vite compiles it inline).
 
 ---
 
@@ -540,7 +540,7 @@ export function AuthProvider({ children }) {
 The Studio is a full-screen raster drawing application (separate from AppShell) for assistants and mangaka to create/edit manga pages on-canvas. Modules:
 
 ```
-apps/web/src/lib/studio/
+apps/frontend/src/lib/studio/
 ├── document.ts          # Layer management, undo/redo
 ├── history.ts           # History (undo/redo) state machine
 ├── view.ts              # Pan, zoom, viewport transforms
@@ -794,12 +794,12 @@ pnpm db:up
 # → MySQL listens on host :3308
 
 # 3. In one terminal: run API
-pnpm dev:api
+pnpm dev:backend
 # → NestJS bootstraps, listens :3000
 # → Logs: "Manga API → http://localhost:3000/api"
 
 # 4. In another terminal: run web
-pnpm dev:web
+pnpm dev:frontend
 # → Vite dev server, listens :5173
 # → Proxy rules: /api → :3000, /uploads → :3000
 # → HMR (hot module reload) enabled
@@ -823,8 +823,8 @@ pnpm db:down
 # Build all packages and apps
 pnpm build
 # Outputs:
-# - apps/web/dist/     → Static SPA (React 19, optimized, tree-shaken, code-split)
-# - apps/api/dist/     → Compiled NestJS app (CommonJS)
+# - apps/frontend/dist/     → Static SPA (React 19, optimized, tree-shaken, code-split)
+# - apps/backend/dist/     → Compiled NestJS app (CommonJS)
 # - packages/shared/dist/    → CJS modules (enums + transitions)
 # - packages/canvas-wasm/dist/   → WASM binary + .d.ts
 
@@ -837,7 +837,7 @@ pnpm -r test          # Jest (API) + Vitest (Web)
 ```
 ┌─────────────────────────────────────────┐
 │ Client Browser (any device)             │
-│ - Loads SPA from CDN (apps/web/dist)    │
+│ - Loads SPA from CDN (apps/frontend/dist)    │
 │ - XHR/Fetch calls api.example.com/api   │
 └─────────────────────────────────────────┘
                     ↓ HTTPS
@@ -850,7 +850,7 @@ pnpm -r test          # Jest (API) + Vitest (Web)
 ┌─────────────────────────────────────────┐
 │ Backend Node.js (docker/k8s)            │
 │ - NODE_ENV=production                   │
-│ - apps/api/dist/* (NestJS compiled)     │
+│ - apps/backend/dist/* (NestJS compiled)     │
 │ - PORT=3000 (or 8080 in k8s)            │
 │ - .env (secrets via env vars, not file) │
 │ - /uploads → routes to object storage   │
@@ -873,7 +873,7 @@ pnpm -r test          # Jest (API) + Vitest (Web)
 
 ### Environment Configuration
 
-**Backend (NestJS, apps/api/.env):**
+**Backend (NestJS, apps/backend/.env):**
 ```env
 NODE_ENV=production
 PORT=3000

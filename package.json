@@ -6,8 +6,8 @@
   "scripts": {
     "build:packages": "pnpm -F @manga/shared build && pnpm -F @manga/canvas-wasm build",
     "build:shared": "pnpm build:packages",
-    "dev:web": "pnpm build:packages && pnpm -F web dev",
-    "dev:api": "pnpm build:packages && pnpm -F api start:dev",
+    "dev:frontend": "pnpm build:packages && pnpm -F frontend dev",
+    "dev:backend": "pnpm build:packages && pnpm -F backend start:dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "db:up": "docker compose -f db/docker-compose.yml up -d",

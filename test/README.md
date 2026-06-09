@@ -7,8 +7,8 @@ Comprehensive, transparent testing for the **Manga Creation Workflow & Publishin
 The live stack must be running:
 ```bash
 pnpm db:up        # MySQL 8 (Docker, host :3308)
-pnpm dev:api      # NestJS API on :3000  (Swagger UI at /api/docs)
-# pnpm dev:web    # (optional) web on :5173
+pnpm dev:backend      # NestJS API on :3000  (Swagger UI at /api/docs)
+# pnpm dev:frontend    # (optional) web on :5173
 ```
 Then install test deps + seed accounts:
 ```bash
@@ -41,7 +41,7 @@ The seeder also inserts a `Task_Price_Rule` per region type (base 5000) so task 
 | 5 | **Benchmark — autocannon** | Throughput (req/s) + latency (mean/p97.5/p99) under 10 connections | `node test/benchmark/bench-autocannon.mjs` |
 | 6 | **Benchmark — percentiles** | Latency distribution p50/p90/p95/p99 over 600 reqs @ concurrency 20 | `node test/benchmark/bench-percentiles.mjs` |
 | 7 | **Benchmark — k6** (optional) | VU ramp 0→20 with thresholds (p95<800ms, error<1%) | `k6 run test/benchmark/k6-load.js` *(install k6 first)* |
-| 8 | **Unit tests** | api service specs (jest) + web component tests (vitest) | `pnpm -F api test` · `pnpm -F web test` |
+| 8 | **Unit tests** | api service specs (jest) + web component tests (vitest) | `pnpm -F backend test` · `pnpm -F frontend test` |
 
 One-shot (functional methods): `cd test && npm run test:all`.
 

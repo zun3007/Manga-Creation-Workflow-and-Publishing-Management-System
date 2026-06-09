@@ -8,7 +8,7 @@ importers:
 
   .: {}
 
-  apps/api:
+  apps/backend:
     dependencies:
       '@aws-sdk/client-s3':
         specifier: ^3.1060.0
@@ -150,7 +150,7 @@ importers:
         specifier: ^8.20.0
         version: 8.60.0(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
 
-  apps/web:
+  apps/frontend:
     dependencies:
       '@manga/canvas-wasm':
         specifier: workspace:*

@@ -8,8 +8,8 @@ This is **NOT** a manga reader — it's an operational tool for studio productio
 ## Monorepo Layout
 
 ```
-apps/web         React + Vite + TypeScript + Tailwind v4 frontend
-apps/api         NestJS + TypeScript backend
+apps/frontend         React + Vite + TypeScript + Tailwind v4 frontend
+apps/backend         NestJS + TypeScript backend
 packages/shared  Shared TypeScript enums, DTOs, and types
 db/              MySQL database (Docker Compose)
 ```
@@ -29,10 +29,10 @@ pnpm db:up
 ### Start the development servers
 ```bash
 # Backend API (NestJS)
-pnpm dev:api
+pnpm dev:backend
 
 # Frontend (React + Vite) — in another terminal
-pnpm dev:web
+pnpm dev:frontend
 ```
 
 ### Other commands

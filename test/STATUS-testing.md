@@ -34,7 +34,7 @@ mangaka1/2, assistant1/2, tantou_editor1/2, editorial_board1/2, admin1/2 @test.i
 - E2E: 68/68, reports/e2e-results.json. RBAC + validation fully green.
 - autocannon-results.json + percentiles-results.json in reports/.
 - Swagger live: http://localhost:3000/api/docs (api bg b0sdrqiee still running).
-- api changed (swagger): apps/api/src/main.ts, apps/api/nest-cli.json, apps/api/package.json (+@nestjs/swagger), pnpm-workspace.yaml (scarf:false). These are real source changes on dev/sprint3-studio — include in commit or note.
+- api changed (swagger): apps/backend/src/main.ts, apps/backend/nest-cli.json, apps/backend/package.json (+@nestjs/swagger), pnpm-workspace.yaml (scarf:false). These are real source changes on dev/sprint3-studio — include in commit or note.
 
 ## Notes / guardrails
 - powershell.exe + PowerPoint-COM BLOCKED by classifier (don't retry). winget OK.
