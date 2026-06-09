@@ -66,10 +66,12 @@ import { DisputesModule } from './disputes/disputes.module';
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
+    // Rate limiting is ON by default everywhere. DISABLE_THROTTLE=true turns it
+    // off ONLY for burst e2e/load runs (the suite logs in dozens of times in
+    // seconds, which legitimately trips the per-IP limits). Never set in prod.
+    ...(process.env.DISABLE_THROTTLE === 'true'
+      ? []
+      : [{ provide: APP_GUARD, useClass: ThrottlerGuard }]),
   ],
 })
 export class AppModule {}

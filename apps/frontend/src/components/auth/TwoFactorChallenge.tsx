@@ -76,20 +76,19 @@ export function TwoFactorChallenge({
     }
   }
 
-  // auto-submit once all digits are entered
-  useEffect(() => {
-    if (code.length === LEN && !busy && !expired) submit(code);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code]);
+  // Auto-submit the moment the final digit lands — done inline (not in an effect)
+  // to avoid setState-in-effect cascading renders.
+  function maybeAutoSubmit(next: string[]) {
+    if (next.every((d) => d !== "") && !busy && !expired) submit(next.join(""));
+  }
 
   function setDigit(i: number, raw: string) {
     const v = raw.replace(/\D/g, "").slice(-1);
-    setDigits((prev) => {
-      const next = [...prev];
-      next[i] = v;
-      return next;
-    });
+    const next = [...digits];
+    next[i] = v;
+    setDigits(next);
     if (v && i < LEN - 1) refs.current[i + 1]?.focus();
+    if (v) maybeAutoSubmit(next);
   }
 
   function onKeyDown(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
@@ -110,6 +109,7 @@ export function TwoFactorChallenge({
     for (let k = 0; k < text.length; k++) next[k] = text[k];
     setDigits(next);
     refs.current[Math.min(text.length, LEN - 1)]?.focus();
+    maybeAutoSubmit(next);
   }
 
   async function onResend() {

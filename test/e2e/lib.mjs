@@ -73,6 +73,23 @@ export async function login(email, password) {
   if (result.status !== 201 && result.status !== 200) {
     throw new Error(`Login failed: ${result.status} ${result.text}`);
   }
+  // Email OTP 2FA: the API returns a challenge instead of a token. In dev/e2e the
+  // OTP is echoed (OTP_DEV_ECHO=true) so we can complete the exchange headlessly.
+  if (result.json?.twoFactorRequired) {
+    const code = result.json.devCode;
+    if (!code) {
+      throw new Error(
+        '2FA required but no devCode echoed — start the API with OTP_DEV_ECHO=true for e2e',
+      );
+    }
+    const verify = await req('POST', '/auth/2fa/verify', {
+      body: { challengeToken: result.json.challengeToken, code },
+    });
+    if (verify.status !== 201 && verify.status !== 200) {
+      throw new Error(`2FA verify failed: ${verify.status} ${verify.text}`);
+    }
+    return verify.json.accessToken;
+  }
   return result.json.accessToken;
 }
 
