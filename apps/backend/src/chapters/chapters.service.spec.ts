@@ -78,6 +78,37 @@ describe('ChaptersService.setStatus', () => {
       expect.arrayContaining([10, 99]),
     );
   });
+
+  it('rejects PUBLISHED when a page is not COMPLETED (e.g. still RAW)', async () => {
+    const transaction = jest.fn();
+    const db: any = {
+      queryOne: jest
+        .fn()
+        .mockResolvedValueOnce({
+          chapter_id: 10,
+          chapter_status: ChapterStatus.EDITOR_APPROVED,
+          series_id: 2,
+          mangaka_user_id: 5,
+          chapter_title: 'Ch 1',
+        }) // ownership lookup
+        .mockResolvedValueOnce({ c: 1 }), // one incomplete (non-COMPLETED) page
+      query: jest.fn().mockResolvedValue([]),
+      transaction,
+    };
+    const notif: any = { notify: jest.fn().mockResolvedValue(undefined) };
+    const s = new ChaptersService(db, notif);
+
+    await expect(s.setStatus(10, 99, ChapterStatus.PUBLISHED)).rejects.toThrow(
+      /Còn trang chưa hoàn thành/,
+    );
+
+    // Gate must fail BEFORE any write happens
+    expect(transaction).not.toHaveBeenCalled();
+    expect(db.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE'),
+      expect.anything(),
+    );
+  });
 });
 
 describe('ChaptersService.editorPages', () => {

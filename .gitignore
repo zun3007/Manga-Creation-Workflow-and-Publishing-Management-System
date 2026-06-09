@@ -63,6 +63,10 @@ CLAUDE.local.md
 .cache/
 .temp/
 tmp/
+# Mermaid diagram render artifacts (working aid, regenerated on demand)
+.mmblk/
+# Scratch prompt file (local-only)
+prompt.txt
 
 # ───────────────── Brainstorm visual companion (superpowers) ─────────────────
 .superpowers/

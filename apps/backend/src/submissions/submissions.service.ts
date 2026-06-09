@@ -16,6 +16,7 @@ import {
 } from '@manga/shared';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { ReviewSubmissionDto } from './dto/review-submission.dto';
+import { syncPageStatusFromTasks } from '../pages/page-status.util';
 
 @Injectable()
 export class SubmissionsService {
@@ -93,6 +94,9 @@ export class SubmissionsService {
       [TaskStatus.SUBMITTED, dto.taskId],
     );
 
+    // Page enters review once its work is submitted (IN_PROGRESS -> REVIEWING)
+    await syncPageStatusFromTasks(this.db, task.page_id);
+
     // Send notification to the mangaka (assignor)
     await this.notifications.notify(
       task.assignor_user_id,
@@ -138,6 +142,7 @@ export class SubmissionsService {
       submission_id: number;
       submission_status: string;
       task_id: number;
+      page_id: number;
       assistant_user_id: number;
       assignor_user_id: number;
       task_status: string;
@@ -146,6 +151,7 @@ export class SubmissionsService {
         sub.submission_id,
         sub.submission_status,
         sub.task_id,
+        sub.page_id,
         sub.assistant_user_id,
         t.assignor_user_id,
         t.task_status
@@ -218,6 +224,10 @@ export class SubmissionsService {
           [row.task_id, row.assistant_user_id],
         );
       }
+
+      // Reconcile the page: COMPLETED once all its tasks are APPROVED,
+      // back to IN_PROGRESS when a revision is requested.
+      await syncPageStatusFromTasks(tx, row.page_id);
     });
 
     // Send notification after transaction commits

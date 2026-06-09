@@ -15,6 +15,7 @@ import {
   Role,
 } from '@manga/shared';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { syncPageStatusFromTasks } from '../pages/page-status.util';
 
 @Injectable()
 export class TasksService {
@@ -106,11 +107,8 @@ export class TasksService {
       ],
     );
 
-    // Update page status from RAW to ASSIGNED (only if it's currently RAW)
-    await this.db.query(
-      `UPDATE \`Page\` SET page_status = ? WHERE page_id = ? AND page_status = ?`,
-      ['ASSIGNED', region.page_id, 'RAW'],
-    );
+    // Reflect the new assignment on the page's status (RAW -> ASSIGNED)
+    await syncPageStatusFromTasks(this.db, region.page_id);
 
     // Send notification to assignee
     await this.notifications.notify(
@@ -212,6 +210,9 @@ export class TasksService {
       `UPDATE \`Task\` SET task_status = ? WHERE task_id = ?`,
       [TaskStatus.IN_PROGRESS, taskId],
     );
+
+    // Move the page forward in lockstep with its task (ASSIGNED -> IN_PROGRESS)
+    await syncPageStatusFromTasks(this.db, task.page_id);
 
     return this.findOne(taskId);
   }

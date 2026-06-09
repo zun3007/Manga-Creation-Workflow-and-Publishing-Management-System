@@ -3,17 +3,27 @@ import { NotFoundException, BadRequestException, ForbiddenException } from '@nes
 
 describe('SubmissionsService', () => {
   describe('review()', () => {
-    it('approves a submission and accrues earnings', async () => {
+    it('approves a submission, accrues earnings, and completes the page', async () => {
       const db: any = {
-        queryOne: jest.fn().mockResolvedValue({
-          submission_id: 1,
-          submission_status: 'PENDING',
-          task_id: 10,
-          assistant_user_id: 5,
-          assignor_user_id: 3,
-          task_status: 'SUBMITTED',
-        }),
-        query: jest.fn().mockResolvedValue([]),
+        queryOne: jest
+          .fn()
+          // review() submission lookup
+          .mockResolvedValueOnce({
+            submission_id: 1,
+            submission_status: 'PENDING',
+            task_id: 10,
+            page_id: 20,
+            assistant_user_id: 5,
+            assignor_user_id: 3,
+            task_status: 'SUBMITTED',
+          })
+          // syncPageStatusFromTasks current-page lookup
+          .mockResolvedValueOnce({ page_status: 'REVIEWING' }),
+        query: jest.fn(async (sql: string) =>
+          String(sql).includes('SELECT task_status FROM `Task`')
+            ? [{ task_status: 'APPROVED' }] // page's only task is now approved
+            : [],
+        ),
         transaction: jest.fn(async (fn) => fn(db)),
       };
       const notifications: any = {
@@ -22,9 +32,6 @@ describe('SubmissionsService', () => {
       const service = new SubmissionsService(db, notifications);
 
       await service.review(1, 3, 'APPROVED', 'Good work');
-
-      // Should have 3 db.query calls: update submission, update task, accrue earnings
-      expect(db.query).toHaveBeenCalledTimes(3);
 
       // First call: update submission
       expect(db.query).toHaveBeenNthCalledWith(
@@ -47,6 +54,12 @@ describe('SubmissionsService', () => {
         expect.arrayContaining([10, 5]),
       );
 
+      // Page is reconciled to COMPLETED once all its tasks are approved
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE `Page`'),
+        ['COMPLETED', 20],
+      );
+
       // Should notify assistant
       expect(notifications.notify).toHaveBeenCalledWith(
         5,
@@ -58,17 +71,27 @@ describe('SubmissionsService', () => {
       );
     });
 
-    it('requires revision without accruing earnings', async () => {
+    it('requires revision without accruing earnings and reopens the page', async () => {
       const db: any = {
-        queryOne: jest.fn().mockResolvedValue({
-          submission_id: 1,
-          submission_status: 'PENDING',
-          task_id: 10,
-          assistant_user_id: 5,
-          assignor_user_id: 3,
-          task_status: 'SUBMITTED',
-        }),
-        query: jest.fn().mockResolvedValue([]),
+        queryOne: jest
+          .fn()
+          // review() submission lookup
+          .mockResolvedValueOnce({
+            submission_id: 1,
+            submission_status: 'PENDING',
+            task_id: 10,
+            page_id: 20,
+            assistant_user_id: 5,
+            assignor_user_id: 3,
+            task_status: 'SUBMITTED',
+          })
+          // syncPageStatusFromTasks current-page lookup
+          .mockResolvedValueOnce({ page_status: 'REVIEWING' }),
+        query: jest.fn(async (sql: string) =>
+          String(sql).includes('SELECT task_status FROM `Task`')
+            ? [{ task_status: 'REVISION_REQUIRED' }] // task bounced back
+            : [],
+        ),
         transaction: jest.fn(async (fn) => fn(db)),
       };
       const notifications: any = {
@@ -78,8 +101,11 @@ describe('SubmissionsService', () => {
 
       await service.review(1, 3, 'REVISION_REQUIRED', 'Please fix');
 
-      // Should have 2 db.query calls: update submission, update task (NO accrual)
-      expect(db.query).toHaveBeenCalledTimes(2);
+      // No earnings accrual on revision
+      expect(db.query).not.toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE `Assistant_Profile`'),
+        expect.anything(),
+      );
 
       // First call: update submission
       expect(db.query).toHaveBeenNthCalledWith(
@@ -93,6 +119,12 @@ describe('SubmissionsService', () => {
         2,
         expect.stringContaining('UPDATE `Task`'),
         expect.arrayContaining(['REVISION_REQUIRED', 10]),
+      );
+
+      // Page is reopened REVIEWING -> IN_PROGRESS when revision is requested
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE `Page`'),
+        ['IN_PROGRESS', 20],
       );
 
       // Should notify assistant
