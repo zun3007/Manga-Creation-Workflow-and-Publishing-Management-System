@@ -1,0 +1,21 @@
+{
+  "name": "manga-test",
+  "private": true,
+  "type": "module",
+  "description": "Comprehensive test + benchmark suite for the Manga Creation Workflow & Publishing Management System API",
+  "scripts": {
+    "seed": "node seed/seed-test-accounts.mjs",
+    "e2e": "node e2e/run-e2e.mjs",
+    "postman": "newman run postman/manga-api.postman_collection.json -e postman/manga.postman_environment.json -r cli,htmlextra --reporter-htmlextra-export reports/newman-report.html",
+    "bench:autocannon": "node benchmark/bench-autocannon.mjs",
+    "bench:percentiles": "node benchmark/bench-percentiles.mjs",
+    "test:all": "node seed/seed-test-accounts.mjs && node e2e/run-e2e.mjs && npm run postman && npm run bench:autocannon && npm run bench:percentiles"
+  },
+  "dependencies": {
+    "autocannon": "^8.0.0",
+    "bcryptjs": "^3.0.3",
+    "mysql2": "^3.22.4",
+    "newman": "^6.2.2",
+    "newman-reporter-htmlextra": "^1.23.1"
+  }
+}

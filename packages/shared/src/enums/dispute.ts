@@ -1,0 +1,6 @@
+export enum EarningDisputeStatus {
+  OPEN = "OPEN",
+  UNDER_REVIEW = "UNDER_REVIEW",
+  RESOLVED = "RESOLVED",
+  REJECTED = "REJECTED",
+}

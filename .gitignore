@@ -14,8 +14,8 @@ build/
 out/
 *.tsbuildinfo
 .vite/
-apps/api/dist/
-apps/web/dist/
+apps/backend/dist/
+apps/frontend/dist/
 
 # ───────────────── Env & secrets ─────────────────
 .env
@@ -35,13 +35,16 @@ coverage/
 .nyc_output/
 
 # ───────────────── Local file storage (uploads MVP) ─────────────────
-uploads/
+# NOTE: only ignore the runtime upload STORAGE dir, never the source module
+# at apps/backend/src/uploads/ (uploads.controller.ts / uploads.module.ts).
+apps/backend/uploads/
 storage/
 
 # ───────────────── OS ─────────────────
 .DS_Store
 Thumbs.db
 desktop.ini
+~$*
 
 # ───────────────── IDE / editor ─────────────────
 .idea/
@@ -60,3 +63,21 @@ CLAUDE.local.md
 .cache/
 .temp/
 tmp/
+# Mermaid diagram render artifacts (working aid, regenerated on demand)
+.mmblk/
+# Scratch prompt file (local-only)
+prompt.txt
+
+# ───────────────── Brainstorm visual companion (superpowers) ─────────────────
+.superpowers/
+
+# ───────────────── Local-only: AI workflow + project meta (not pushed to the app repo) ─────────────────
+# These are working aids, not part of the deliverable app. Kept on disk, never committed.
+/CLAUDE.md
+/.claude/
+/docs/
+/demo/
+
+
+#Ignore vscode AI rules
+.github\instructions\codacy.instructions.md

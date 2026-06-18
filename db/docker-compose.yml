@@ -1,0 +1,35 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: manga-dev-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: manga_root
+    ports:
+      - "3308:3306"   # host 3308 -> container 3306 (avoids clashing with demo's 3307)
+    volumes:
+      - ./:/docker-entrypoint-initdb.d:ro   # 01-schema.sql + 02-seed.sql run on first init
+      - manga-dev-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # Self-hosted S3-compatible object storage (SeaweedFS) — replaces external image URLs.
+  # Single container: master + volume + filer + S3 gateway. S3 API on :8333.
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    container_name: manga-dev-seaweedfs
+    restart: unless-stopped
+    command: server -s3 -s3.config=/etc/seaweedfs/s3.json -dir=/data
+    ports:
+      - "8333:8333"   # S3 API — the NestJS api connects here
+      - "8888:8888"   # filer HTTP (optional: browse stored objects)
+    volumes:
+      - ./seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro
+      - manga-dev-seaweed-data:/data
+
+volumes:
+  manga-dev-db-data:
+  manga-dev-seaweed-data:

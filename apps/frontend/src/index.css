@@ -1,0 +1,16 @@
+@import "tailwindcss";
+@import "./styles/theme.css";
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.01em; }
+  [data-role="admin"] h1, [data-role="admin"] h2, [data-role="admin"] h3 { font-family: var(--font-mono); letter-spacing: 0; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+}
