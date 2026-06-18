@@ -1,0 +1,142 @@
+package com.testing.manga_api_test.auth;
+
+import io.restassured.RestAssured;
+import io.restassured.http.ContentType;
+import org.junit.jupiter.api.Test;
+
+import static org.hamcrest.Matchers.*;
+
+public class LoginApiTest {
+
+    // Login should require 2FA
+    @Test
+    void loginShouldRequire2FA() {
+
+        // Generating HTTP Request
+        RestAssured.given()
+                // Adding header
+                .contentType(ContentType.JSON)
+                // Body content
+                .body("""
+                    {
+                       "email": "dungminer69@gmail.com",
+                       "password": "Dung123456@"
+                    }
+                """)
+                // Get Path: POST /api/auth/login
+                .when()
+                .post("http://localhost:3000/api/auth/login")
+                // Starting to check result
+                .then()
+                .statusCode(201)
+                .body("twoFactorRequired", equalTo(true))
+                .body("challengeToken", notNullValue())
+                .body("expiresIn", equalTo(600));
+    }
+
+    // Login fail with email empty
+    @Test
+    void loginShouldFailWhenEmailEmpty() {
+
+        RestAssured.given()
+                .contentType(ContentType.JSON)
+                .body("""
+                  {
+                      "email": "",
+                      "password": "Dung123456@"
+                  }
+                """)
+                .when()
+                .post("http://localhost:3000/api/auth/login")
+                .then()
+                .statusCode(400)
+                .body("message", contains("Email không hợp lệ"))
+                .body("error", equalTo("Bad Request"))
+                .body("statusCode", equalTo(400));
+    }
+
+    // Login fail with invalid email format
+    @Test
+    void loginShouldFailWhenEmailFormatInvalid() {
+
+        RestAssured.given()
+                .contentType(ContentType.JSON)
+                .body("""
+                  {
+                      "email": "ngoThaiAnhHao123",
+                      "password": "test123"
+                  }
+                """)
+                .when()
+                .post("http://localhost:3000/api/auth/login")
+                .then()
+                .statusCode(400)
+                .body("message", contains("Email không hợp lệ"))
+                .body("error", equalTo("Bad Request"))
+                .body("statusCode", equalTo(400));
+    }
+
+    // Login fail when user is not activate
+//    @Test
+//    void loginShouldFailWhenUserNotActivated() {
+//
+//        RestAssured.given()
+//                .contentType(ContentType.JSON)
+//                .body("""
+//                  {
+//                      "email": "inactive@gmail.com",
+//                      "password": "test123"
+//                  }
+//                """)
+//                .when()
+//                .post("http://localhost:3000/api/auth/login")
+//                .then()
+//                .statusCode(400)
+//                .body("message", contains("Email không hợp lệ"))
+//                .body("error", equalTo("Bad Request"))
+//                .body("statusCode", equalTo(400));
+//    }
+
+    // Account should be locked after five failed attempts
+    @Test
+    void accountShouldBeLockedAfterFiveFailedAttempts() {
+
+        for (int i = 1; i <= 4; i++) {
+            RestAssured.given()
+                    .contentType(ContentType.JSON)
+                    .body("""
+                      {
+                          "email": "dungminer69@gmail.com",
+                          "password": "WrongPassword123"
+                      }
+                    """)
+                    .when()
+                    .post("http://localhost:3000/api/auth/login")
+                    .then()
+                    .statusCode(401)
+                    .body("message", equalTo("Email hoặc mật khẩu không đúng"))
+                    .body("error", equalTo("Unauthorized"))
+                    .body("statusCode", equalTo(401));
+        }
+
+        RestAssured.given()
+                .contentType(ContentType.JSON)
+                .body("""
+                      {
+                          "email": "dungminer69@gmail.com",
+                          "password": "WrongPassword123"
+                      }
+                    """)
+                .when()
+                .post("http://localhost:3000/api/auth/login")
+                .then()
+                .statusCode(423)
+                .body("message", equalTo("Tài khoản bị khóa"))
+                .body("error", equalTo("Locked"))
+                .body("statusCode", equalTo(423));
+    }
+
+
+
+
+}
