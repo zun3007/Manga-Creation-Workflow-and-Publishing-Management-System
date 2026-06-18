@@ -510,6 +510,11 @@ guide:
 
 ## Contributing
 
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for the complete setup, branch, commit,
+validation, and pull-request workflow. Report suspected vulnerabilities privately
+as described in [SECURITY.md](SECURITY.md), and follow
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) in all project spaces.
+
 Create focused branches from the team's integration branch instead of committing
 directly to `development` or `main`:
 
