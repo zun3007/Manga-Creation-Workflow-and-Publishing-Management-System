@@ -6,6 +6,24 @@ first series proposal through publication decisions.
 > This project is an operational workflow system for a manga studio. It is not a
 > public manga reader.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Production Workflow](#production-workflow)
+- [Roles and Capabilities](#roles-and-capabilities)
+- [Technology Stack](#technology-stack)
+- [Architecture Overview](#architecture-overview)
+- [Repository Structure](#repository-structure)
+- [Quick Start](#quick-start)
+- [Demo Authentication and Development OTP](#demo-authentication-and-development-otp)
+- [API Examples](#api-examples)
+- [Role-based Demo Walkthrough](#role-based-demo-walkthrough)
+- [Testing Strategy](#testing-strategy)
+- [Production Checklist](#production-checklist)
+- [Troubleshooting and FAQ](#troubleshooting-and-faq)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+
 ## Overview
 
 The platform gives authors, assistants, editors, board members, and administrators
@@ -68,6 +86,39 @@ Detailed guides are available under [Role documentation](documents/05-roles/).
 | Shared contracts | Workspace package with roles, statuses, DTOs, and transitions |
 | Studio | Browser canvas engine, WebAssembly, ONNX Runtime Web with heuristic fallbacks |
 | Tooling | pnpm workspaces, Jest, Vitest, Docker Compose |
+
+## Architecture Overview
+
+```mermaid
+flowchart LR
+  Browser["React browser client"] -->|"/api and /uploads"| Vite["Vite dev proxy"]
+  Vite --> API["NestJS REST API"]
+  Browser --> Studio["Studio canvas + WASM + optional ONNX"]
+  API --> Shared["Shared roles, DTOs, statuses, transitions"]
+  API --> MySQL[("MySQL 8")]
+  API --> S3["SeaweedFS S3 API"]
+```
+
+### Request flow
+
+1. A React page validates basic input and sends a request through the shared
+   Axios client.
+2. The request interceptor attaches the stored bearer token when the user is
+   authenticated.
+3. During development, Vite proxies `/api` and `/uploads` to NestJS on port
+   `3000`.
+4. NestJS applies throttling, authentication, role guards, and DTO validation
+   before invoking a domain service.
+5. The service enforces ownership and state-transition rules, then reads or
+   writes MySQL and SeaweedFS as required.
+6. The frontend receives the response, updates local UI state, and surfaces
+   success or failure through inline states and toast notifications.
+
+The shared workspace package keeps roles, statuses, DTOs, and workflow
+transitions consistent across the frontend and backend. See the
+[system architecture](documents/02-architecture/01-system-architecture.md) and
+[security and RBAC guide](documents/02-architecture/04-security-and-rbac.md) for
+deeper details.
 
 ## Repository Structure
 
@@ -201,6 +252,142 @@ OTP_DEV_ECHO=true
 
 `OTP_DEV_ECHO` is a development aid. Never enable it in production.
 
+## API Examples
+
+The examples below target the local backend at `http://localhost:3000`. Values
+inside angle brackets are placeholders and must be replaced. Never commit real
+access tokens, passwords, or OTP codes.
+
+### 1. Start a password login
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "mai.assistant@inkframe.studio",
+  "password": "<demo-or-local-password>"
+}
+```
+
+With 2FA enabled, the response contains a challenge token rather than the final
+access token.
+
+### 2. Verify the 2FA challenge
+
+```http
+POST /api/auth/2fa/verify
+Content-Type: application/json
+
+{
+  "challengeToken": "<challenge-token-from-login>",
+  "code": "<six-digit-code>"
+}
+```
+
+A successful verification response provides the access token used by protected
+endpoints. The frontend stores it locally and adds it to subsequent requests.
+
+### 3. List the assistant's tasks
+
+```http
+GET /api/tasks/mine
+Authorization: Bearer <access-token>
+```
+
+Only an authenticated assistant can access this endpoint.
+
+### 4. Start an assigned task
+
+```http
+PATCH /api/tasks/42/start
+Authorization: Bearer <access-token>
+```
+
+Replace `42` with an assigned task ID. The backend validates the assignee and
+the allowed task-state transition.
+
+### 5. Create a submission
+
+```http
+POST /api/submissions
+Authorization: Bearer <access-token>
+Content-Type: application/json
+
+{
+  "taskId": 42,
+  "fileUrl": "/uploads/task-42.png",
+  "versionNote": "First completed pass"
+}
+```
+
+The IDs and upload URL are examples. The application normally uploads the file
+through `POST /api/uploads`, receives its URL, and then creates the submission.
+For the complete endpoint catalog, see the
+[API reference](documents/03-api/01-api-reference.md) or local Swagger UI.
+
+## Role-based Demo Walkthrough
+
+This scenario demonstrates how one unit of work travels across the studio.
+
+| Step | Role | Action | Expected result |
+| --- | --- | --- | --- |
+| 1 | Editorial Board | Open the proposal review queue and approve a submitted series proposal. | The approved proposal can become an active series with production planning. |
+| 2 | Mangaka | Open a chapter, upload a page, draw a region, and assign that region to an assistant. | A priced task is created in `ASSIGNED` state and the assistant is notified. |
+| 3 | Assistant | Open **My Tasks**, start the assignment, work in Studio, upload the result, and submit it. | The task advances through `IN_PROGRESS` to `SUBMITTED`, with a review item for the mangaka. |
+| 4 | Mangaka | Review the submission and approve it or request a revision with feedback. | Approval completes the task; a revision returns actionable feedback to the assistant. |
+| 5 | Tantou Editor | Review the chapter, inspect page work, add annotations, and approve or request changes. | The chapter follows its guarded editorial-review transition. |
+| 6 | Editorial Board | Open and close voting periods, inspect rankings, and record a continuation decision. | Governance data is preserved for the series decision workflow. |
+| 7 | Admin | Review users and resolve submitted payment disputes. | Administrative actions are recorded while platform safety guards remain enforced. |
+
+Use the [role guides](documents/05-roles/) for exact permissions, UI routes, and
+state rules before presenting a production demo.
+
+## Testing Strategy
+
+The monorepo keeps tests close to the component they verify:
+
+- `@manga/shared` tests roles, statuses, and transition rules shared by clients.
+- `@manga/canvas-wasm` tests the WebAssembly loader and canvas-facing operations.
+- Backend Jest suites cover authentication, services, validation, and workflows.
+- Frontend Vitest suites cover components, user interactions, and Studio behavior.
+- The root build validates package order and production TypeScript compilation.
+
+Run the complete suite:
+
+```powershell
+pnpm test
+pnpm build
+```
+
+Run a focused workspace suite:
+
+```powershell
+pnpm -F @manga/shared test
+pnpm -F @manga/canvas-wasm test
+pnpm -F backend test
+pnpm -F frontend test
+```
+
+Focused tests are useful while developing, but run the complete suite before a
+pull request is merged.
+
+## Production Checklist
+
+- [ ] Replace development JWT and OAuth values with managed secrets.
+- [ ] Configure SMTP delivery and confirm `OTP_DEV_ECHO` is disabled.
+- [ ] Restrict `CLIENT_URL` and CORS to approved production origins.
+- [ ] Provision MySQL with migrations/init procedures, backups, and restore tests.
+- [ ] Provision S3-compatible storage and verify bucket access and retention.
+- [ ] Disable or replace local demo credentials in the production environment.
+- [ ] Run the full test suite and production build from a clean checkout.
+- [ ] Review throttling, logs, health monitoring, alerts, and rollback procedures.
+- [ ] Confirm TLS termination and secret rotation with the deployment owner.
+
+This repository documents application setup but does not claim to provide a
+complete production deployment platform. Infrastructure and operational controls
+must be supplied by the target environment.
+
 ## Available Commands
 
 | Command | Purpose |
@@ -213,7 +400,7 @@ OTP_DEV_ECHO=true
 | `pnpm db:up` | Start MySQL and SeaweedFS containers. |
 | `pnpm db:down` | Stop the development containers. |
 
-## Troubleshooting
+## Troubleshooting and FAQ
 
 ### `No database selected`
 
@@ -262,6 +449,46 @@ docker ps --filter "name=manga-dev"
 
 The backend can start while storage is unavailable, but upload and Studio submission
 flows require SeaweedFS.
+
+### Which local folder and branch should I edit?
+
+Work inside the repository created by `git clone`, not an older ZIP extraction or
+manually initialized folder. Before editing, check:
+
+```powershell
+git remote -v
+git branch --show-current
+git status
+```
+
+Create a focused branch from the team's integration branch and keep unrelated
+changes out of the same pull request.
+
+### Why do saved frontend changes not appear?
+
+A different Vite process may own port `5173`, especially when multiple clones
+exist. Identify the listener and confirm its command path before stopping it:
+
+```powershell
+Get-NetTCPConnection -LocalPort 5173 -State Listen |
+  Select-Object LocalAddress, LocalPort, OwningProcess
+Get-CimInstance Win32_Process -Filter "ProcessId=<OwningProcess>" |
+  Select-Object ProcessId, CommandLine
+```
+
+Restart `pnpm dev:frontend` from the intended repository and branch.
+
+### Where is the API documentation?
+
+Use Swagger at <http://localhost:3000/api/docs> while the backend is running. The
+tracked reference is available at
+[`documents/03-api/01-api-reference.md`](documents/03-api/01-api-reference.md).
+
+### Why do uploads fail while the rest of the app works?
+
+MySQL and the NestJS API may be healthy while SeaweedFS is unavailable. Check the
+`manga-dev-seaweedfs` container, ports `8333` and `8888`, and backend storage logs.
+Restart the infrastructure with `pnpm db:up` after confirming Docker is running.
 
 ## Documentation
 
