@@ -73,7 +73,7 @@ export default function Proposals() {
         genreIds: formData.genreIds,
       });
       setProposals([res.data, ...proposals]);
-      toast.success('Đã tạo đề xuất.');
+      toast.success("Đã tạo đề xuất.");
       setFormData({
         title: "",
         synopsis: "",
@@ -91,10 +91,8 @@ export default function Proposals() {
   async function handleSubmitProposal(proposalId: number) {
     try {
       const res = await api.patch(`/proposals/${proposalId}/submit`);
-      setProposals(
-        proposals.map((p) => (p.id === proposalId ? res.data : p))
-      );
-      toast.success('Đã gửi đề xuất cho hội đồng.');
+      setProposals(proposals.map((p) => (p.id === proposalId ? res.data : p)));
+      toast.success("Đã gửi đề xuất cho hội đồng.");
     } catch (err: any) {
       console.error("Failed to submit proposal:", err);
       setError(err.response?.data?.message || "Lỗi khi gửi đề xuất");
@@ -188,7 +186,10 @@ export default function Proposals() {
               </span>
               <div className="grid grid-cols-2 gap-2 bg-bg p-3 rounded-[calc(var(--app-radius)*0.6)] border border-line">
                 {genres.map((g) => (
-                  <label key={g.id} className="flex items-center gap-2 cursor-pointer">
+                  <label
+                    key={g.id}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
                     <input
                       type="checkbox"
                       checked={formData.genreIds.includes(g.id)}
@@ -215,7 +216,9 @@ export default function Proposals() {
 
       {/* Proposals List */}
       <div className="mt-8">
-        <h2 className="text-lg font-semibold text-ink mb-4">Các đề xuất của bạn</h2>
+        <h2 className="text-lg font-semibold text-ink mb-4">
+          Các đề xuất của bạn
+        </h2>
         {proposals.length === 0 ? (
           <Panel className="p-6 text-ink-soft text-center">
             Chưa có đề xuất nào
@@ -223,7 +226,10 @@ export default function Proposals() {
         ) : (
           <div className="space-y-3">
             {proposals.map((proposal) => (
-              <Panel key={proposal.id} className="p-4 flex items-start justify-between">
+              <Panel
+                key={proposal.id}
+                className="p-4 flex items-start justify-between"
+              >
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-semibold text-ink">
