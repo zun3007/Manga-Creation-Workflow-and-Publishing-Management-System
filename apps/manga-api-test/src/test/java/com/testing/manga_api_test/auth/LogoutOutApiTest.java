@@ -1,5 +1,6 @@
 package com.testing.manga_api_test.auth;
 
+import com.testing.manga_api_test.config.AuthTestConfig;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,7 @@ public class LogoutOutApiTest {
         RestAssured.given()
                 .contentType(ContentType.JSON)
                 .when()
-                .post("http://localhost:3000/api/auth/logout")
+                .post(AuthTestConfig.AUTH_URL + "/logout")
                 .then()
                 .statusCode(201)
                 .body("ok", equalTo(true));

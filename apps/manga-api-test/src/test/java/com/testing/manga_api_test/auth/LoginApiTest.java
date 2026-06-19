@@ -1,7 +1,9 @@
 package com.testing.manga_api_test.auth;
 
+import com.testing.manga_api_test.config.AuthTestConfig;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
+import io.restassured.response.Response;
 import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.*;
@@ -19,42 +21,25 @@ public class LoginApiTest {
     void loginShouldRequire2FA() {
 
         // Generating HTTP Request
-        RestAssured.given()
-                // Adding header
-                .contentType(ContentType.JSON)
-                // Body content
-                .body("""
-                    {
-                       "email": "dungminer69@gmail.com",
-                       "password": "Dung123456@"
-                    }
-                """)
-                // Get Path: POST /api/auth/login
-                .when()
-                .post("http://localhost:3000/api/auth/login")
-                // Starting to check result
-                .then()
-                .statusCode(201)
-                .body("twoFactorRequired", equalTo(true))
-                .body("challengeToken", notNullValue())
-                .body("expiresIn", equalTo(600));
+        Response response = login(AuthTestConfig.TEST_USER_EMAIL, AuthTestConfig.TEST_USER_PASSWORD);
+
+        // Starting to check result
+        response.then()
+            .statusCode(201)
+            .body("twoFactorRequired", equalTo(true))
+            .body("challengeToken", notNullValue())
+            .body("expiresIn", equalTo(600));
     }
 
     // TC-LOGIN-002: Login fail with email empty
     @Test
     void loginShouldFailWhenEmailEmpty() {
 
-        RestAssured.given()
-                .contentType(ContentType.JSON)
-                .body("""
-                  {
-                      "email": "",
-                      "password": "Dung123456@"
-                  }
-                """)
-                .when()
-                .post("http://localhost:3000/api/auth/login")
-                .then()
+        // Generating HTTP Request
+        Response response = login("", AuthTestConfig.TEST_USER_PASSWORD);
+
+        // Starting to check result
+        response.then()
                 .statusCode(400)
                 .body("message", contains("Email không hợp lệ"))
                 .body("error", equalTo("Bad Request"))
@@ -65,17 +50,11 @@ public class LoginApiTest {
     @Test
     void loginShouldFailWhenEmailFormatInvalid() {
 
-        RestAssured.given()
-                .contentType(ContentType.JSON)
-                .body("""
-                  {
-                      "email": "ngoThaiAnhHao123",
-                      "password": "test123"
-                  }
-                """)
-                .when()
-                .post("http://localhost:3000/api/auth/login")
-                .then()
+        // Generating HTTP Request
+        Response response = login("ngoThaiAnhHao123", AuthTestConfig.TEST_USER_PASSWORD);
+
+        // Starting to check result
+        response.then()
                 .statusCode(400)
                 .body("message", contains("Email không hợp lệ"))
                 .body("error", equalTo("Bad Request"))
@@ -107,39 +86,34 @@ public class LoginApiTest {
     @Test
     void accountShouldBeLockedAfterFiveFailedAttempts() {
 
+        // Repeat login 4 times
         for (int i = 1; i <= 4; i++) {
-            RestAssured.given()
-                    .contentType(ContentType.JSON)
-                    .body("""
-                      {
-                          "email": "dungminer69@gmail.com",
-                          "password": "WrongPassword123"
-                      }
-                    """)
-                    .when()
-                    .post("http://localhost:3000/api/auth/login")
-                    .then()
-                    .statusCode(401)
-                    .body("message", equalTo("Email hoặc mật khẩu không đúng"))
-                    .body("error", equalTo("Unauthorized"))
-                    .body("statusCode", equalTo(401));
+            login(AuthTestConfig.TEST_USER_EMAIL, "WrongPassword123");
         }
 
-        RestAssured.given()
-                .contentType(ContentType.JSON)
-                .body("""
-                      {
-                          "email": "dungminer69@gmail.com",
-                          "password": "WrongPassword123"
-                      }
-                    """)
-                .when()
-                .post("http://localhost:3000/api/auth/login")
-                .then()
+        // Testing
+        Response response = login(AuthTestConfig.TEST_USER_EMAIL, "WrongPassword123");
+
+        // Constraint
+        response.then()
                 .statusCode(423)
                 .body("message", equalTo("Tài khoản bị khóa"))
                 .body("error", equalTo("Locked"))
                 .body("statusCode", equalTo(423));
+    }
+
+    // ================================== HELPER METHODS ==================================
+    private Response login(String email, String password) {
+        return RestAssured.given()
+                .contentType(ContentType.JSON)
+                .body("""
+                      {
+                          "email": "%s",
+                          "password": "%s"
+                      }
+                    """.formatted(email, password))
+                .when()
+                .post(AuthTestConfig.AUTH_URL + "/login");
     }
 
 

@@ -1,7 +1,9 @@
 package com.testing.manga_api_test.auth;
 
+import com.testing.manga_api_test.config.AuthTestConfig;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
+import io.restassured.response.Response;
 import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -19,19 +21,13 @@ public class Verify2faApiTest {
     @Test
     void verify2faShouldReturnAccessToken() {
         // Login and get challenge token
-        String challengeToken = getChallengeTokenWhenLogin();
+        String challengeToken = AuthTestConfig.loginAndGetChallengeToken();
 
-        RestAssured.given()
-                .contentType(ContentType.JSON)
-                .body("""
-                {
-                  "challengeToken": "%s",
-                  "code": "123456"
-                }
-                """.formatted(challengeToken))
-                .when()
-                .post("http://localhost:3000/api/auth/2fa/verify")
-                .then()
+        // Generating HTTP Request
+        Response response = verify2fa(challengeToken, AuthTestConfig.FIXED_OTP_FOR_VERIFY);
+
+        // Starting to check result
+        response.then()
                 .statusCode(201)
                 .body("accessToken", notNullValue());
 
@@ -41,19 +37,13 @@ public class Verify2faApiTest {
     @Test
     void verify2faShouldFailWhenOtpWrong() {
         // Login and get challenge token
-        String challengeToken = getChallengeTokenWhenLogin();
+        String challengeToken = AuthTestConfig.loginAndGetChallengeToken();
 
-        RestAssured.given()
-                .contentType(ContentType.JSON)
-                .body("""
-                {
-                  "challengeToken": "%s",
-                  "code": "000000"
-                }
-                """.formatted(challengeToken))
-                .when()
-                .post("http://localhost:3000/api/auth/2fa/verify")
-                .then()
+        // Generating HTTP Request
+        Response response = verify2fa(challengeToken, "000000");
+
+        // Starting to check result
+        response.then()
                 .statusCode(401)
                 .body("message", notNullValue())
                 .body("error", equalTo("Unauthorized"))
@@ -64,40 +54,30 @@ public class Verify2faApiTest {
     @Test
     void verify2faShouldFailWhenChallengeTokenInvalid() {
         // Login and get challenge token
-        String challengeToken = getChallengeTokenWhenLogin();
+        String challengeToken = AuthTestConfig.loginAndGetChallengeToken();
 
-        RestAssured.given()
-                .contentType(ContentType.JSON)
-                .body("""
-                {
-                  "challengeToken": "InvalidChallengeToken",
-                  "code": "123456"
-                }
-                """)
-                .when()
-                .post("http://localhost:3000/api/auth/2fa/verify")
-                .then()
+        // Generating HTTP Request
+        Response response = verify2fa("Invalid Challenge Token", AuthTestConfig.FIXED_OTP_FOR_VERIFY);
+
+        // Starting to check result
+        response.then()
                 .statusCode(401)
                 .body("message", notNullValue())
                 .body("error", equalTo("Unauthorized"))
                 .body("statusCode", equalTo(401));
     }
 
-    // Helper method: Login and get Challenge Token
-    private String getChallengeTokenWhenLogin() {
+    // ================================== HELPER METHODS ==================================
+    private Response verify2fa(String challengeToken, String code) {
         return RestAssured.given()
                 .contentType(ContentType.JSON)
                 .body("""
-                      {
-                          "email": "dungminer69@gmail.com",
-                          "password": "Dung123456@"
-                      }
-                    """)
+                    {
+                      "challengeToken": "%s",
+                      "code": "%s"
+                    }
+                """.formatted(challengeToken, code))
                 .when()
-                .post("http://localhost:3000/api/auth/login")
-                .then()
-                .statusCode(201)
-                .extract()
-                .path("challengeToken");
+                .post(AuthTestConfig.AUTH_URL + "/2fa/verify");
     }
 }
