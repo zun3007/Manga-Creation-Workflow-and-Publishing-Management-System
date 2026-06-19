@@ -6,9 +6,15 @@ import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.*;
 
+/**
+ * Test Case Amount: 5
+ * Test Case Success: 3
+ * Test Case Failed: 2 (TC-LOGIN-004, TC-LOGIN-005)
+ * UPDATED DATE: 19/06/2026
+ */
 public class LoginApiTest {
 
-    // Login should require 2FA
+    // TC-LOGIN-001: Login should require 2FA
     @Test
     void loginShouldRequire2FA() {
 
@@ -34,7 +40,7 @@ public class LoginApiTest {
                 .body("expiresIn", equalTo(600));
     }
 
-    // Login fail with email empty
+    // TC-LOGIN-002: Login fail with email empty
     @Test
     void loginShouldFailWhenEmailEmpty() {
 
@@ -55,7 +61,7 @@ public class LoginApiTest {
                 .body("statusCode", equalTo(400));
     }
 
-    // Login fail with invalid email format
+    // TC-LOGIN-003: Login fail with invalid email format
     @Test
     void loginShouldFailWhenEmailFormatInvalid() {
 
@@ -76,7 +82,7 @@ public class LoginApiTest {
                 .body("statusCode", equalTo(400));
     }
 
-    // Login fail when user is not activate
+    // TC-LOGIN-004: Login fail when user is not activate
 //    @Test
 //    void loginShouldFailWhenUserNotActivated() {
 //
@@ -97,7 +103,7 @@ public class LoginApiTest {
 //                .body("statusCode", equalTo(400));
 //    }
 
-    // Account should be locked after five failed attempts
+    // TC-LOGIN-005: Account should be locked after five failed attempts
     @Test
     void accountShouldBeLockedAfterFiveFailedAttempts() {
 
@@ -135,8 +141,6 @@ public class LoginApiTest {
                 .body("error", equalTo("Locked"))
                 .body("statusCode", equalTo(423));
     }
-
-
 
 
 }

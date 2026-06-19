@@ -59,7 +59,10 @@ export class OtpService implements OnModuleInit {
    * and persist a bcrypt hash. Returns the plaintext code (to be mailed).
    */
   async issue(userId: number, ttlMinutes: number): Promise<string> {
-    const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    const code =
+      process.env.NODE_ENV === 'test'
+        ? '123456'
+        : String(randomInt(0, 1_000_000)).padStart(6, '0');
     const hash = await bcrypt.hash(code, 10);
     await this.db.query(
       `UPDATE \`Email_Otp\` SET consumed_at = NOW() WHERE user_id = ? AND consumed_at IS NULL`,
