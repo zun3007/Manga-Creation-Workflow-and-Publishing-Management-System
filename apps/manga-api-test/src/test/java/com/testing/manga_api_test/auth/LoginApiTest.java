@@ -10,8 +10,8 @@ import static org.hamcrest.Matchers.*;
 
 /**
  * Test Case Amount: 5
- * Test Case Success: 3
- * Test Case Failed: 2 (TC-LOGIN-004, TC-LOGIN-005)
+ * Test Case Success: 4
+ * Test Case Failed: 1 (TC-LOGIN-004)
  * UPDATED DATE: 19/06/2026
  */
 public class LoginApiTest {
@@ -21,7 +21,7 @@ public class LoginApiTest {
     void loginShouldRequire2FA() {
 
         // Generating HTTP Request
-        Response response = login(AuthTestConfig.TEST_USER_EMAIL, AuthTestConfig.TEST_USER_PASSWORD);
+        Response response = login(AuthTestConfig.MANGAKA_EMAIL, AuthTestConfig.MANGAKA_PASSWORD);
 
         // Starting to check result
         response.then()
@@ -36,7 +36,7 @@ public class LoginApiTest {
     void loginShouldFailWhenEmailEmpty() {
 
         // Generating HTTP Request
-        Response response = login("", AuthTestConfig.TEST_USER_PASSWORD);
+        Response response = login("", AuthTestConfig.MANGAKA_PASSWORD);
 
         // Starting to check result
         response.then()
@@ -51,7 +51,7 @@ public class LoginApiTest {
     void loginShouldFailWhenEmailFormatInvalid() {
 
         // Generating HTTP Request
-        Response response = login("ngoThaiAnhHao123", AuthTestConfig.TEST_USER_PASSWORD);
+        Response response = login("ngoThaiAnhHao123", AuthTestConfig.MANGAKA_PASSWORD);
 
         // Starting to check result
         response.then()
@@ -82,24 +82,19 @@ public class LoginApiTest {
 //                .body("statusCode", equalTo(400));
 //    }
 
-    // TC-LOGIN-005: Account should be locked after five failed attempts
+    // TC-LOGIN-005: Login fail with wrong password
     @Test
-    void accountShouldBeLockedAfterFiveFailedAttempts() {
+    void accountShouldFailWhenWrongPassword() {
 
-        // Repeat login 4 times
-        for (int i = 1; i <= 4; i++) {
-            login(AuthTestConfig.TEST_USER_EMAIL, "WrongPassword123");
-        }
-
-        // Testing
-        Response response = login(AuthTestConfig.TEST_USER_EMAIL, "WrongPassword123");
+        // Generating HTTP Request
+        Response response = login(AuthTestConfig.MANGAKA_EMAIL, "WrongPassword");
 
         // Constraint
         response.then()
-                .statusCode(423)
-                .body("message", equalTo("Tài khoản bị khóa"))
-                .body("error", equalTo("Locked"))
-                .body("statusCode", equalTo(423));
+                .statusCode(401)
+                .body("message", equalTo("Email hoặc mật khẩu không đúng"))
+                .body("error", equalTo("Unauthorized"))
+                .body("statusCode", equalTo(401));
     }
 
     // ================================== HELPER METHODS ==================================

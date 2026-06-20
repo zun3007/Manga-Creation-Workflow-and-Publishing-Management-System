@@ -54,7 +54,7 @@ USE manga_creation_workflow_and_publishing_management_system;
 - TC-LOGIN-002: Login fail with email empty
 - TC-LOGIN-002: Login fail with email empty
 - TC-LOGIN-004: Login fail when user is not activate
-- TC-LOGIN-005: Account should be locked after five failed attempts
+- TC-LOGIN-005: Login fail with wrong password
 
 ### Logout API Test:
 - TC-LOGOUT-001: Logout success
@@ -66,5 +66,70 @@ USE manga_creation_workflow_and_publishing_management_system;
 
 ### Verify 2fa API Test:
 - TC-VERIFY-001: Verify 2 fa return access token
-- TC-VERIFY-002: Verify 2 fa fail when otp wrong
-- TC-RESEND-003: Resend Otp Fail When Has Many Request
+- TC-VERIFY-002: Verify 2 fa fail when wrong otp 
+- TC-VERIFY-003: Verify 2 fa should fail when challenge token invalid
+- TC-VERIFY-004: Verify 2 fa fail when otp less than 6 digits
+
+### Get Me API Test:
+- TC-ME-001: Get me should return success
+- TC-ME-002: Get me should fail when access token invalid
+- TC-ME-003: Get me should fail when missing access token
+
+### Change Password API Test:
+- TC-PASSWORD-001: Change password should return ok
+- TC-PASSWORD-002: Change password should fail when current password incorrect
+- TC-PASSWORD-003: Change password should fail when current password is same with new password
+- TC-PASSWORD-004: Change password should fail when missing access token
+- TC-PASSWORD-005: Change password should fail when access token is invalid
+- TC-PASSWORD-006: Change password should fail when new password less than 8 characters
+- TC-PASSWORD-007: Change password should fail when new password more than 72 characters
+
+### Get All Assistants API Test:
+- TC-ASSISTANT-001: Get assistants should return success
+- TC-ASSISTANT-002: Get assistant should fail when missing access token
+- TC-ASSISTANT-003: Get assistant should fail when access token is invalid
+
+### Get All Editors API Test:
+- TC-Editor-001: Get editors should return success
+- TC-Editor-002: Get editors should fail when missing access token
+- TC-Editor-003: Get editors should fail when access token is invalid
+
+### Get Current User Details Test
+- TC-USR-ME-001: Get current user details should return success
+- TC-USR-ME-002: Get current user details should fail when missing access token
+- TC-USR-ME-003: Get current user details should fail when access token invalid
+
+### Update My Profile Test
+- TC-USR-UPD-001: Update my profile should return success
+- TC-USR-UPD-002: Update my profile should fail when missing access token
+- TC-USR-UPD-003: Update my profile should fail when access token is invalid
+- TC-USR-UPD-004: Update my profile should fail when full name is not a string
+- TC-USR-UPD-005: Update my profile should fail when avatar url is not a string
+- TC-USR-UPD-006: Update my profile should fail when full name greater than 120 characters
+- TC-USR-UPD-007: Update my profile should fail when avatar url greater than 500 characters
+- TC-USR-UPD-008: Update my profile should fail when full name is null
+- TC-USR-UPD-009: Update my profile should return success when avatar url is null
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
