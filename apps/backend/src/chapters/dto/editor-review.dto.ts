@@ -1,4 +1,10 @@
-import { IsIn, IsOptional, IsString, IsNotEmpty, MaxLength } from 'class-validator';
+import {
+  IsIn,
+  IsOptional,
+  IsString,
+  IsNotEmpty,
+  MaxLength,
+} from 'class-validator';
 
 export class EditorReviewDto {
   @IsIn(['APPROVE', 'REVISE'])

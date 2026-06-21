@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { AxiosResponse } from "axios";
 import { render, screen, waitFor } from "@testing-library/react";
 import { ConfirmProvider } from "../../lib/confirm";
 import { ToastProvider } from "../../components/ui/Toast";
 import Disputes from "./Disputes";
 
 vi.mock("../../lib/api", () => ({
+  apiErrorMessage: (_err: unknown, fallback: string) => fallback,
   api: {
     get: vi.fn().mockResolvedValue({
       data: [
@@ -89,7 +91,7 @@ describe("Disputes", () => {
   it("shows empty state when no disputes", async () => {
     vi.mocked(mockApi.get).mockResolvedValueOnce({
       data: [],
-    } as any);
+    } as unknown as AxiosResponse);
 
     render(
       <ToastProvider>

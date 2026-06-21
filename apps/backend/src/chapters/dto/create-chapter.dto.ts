@@ -1,4 +1,12 @@
-import { IsString, IsInt, IsOptional, IsDateString, IsNotEmpty, MaxLength, Min } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  IsOptional,
+  IsDateString,
+  IsNotEmpty,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class CreateChapterDto {
   @IsInt()

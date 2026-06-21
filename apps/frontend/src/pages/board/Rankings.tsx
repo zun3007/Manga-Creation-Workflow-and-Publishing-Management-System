@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api } from "../../lib/api";
+import { api, apiErrorMessage } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
 import { useConfirm } from "../../lib/confirm";
 import { Panel } from "../../components/ui/Panel";
@@ -121,8 +121,7 @@ export default function BoardRankings() {
       setRankings(res.data || []);
       toast.success('Đã ghi nhận quyết định.');
     } catch (e) {
-      const message = (e as any)?.response?.data?.message || "Thao tác thất bại.";
-      setActionError(String(message));
+      setActionError(apiErrorMessage(e, "Thao tác thất bại."));
       console.error("Failed to post decision", e);
     } finally {
       setBusy(false);
@@ -156,8 +155,7 @@ export default function BoardRankings() {
       setOpenPeriods(res.data || []);
       toast.success('Đã ghi nhận phiếu bình chọn.');
     } catch (e) {
-      const message = (e as any)?.response?.data?.message || "Thao tác thất bại.";
-      setActionError(String(message));
+      setActionError(apiErrorMessage(e, "Thao tác thất bại."));
       console.error("Failed to post vote", e);
     } finally {
       setBusy(false);
@@ -179,8 +177,7 @@ export default function BoardRankings() {
       setOpenPeriods(periodsRes.data || []);
       toast.success('Đã chốt kỳ & tính xếp hạng.');
     } catch (e) {
-      const message = (e as any)?.response?.data?.message || "Thao tác thất bại.";
-      setActionError(String(message));
+      setActionError(apiErrorMessage(e, "Thao tác thất bại."));
       console.error("Failed to close period", e);
     } finally {
       setBusy(false);
@@ -215,8 +212,7 @@ export default function BoardRankings() {
       setOpenPeriods(res.data || []);
       toast.success('Đã mở kỳ bình chọn.');
     } catch (e) {
-      const message = (e as any)?.response?.data?.message || "Thao tác thất bại.";
-      setActionError(String(message));
+      setActionError(apiErrorMessage(e, "Thao tác thất bại."));
       console.error("Failed to open new period", e);
     } finally {
       setBusy(false);

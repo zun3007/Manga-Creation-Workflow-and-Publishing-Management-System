@@ -5,7 +5,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 
 const field =
-  'w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent';
+  'w-full rounded-[calc(var(--app-radius)*0.6)] border border-line bg-surface px-3 py-2 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15';
 
 export function ChangePasswordModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const toast = useToast();
@@ -43,7 +43,7 @@ export function ChangePasswordModal({ open, onClose }: { open: boolean; onClose:
 
   return (
     <Modal open={open} onClose={close} title="Đổi mật khẩu" className="w-full max-w-sm">
-      <form onSubmit={submit} className="space-y-4">
+      <form onSubmit={submit} className="space-y-4 p-5">
         <div className="space-y-1">
           <label htmlFor="cur-pw" className="text-xs font-medium text-ink-soft">Mật khẩu hiện tại</label>
           <input id="cur-pw" type="password" autoComplete="current-password" required value={cur} onChange={(e) => setCur(e.target.value)} className={field} />

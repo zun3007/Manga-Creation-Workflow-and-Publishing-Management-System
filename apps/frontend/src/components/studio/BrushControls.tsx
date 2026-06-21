@@ -60,7 +60,10 @@ function CheckboxToggle({ label, checked, onChange }: CheckboxToggleProps) {
 }
 
 export function BrushControls({ settings, onChange }: BrushControlsProps) {
-  const handleChange = (key: keyof BrushSettings, value: any) => {
+  const handleChange = <K extends keyof BrushSettings>(
+    key: K,
+    value: BrushSettings[K],
+  ) => {
     onChange({ ...settings, [key]: value });
   };
 

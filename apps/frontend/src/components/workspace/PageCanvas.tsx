@@ -14,6 +14,14 @@ const REGION_TYPES = [
   RegionType.EFFECT,
 ] as const;
 
+const REGION_LABELS: Record<string, string> = {
+  [RegionType.PANEL]: "Khung",
+  [RegionType.BACKGROUND]: "Nền",
+  [RegionType.CHARACTER]: "Nhân vật",
+  [RegionType.DIALOGUE_BUBBLE]: "Thoại",
+  [RegionType.EFFECT]: "Hiệu ứng",
+};
+
 interface Region extends RegionItem {
   isNew?: boolean;
 }
@@ -47,6 +55,8 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
     height: number;
   } | null>(null);
   const [newRegionType, setNewRegionType] = useState<RegionType>(RegionType.PANEL);
+  // Editing the type of an existing region (S2-F07).
+  const [editingRegionId, setEditingRegionId] = useState<number | null>(null);
 
   async function loadPage() {
     setLoading(true);
@@ -156,6 +166,32 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
       toast.success("Đã thêm vùng.");
     } catch (e) {
       console.error("Failed to create region", e);
+      toast.error("Không thể thêm vùng. Vui lòng thử lại.");
+    }
+  }
+
+  async function handleDeleteRegion(region: Region) {
+    try {
+      await api.delete(`/regions/${region.id}`);
+      setRegions((prev) => prev.filter((r) => r.id !== region.id));
+      toast.success("Đã xoá vùng.");
+    } catch (e) {
+      console.error("Failed to delete region", e);
+      // The Task→Region FK blocks deleting a region that already has a task.
+      toast.error("Không thể xoá vùng đã được giao việc.");
+    }
+  }
+
+  async function handleUpdateRegionType(region: Region, type: RegionType) {
+    setEditingRegionId(null);
+    if (type === region.type) return;
+    try {
+      const res = await api.patch<Region>(`/regions/${region.id}`, { regionType: type });
+      setRegions((prev) => prev.map((r) => (r.id === region.id ? { ...r, ...res.data } : r)));
+      toast.success("Đã đổi loại vùng.");
+    } catch (e) {
+      console.error("Failed to update region", e);
+      toast.error("Không thể đổi loại vùng.");
     }
   }
 
@@ -230,7 +266,7 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
               top: `${Math.min(startPos.y, currentPos.y)}px`,
               width: `${Math.abs(currentPos.x - startPos.x)}px`,
               height: `${Math.abs(currentPos.y - startPos.y)}px`,
-              border: "2px dashed var(--accent)",
+              border: "2px dashed var(--app-accent)",
               pointerEvents: "none",
             }}
             className="bg-accent/10"
@@ -239,55 +275,129 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
 
         {/* Existing regions */}
         {boxSize &&
-          regions.map((region) => (
-            <button
-              key={region.id}
-              onClick={() => onRegionClick?.(region)}
-              aria-label={`Vùng ${region.type}`}
-              style={{
-                position: "absolute",
-                left: `${region.x * boxSize.width}px`,
-                top: `${region.y * boxSize.height}px`,
-                width: `${region.width * boxSize.width}px`,
-                height: `${region.height * boxSize.height}px`,
-                border: "1px solid var(--accent)",
-                cursor: "pointer",
-                transition: "all 0.2s",
-              }}
-              className="bg-accent/10 hover:brightness-110"
-            >
-              <div className="absolute bottom-0.5 left-0.5 bg-accent text-white px-1 py-0.5 font-mono text-[0.5rem] uppercase rounded-[2px]">
-                {region.type}
+          regions.map((region) => {
+            const rx = region.x * boxSize.width;
+            const ry = region.y * boxSize.height;
+            const rw = region.width * boxSize.width;
+            const rh = region.height * boxSize.height;
+            const label = REGION_LABELS[region.type] ?? region.type;
+            return (
+              <div key={region.id}>
+                <button
+                  onClick={() => onRegionClick?.(region)}
+                  aria-label={`Vùng ${label} — nhấn để giao việc`}
+                  style={{
+                    position: "absolute",
+                    left: `${rx}px`,
+                    top: `${ry}px`,
+                    width: `${rw}px`,
+                    height: `${rh}px`,
+                    border: "1px solid var(--app-accent)",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                  className="bg-accent/10 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  <div className="absolute bottom-0.5 left-0.5 bg-accent text-white px-1 py-0.5 font-mono text-[0.5rem] uppercase rounded-[2px]">
+                    {label}
+                  </div>
+                </button>
+                {/* Edit type */}
+                <button
+                  type="button"
+                  aria-label={`Đổi loại vùng ${label}`}
+                  title="Đổi loại vùng"
+                  onClick={() => setEditingRegionId(editingRegionId === region.id ? null : region.id)}
+                  style={{ position: "absolute", left: `${rx + rw - 32}px`, top: `${ry - 10}px` }}
+                  className="grid h-5 w-5 place-items-center rounded-full bg-accent text-[0.6rem] leading-none text-white opacity-80 transition hover:opacity-100 hover:brightness-110 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  ✎
+                </button>
+                {/* Delete */}
+                <button
+                  type="button"
+                  aria-label={`Xoá vùng ${label}`}
+                  title="Xoá vùng"
+                  onClick={() => handleDeleteRegion(region)}
+                  style={{ position: "absolute", left: `${rx + rw - 10}px`, top: `${ry - 10}px` }}
+                  className="grid h-5 w-5 place-items-center rounded-full bg-danger text-xs leading-none text-white opacity-80 transition hover:opacity-100 hover:brightness-110 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger"
+                >
+                  ×
+                </button>
+                {/* Edit-type chip popover */}
+                {editingRegionId === region.id && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: `${Math.max(4, Math.min(rx, boxSize.width - 184))}px`,
+                      top: ry + rh + 6 > boxSize.height - 64 ? `${Math.max(4, ry - 58)}px` : `${ry + rh + 6}px`,
+                    }}
+                  >
+                    <Panel className="p-2 shadow-lg">
+                      <div className="flex w-[170px] flex-wrap gap-1">
+                        {REGION_TYPES.map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => handleUpdateRegionType(region, t)}
+                            className={`rounded-full px-2 py-1 font-mono text-[0.6rem] uppercase tracking-wider transition ${
+                              t === region.type
+                                ? "bg-accent text-white"
+                                : "border border-line bg-bg text-ink-soft hover:text-ink"
+                            }`}
+                          >
+                            {REGION_LABELS[t] ?? t}
+                          </button>
+                        ))}
+                      </div>
+                    </Panel>
+                  </div>
+                )}
               </div>
-            </button>
-          ))}
+            );
+          })}
 
-        {/* New region popover */}
+        {/* Empty-state hint: invite the mangaka to draw the first region. */}
+        {boxSize && regions.length === 0 && !dragging && !newRegionRect && (
+          <div className="pointer-events-none absolute inset-0 grid place-items-center">
+            <span className="rounded-full bg-ink/70 px-3 py-1.5 font-mono text-[0.62rem] uppercase tracking-wider text-bg">
+              Kéo để vẽ vùng giao việc
+            </span>
+          </div>
+        )}
+
+        {/* New region popover — clamped within the canvas so it never clips off-edge. */}
         {newRegionRect && boxSize && (
           <div
             style={{
               position: "absolute",
-              left: `${newRegionRect.left + newRegionRect.width / 2 - 100}px`,
-              top: `${newRegionRect.top - 120}px`,
+              left: `${Math.max(4, Math.min(newRegionRect.left + newRegionRect.width / 2 - 100, boxSize.width - 204))}px`,
+              top:
+                newRegionRect.top - 120 < 4
+                  ? `${newRegionRect.top + newRegionRect.height + 8}px`
+                  : `${newRegionRect.top - 120}px`,
             }}
           >
-            <Panel className="p-4 w-[200px] shadow-lg">
-              <label className="block mb-3">
-                <span className="mb-1 block font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft">
-                  Loại vùng
-                </span>
-                <select
-                  value={newRegionType}
-                  onChange={(e) => setNewRegionType(e.target.value as RegionType)}
-                  className="w-full rounded-[calc(var(--app-radius)*0.6)] border border-line bg-surface px-3 py-2 text-ink outline-none transition focus:border-accent"
-                >
-                  {REGION_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <Panel className="p-4 w-[210px] shadow-lg">
+              <span className="mb-1.5 block font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft">
+                Loại vùng
+              </span>
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {REGION_TYPES.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setNewRegionType(t)}
+                    className={`rounded-full px-2.5 py-1 text-xs transition ${
+                      newRegionType === t
+                        ? "bg-accent text-white"
+                        : "border border-line bg-bg text-ink-soft hover:border-accent/40 hover:text-ink"
+                    }`}
+                  >
+                    {REGION_LABELS[t] ?? t}
+                  </button>
+                ))}
+              </div>
               <div className="flex gap-2">
                 <Button
                   variant="soft"

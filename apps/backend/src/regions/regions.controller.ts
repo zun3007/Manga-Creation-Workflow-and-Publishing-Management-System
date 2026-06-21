@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Delete,
   Body,
   Param,
@@ -15,6 +16,7 @@ import { Roles } from '../auth/roles.decorator';
 import { Role } from '@manga/shared';
 import { RegionsService } from './regions.service';
 import { CreateRegionDto } from './dto/create-region.dto';
+import { UpdateRegionDto } from './dto/update-region.dto';
 
 @Controller('regions')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -31,6 +33,16 @@ export class RegionsController {
   @Roles(Role.MANGAKA)
   async listByPage(@Query('pageId') pageId: string, @Req() req: any) {
     return this.service.listByPage(+pageId, req.user.id);
+  }
+
+  @Patch(':id')
+  @Roles(Role.MANGAKA)
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateRegionDto,
+    @Req() req: any,
+  ) {
+    return this.service.updateType(+id, req.user.id, dto.regionType);
   }
 
   @Delete(':id')

@@ -47,10 +47,6 @@ export default function Earnings() {
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [formData, setFormData] = useState({ reason: "", expectedAmount: "" });
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   async function loadData() {
     setLoading(true);
     setError("");
@@ -68,6 +64,10 @@ export default function Earnings() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   async function handleSubmitDispute(taskId: number) {
     if (!formData.reason.trim()) {
@@ -161,7 +161,7 @@ export default function Earnings() {
       <Panel className="mb-6 p-6">
         <p className="text-sm text-ink-soft mb-2">Tổng thu nhập</p>
         <p className="text-3xl font-semibold text-accent">
-          {total.toLocaleString("vi-VN")} ₫
+          {Number(total).toLocaleString("vi-VN")} ₫
         </p>
       </Panel>
 
@@ -209,7 +209,7 @@ export default function Earnings() {
                       </td>
                       <td className="p-4 text-ink-soft">{task.regionType}</td>
                       <td className="p-4 font-semibold text-accent">
-                        {task.amount.toLocaleString("vi-VN")} ₫
+                        {Number(task.amount).toLocaleString("vi-VN")} ₫
                       </td>
                       <td className="p-4 text-ink-soft">
                         {task.earnedAt
@@ -330,9 +330,9 @@ export default function Earnings() {
                 <p className="text-sm text-ink-soft">
                   Đề xuất:{" "}
                   {dispute.expectedAmount
-                    ? `${dispute.expectedAmount.toLocaleString("vi-VN")} ₫`
+                    ? `${Number(dispute.expectedAmount).toLocaleString("vi-VN")} ₫`
                     : "—"}{" "}
-                  · Hiện tại: {dispute.currentAmount.toLocaleString("vi-VN")} ₫
+                  · Hiện tại: {Number(dispute.currentAmount).toLocaleString("vi-VN")} ₫
                 </p>
                 {dispute.resolutionNote && (
                   <p className="text-sm text-ink-soft mt-2">

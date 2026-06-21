@@ -85,9 +85,7 @@ export class MailService {
       await tx.sendMail({ from, to, subject, text, html });
       this.logger.log(`OTP email sent → ${to}`);
     } catch (err: any) {
-      this.logger.error(
-        `OTP email failed → ${to}: ${err?.message ?? err}`,
-      );
+      this.logger.error(`OTP email failed → ${to}: ${err?.message ?? err}`);
       throw new ServiceUnavailableException(
         'Không gửi được mã xác thực, vui lòng thử lại',
       );

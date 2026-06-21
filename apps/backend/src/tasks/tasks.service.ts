@@ -16,6 +16,7 @@ import {
 } from '@manga/shared';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { syncPageStatusFromTasks } from '../pages/page-status.util';
+import { toMysqlDeadline } from '../common/date.util';
 
 @Injectable()
 export class TasksService {
@@ -51,10 +52,9 @@ export class TasksService {
       user_id: number;
       full_name: string;
       role: string;
-    }>(
-      `SELECT user_id, full_name, role FROM \`User\` WHERE user_id = ?`,
-      [dto.assigneeUserId],
-    );
+    }>(`SELECT user_id, full_name, role FROM \`User\` WHERE user_id = ?`, [
+      dto.assigneeUserId,
+    ]);
 
     if (!assignee) {
       throw new NotFoundException('User not found');
@@ -100,7 +100,7 @@ export class TasksService {
         dto.assigneeUserId,
         dto.description ?? null,
         dto.instruction ?? null,
-        dto.deadline ?? null,
+        toMysqlDeadline(dto.deadline),
         TaskStatus.ASSIGNED,
         payment,
         ruleId,
@@ -199,7 +199,11 @@ export class TasksService {
     }
 
     if (
-      !canTransition(TASK_TRANSITIONS, task.status as TaskStatus, TaskStatus.IN_PROGRESS)
+      !canTransition(
+        TASK_TRANSITIONS,
+        task.status as TaskStatus,
+        TaskStatus.IN_PROGRESS,
+      )
     ) {
       throw new BadRequestException(
         `Cannot transition from ${task.status} to IN_PROGRESS`,

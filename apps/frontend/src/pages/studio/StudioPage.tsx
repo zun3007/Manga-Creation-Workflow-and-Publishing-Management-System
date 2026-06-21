@@ -14,7 +14,7 @@ import { MODELS } from '../../lib/studio/ai/onnx/models';
 import type { AIAssist } from '../../lib/studio/ai/AIAssist';
 import { createDocument } from '../../lib/studio/document';
 import { deserializeDoc, loadImageFromBlob, imageToBuffer, serializeDoc, exportPNG } from '../../lib/studio/io';
-import type { RectN } from '../../lib/studio/types';
+import type { LayerDocManifest, RectN } from '../../lib/studio/types';
 import type { PageDetail } from '../../types';
 import { useToast } from '../../components/ui/Toast';
 import { Spinner } from '../../components/ui/Spinner';
@@ -37,7 +37,7 @@ export default function StudioPage() {
       let page: PageDetail | null = null;
       try { page = (await api.get<PageDetail>(`/pages/${id}`)).data; }
       catch (e) { console.warn('[StudioPage] page meta unavailable, opening blank canvas', e); }
-      const docRes = await api.get(`/studio/docs/${id}`).catch(() => ({ data: null as any }));
+      const docRes = await api.get<LayerDocManifest | null>(`/studio/docs/${id}`).catch(() => ({ data: null }));
       let eng: StudioEngine;
       if (docRes.data && docRes.data.doc) {
         const result = await deserializeDoc(docRes.data, wasm);
@@ -76,7 +76,7 @@ export default function StudioPage() {
         if (shouldRestore) {
           const draft = await loadDraft(key);
           if (draft && draft.manifest) {
-            const result = await deserializeDoc(draft.manifest as any, wasm);
+            const result = await deserializeDoc(draft.manifest as LayerDocManifest, wasm);
             eng = result.engine;
             if (result.warnings?.length) {
               console.warn('[StudioPage] Draft layer load warnings:', result.warnings);

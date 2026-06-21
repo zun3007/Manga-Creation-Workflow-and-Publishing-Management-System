@@ -16,10 +16,11 @@ beforeAll(async () => {
   const wasmPath = `${currentDir}/../../../../../packages/canvas-wasm/build/inkforge.wasm`;
   const bytes = readFileSync(wasmPath);
   wasm = await InkforgeWasm.load(bytes);
-});
+}, 30_000);
 
 describe('Studio', () => {
-  it('mounts the studio and fires onSave', async () => {
+  // Mounting the full studio (wasm engine + stage) is slow under parallel suite contention.
+  it('mounts the studio and fires onSave', { timeout: 30_000 }, async () => {
     const eng = new StudioEngine(createDocument({ width: 200, height: 200 }), wasm);
     const onSave = vi.fn();
     const onClose = vi.fn();

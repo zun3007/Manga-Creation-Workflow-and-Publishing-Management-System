@@ -1,4 +1,13 @@
-import { IsString, IsOptional, IsEnum, IsArray, IsInt, ArrayNotEmpty, IsNotEmpty, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsArray,
+  IsInt,
+  ArrayNotEmpty,
+  IsNotEmpty,
+  MaxLength,
+} from 'class-validator';
 import { Frequency } from '@manga/shared';
 
 export class CreateProposalDto {

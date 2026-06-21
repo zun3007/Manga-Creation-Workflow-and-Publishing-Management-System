@@ -18,10 +18,6 @@ export default function ReviewQueue() {
   const [feedbackText, setFeedbackText] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    loadChapters();
-  }, []);
-
   async function loadChapters() {
     setLoading(true);
     setError("");
@@ -35,6 +31,10 @@ export default function ReviewQueue() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    loadChapters();
+  }, []);
 
   async function decide(
     id: number,

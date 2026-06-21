@@ -54,4 +54,11 @@ export class ProposalsController {
   ) {
     return this.service.decide(+id, dto.decision, req.user.id);
   }
+
+  // Declared LAST so the static routes above ('mine', 'review-queue') match first.
+  @Get(':id')
+  @Roles(Role.MANGAKA, Role.EDITORIAL_BOARD, Role.TANTOU_EDITOR)
+  async getDetail(@Param('id') id: string, @Req() req: any) {
+    return this.service.getDetail(+id, req.user.id, req.user.role);
+  }
 }

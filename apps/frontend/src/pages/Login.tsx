@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Lock, Eye, EyeOff, ArrowRight, AlertTriangle } from "lucide-react";
 import { isTwoFactorRequired, type TwoFactorRequired } from "@manga/shared";
 import { useAuth } from "../lib/auth";
-import { googleLoginUrl } from "../lib/api";
+import { apiErrorMessage, googleLoginUrl } from "../lib/api";
 import { Panel } from "../components/ui/Panel";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -29,7 +29,16 @@ export default function Login() {
   const [email, setEmail] = useState("dungminer69@gmail.com");
   const [password, setPassword] = useState("Dung123456@");
   const [show, setShow] = useState(false);
-  const [error, setError] = useState("");
+  // Derive the redirect-reason banner from the URL once at mount (lazy initializer)
+  // instead of a setState-in-effect.
+  const [error, setError] = useState(() => {
+    const errorParam = params.get("error");
+    if (errorParam === "session_expired")
+      return "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.";
+    if (errorParam === "google_not_configured")
+      return "Google OAuth chưa cấu hình — xem dev/README.md để thêm credentials.";
+    return "";
+  });
   const [busy, setBusy] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -38,15 +47,6 @@ export default function Login() {
   useEffect(() => {
     if (user) navigate("/", { replace: true });
   }, [user, navigate]);
-
-  useEffect(() => {
-    const errorParam = params.get("error");
-    if (errorParam === "session_expired") {
-      setError("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
-    } else if (errorParam === "google_not_configured") {
-      setError("Google OAuth chưa cấu hình — xem dev/README.md để thêm credentials.");
-    }
-  }, [params]);
 
   function validateForm(): boolean {
     setEmailError("");
@@ -80,8 +80,8 @@ export default function Login() {
       } else {
         navigate("/", { replace: true });
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? "Đăng nhập thất bại");
+    } catch (err) {
+      setError(apiErrorMessage(err, "Đăng nhập thất bại"));
     } finally {
       setBusy(false);
     }

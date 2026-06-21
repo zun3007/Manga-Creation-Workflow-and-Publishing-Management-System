@@ -14,6 +14,7 @@ import { MODELS } from '../../lib/studio/ai/onnx/models';
 import type { AIAssist } from '../../lib/studio/ai/AIAssist';
 import { createDocument } from '../../lib/studio/document';
 import { loadImageFromBlob, imageToBuffer, exportPNG, serializeDoc, deserializeDoc } from '../../lib/studio/io';
+import type { LayerDocManifest } from '../../lib/studio/types';
 import type { TaskItem } from '../../types';
 import { useToast } from '../../components/ui/Toast';
 import { Spinner } from '../../components/ui/Spinner';
@@ -32,7 +33,7 @@ export default function StudioRegionPage() {
   useEffect(() => { let alive = true; (async () => {
     try {
       const wasm = await InkforgeWasm.load(wasmUrl);
-      let task: TaskItem | undefined = (location.state as any)?.task;
+      let task: TaskItem | undefined = (location.state as { task?: TaskItem } | null)?.task;
       if (!task) { const { data } = await api.get<TaskItem[]>('/tasks/mine'); task = data.find(t => t.id === id); }
       const w = 1000, h = 1414; const doc = createDocument({ width: w, height: h, background: 'white' });
       let eng = new StudioEngine(doc, wasm);
@@ -51,7 +52,7 @@ export default function StudioRegionPage() {
         if (shouldRestore) {
           const draft = await loadDraft(key);
           if (draft && draft.manifest) {
-            const result = await deserializeDoc(draft.manifest as any, wasm);
+            const result = await deserializeDoc(draft.manifest as LayerDocManifest, wasm);
             eng = result.engine;
             if (result.warnings?.length) {
               console.warn('[StudioRegionPage] Draft layer load warnings:', result.warnings);
@@ -111,7 +112,17 @@ export default function StudioRegionPage() {
   }, [engine, id]);
 
   async function onSave() {
-    if (!engine) return; setSaving(true);
+    if (!engine) return;
+    // The button is an explicit SUBMIT — confirm so it never auto-submits by
+    // surprise. The working draft is autosaved locally, so "Để sau" is safe.
+    const okSubmit = await confirm({
+      title: 'Nộp bài cho Mangaka?',
+      body: 'Bản vẽ hiện tại sẽ được nộp để Mangaka duyệt. Bản nháp được tự động lưu — bạn có thể tiếp tục chỉnh sửa trước khi nộp.',
+      confirmText: 'Nộp bài',
+      cancelText: 'Để sau',
+    });
+    if (!okSubmit) return;
+    setSaving(true);
     const tid = toast.loading('Đang nộp bài…');
     try {
       const blob = await exportPNG(engine); const fd = new FormData(); fd.append('file', new File([blob], `task-${id}.png`, { type: 'image/png' }));
@@ -128,6 +139,6 @@ export default function StudioRegionPage() {
   if (error) return <div className="grid h-screen place-items-center bg-bg text-ink"><div className="flex flex-col items-center gap-3 text-center"><p className="text-sm text-danger">{error}</p><button onClick={() => navigate('/my-tasks')} className="px-4 py-2 text-xs uppercase tracking-wide rounded bg-accent text-ink">Quay lại</button></div></div>;
   if (!engine || !ai) return <div className="grid h-screen place-items-center bg-bg text-ink"><div className="flex flex-col items-center gap-3 text-ink-soft"><Spinner size={28} className="text-accent" /><span className="font-mono text-xs uppercase tracking-wider">Đang mở Studio…</span></div></div>;
   return <div data-role={user ? roleScope(user.role) : 'assistant'} className="h-screen w-screen overflow-hidden bg-bg">
-    <Studio engine={engine} ai={ai} aiKind={aiKind} onSave={onSave} onClose={() => navigate('/my-tasks')} saving={saving} title={`Việc #${id}`} />
+    <Studio engine={engine} ai={ai} aiKind={aiKind} onSave={onSave} onClose={() => navigate('/my-tasks')} saving={saving} title={`Việc #${id}`} saveLabel="Nộp bài" />
   </div>;
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Download } from "lucide-react";
 import { TaskStatus } from "@manga/shared";
 import { api } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
@@ -8,6 +9,7 @@ import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { Stamp } from "../../components/ui/Stamp";
 import { SubmitDialog } from "../../components/assistant/SubmitDialog";
+import { TaskKanban } from "../../components/assistant/TaskKanban";
 
 export default function Tasks() {
   const navigate = useNavigate();
@@ -17,10 +19,7 @@ export default function Tasks() {
   const [error, setError] = useState("");
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    loadTasks();
-  }, []);
+  const [view, setView] = useState<"list" | "board">("list");
 
   async function loadTasks() {
     setLoading(true);
@@ -35,6 +34,10 @@ export default function Tasks() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    loadTasks();
+  }, []);
 
   async function handleStartTask(task: TaskItem) {
     setSubmitting(true);
@@ -82,7 +85,23 @@ export default function Tasks() {
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl mb-6">Việc của tôi</h1>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h1 className="text-2xl">Việc của tôi</h1>
+        <div className="inline-flex rounded-full border border-line bg-surface p-0.5">
+          {(["list", "board"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              className={`rounded-full px-3 py-1 font-mono text-[0.62rem] uppercase tracking-wider transition ${
+                view === v ? "bg-accent text-white" : "text-ink-soft hover:text-ink"
+              }`}
+            >
+              {v === "list" ? "Danh sách" : "Bảng"}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {error && (
         <Panel className="mb-6 p-4 bg-danger/10 border-danger/20 text-danger">
@@ -94,6 +113,8 @@ export default function Tasks() {
         <Panel className="p-6 text-ink-soft text-center py-12">
           Hiện chưa có việc gì được giao.
         </Panel>
+      ) : view === "board" ? (
+        <TaskKanban tasks={tasks} />
       ) : (
         <div className="grid gap-4">
           {tasks.map((task) => (
@@ -102,11 +123,22 @@ export default function Tasks() {
                 {/* Left side: image, description, metadata */}
                 <div className="flex gap-4">
                   {task.pageImage && (
-                    <img
-                      src={task.pageImage}
-                      alt={`Trang ${task.page}`}
-                      className="h-24 w-20 shrink-0 rounded object-cover border border-line"
-                    />
+                    <div className="flex shrink-0 flex-col gap-1.5">
+                      <img
+                        src={task.pageImage}
+                        alt={`Trang ${task.page}`}
+                        className="h-24 w-20 rounded object-cover border border-line"
+                      />
+                      <a
+                        href={task.pageImage}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-1 rounded-[calc(var(--app-radius)*0.5)] border border-line px-2 py-1 font-mono text-[0.6rem] uppercase tracking-wider text-ink-soft transition hover:border-accent hover:text-ink"
+                      >
+                        <Download size={11} /> Tải trang
+                      </a>
+                    </div>
                   )}
                   <div className="flex-1">
                     {/* Description */}
@@ -129,12 +161,9 @@ export default function Tasks() {
                         </p>
                       )}
                       {task.regionType && <p>Vùng: {task.regionType}</p>}
-                      {task.payment && (
+                      {task.payment != null && task.payment !== "" && (
                         <p className="font-semibold text-accent">
-                          {typeof task.payment === "number"
-                            ? task.payment.toLocaleString("vi-VN")
-                            : task.payment}{" "}
-                          ₫
+                          {Number(task.payment).toLocaleString("vi-VN")} ₫
                         </p>
                       )}
                       {task.deadline && (

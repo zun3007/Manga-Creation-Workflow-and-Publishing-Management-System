@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { TwoFactorRequired } from "@manga/shared";
 import { useAuth } from "../../lib/auth";
+import { apiErrorMessage } from "../../lib/api";
 import { Button } from "../ui/Button";
 
 const LEN = 6;
@@ -68,8 +69,8 @@ export function TwoFactorChallenge({
     try {
       await verifyTwoFactor(challenge.challengeToken, value);
       onVerified();
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? "Xác thực thất bại");
+    } catch (err) {
+      setError(apiErrorMessage(err, "Xác thực thất bại"));
       reset();
     } finally {
       setBusy(false);
@@ -124,8 +125,8 @@ export function TwoFactorChallenge({
       if (res.devCode) setDevCode(res.devCode);
       setResentAt(true);
       reset();
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? "Không gửi lại được mã");
+    } catch (err) {
+      setError(apiErrorMessage(err, "Không gửi lại được mã"));
     } finally {
       setResending(false);
     }

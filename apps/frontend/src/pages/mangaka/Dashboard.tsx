@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import {
   BookOpen,
   Layers,
@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   CalendarClock,
   CircleDollarSign,
+  type LucideIcon,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
@@ -19,20 +20,20 @@ import { Progress } from '../../components/ui/Progress';
 import { Button } from '../../components/ui/Button';
 import type { Summary, Series, Task, Submission, AppNotification } from '../../types';
 
-const num = (v: any) => Number(v ?? 0);
-const money = (v: any) => `$${num(v).toFixed(0)}`;
+const num = (v: unknown) => Number(v ?? 0);
+const money = (v: unknown) => `${num(v).toLocaleString("vi-VN")} ₫`;
 const fmtDate = (s: string | null) =>
   s ? new Date(s).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '—';
 
-const container = {
+const container: Variants = {
   hidden: {},
   show: { transition: { staggerChildren: 0.06 } },
 };
-const item = {
+const item: Variants = {
   hidden: { opacity: 0, y: 12 },
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } },
 };
-const MV = motion.div as any;
+const MV = motion.div;
 
 function StatCard({
   label,
@@ -42,7 +43,7 @@ function StatCard({
 }: {
   label: string;
   value: number;
-  Icon: any;
+  Icon: LucideIcon;
   accent?: 'warn' | 'danger';
 }) {
   const alert = accent && value > 0;

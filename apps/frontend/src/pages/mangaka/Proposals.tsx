@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../../lib/api";
+import { api, apiErrorMessage } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
@@ -30,10 +30,6 @@ export default function Proposals() {
     genreIds: [] as number[],
   });
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   async function loadData() {
     try {
       setLoading(true);
@@ -51,6 +47,10 @@ export default function Proposals() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   async function handleSubmitForm(e: React.FormEvent) {
     e.preventDefault();
@@ -80,9 +80,9 @@ export default function Proposals() {
         proposedFrequency: "WEEKLY",
         genreIds: [],
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to create proposal:", err);
-      setError(err.response?.data?.message || "Lỗi khi tạo đề xuất");
+      setError(apiErrorMessage(err, "Lỗi khi tạo đề xuất"));
     } finally {
       setSubmitting(false);
     }
@@ -95,9 +95,9 @@ export default function Proposals() {
         proposals.map((p) => (p.id === proposalId ? res.data : p))
       );
       toast.success('Đã gửi đề xuất cho hội đồng.');
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to submit proposal:", err);
-      setError(err.response?.data?.message || "Lỗi khi gửi đề xuất");
+      setError(apiErrorMessage(err, "Lỗi khi gửi đề xuất"));
     }
   }
 

@@ -11,6 +11,7 @@ import {
   PROPOSAL_TRANSITIONS,
   canTransition,
   NotificationType,
+  Role,
 } from '@manga/shared';
 import { CreateProposalDto } from './dto/create-proposal.dto';
 
@@ -25,7 +26,13 @@ export class ProposalsService {
     const proposalId = await this.db.insert(
       `INSERT INTO \`Series_Proposal\` (mangaka_user_id, title, synopsis, proposed_frequency, proposal_status)
        VALUES (?, ?, ?, ?, ?)`,
-      [mangakaUserId, dto.title, dto.synopsis ?? null, dto.proposedFrequency, ProposalStatus.DRAFT],
+      [
+        mangakaUserId,
+        dto.title,
+        dto.synopsis ?? null,
+        dto.proposedFrequency,
+        ProposalStatus.DRAFT,
+      ],
     );
 
     for (const genreId of dto.genreIds) {
@@ -61,6 +68,38 @@ export class ProposalsService {
     );
   }
 
+  /**
+   * Proposal detail with role-scoped access (S1-F10). A Mangaka sees only their
+   * own; an Editorial Board member sees any; a Tantou Editor sees a proposal only
+   * if they are the active assigned editor of the series it produced.
+   */
+  async getDetail(proposalId: number, userId: number, role: string) {
+    const proposal = await this.findOne(proposalId);
+    if (!proposal) {
+      throw new NotFoundException('Proposal not found');
+    }
+    if (role === Role.MANGAKA) {
+      if ((proposal as { mangakaUserId: number }).mangakaUserId !== userId) {
+        throw new ForbiddenException('You do not own this proposal');
+      }
+    } else if (role === Role.TANTOU_EDITOR) {
+      const assigned = await this.db.queryOne(
+        `SELECT 1 AS ok
+         FROM \`Series\` s
+         JOIN \`Series_Tantou_Editor\` ste
+           ON ste.series_id = s.series_id AND ste.unassigned_at IS NULL
+         WHERE s.proposal_id = ? AND ste.editor_user_id = ?
+         LIMIT 1`,
+        [proposalId, userId],
+      );
+      if (!assigned) {
+        throw new ForbiddenException('Bạn không phụ trách đề xuất này');
+      }
+    }
+    // EDITORIAL_BOARD: may view any proposal detail.
+    return proposal;
+  }
+
   async listMine(mangakaUserId: number) {
     return this.db.query(
       `SELECT
@@ -94,7 +133,13 @@ export class ProposalsService {
       throw new ForbiddenException('You do not own this proposal');
     }
 
-    if (!canTransition(PROPOSAL_TRANSITIONS, proposal.status, ProposalStatus.SUBMITTED)) {
+    if (
+      !canTransition(
+        PROPOSAL_TRANSITIONS,
+        proposal.status,
+        ProposalStatus.SUBMITTED,
+      )
+    ) {
       throw new BadRequestException(
         `Cannot transition from ${proposal.status} to SUBMITTED`,
       );
@@ -131,14 +176,20 @@ export class ProposalsService {
     );
   }
 
-  async decide(proposalId: number, decision: 'APPROVED' | 'REJECTED', boardUserId: number) {
+  async decide(
+    proposalId: number,
+    decision: 'APPROVED' | 'REJECTED',
+    _boardUserId: number,
+  ) {
     const proposal = await this.findOne(proposalId);
     if (!proposal) {
       throw new NotFoundException('Proposal not found');
     }
 
     const decisionStatus =
-      decision === 'APPROVED' ? ProposalStatus.APPROVED : ProposalStatus.REJECTED;
+      decision === 'APPROVED'
+        ? ProposalStatus.APPROVED
+        : ProposalStatus.REJECTED;
 
     if (!canTransition(PROPOSAL_TRANSITIONS, proposal.status, decisionStatus)) {
       throw new BadRequestException(
@@ -154,7 +205,13 @@ export class ProposalsService {
         seriesId = await tx.insert(
           `INSERT INTO \`Series\` (proposal_id, mangaka_user_id, title, publication_frequency, series_status)
            VALUES (?, ?, ?, ?, ?)`,
-          [proposalId, proposal.mangakaUserId, proposal.title, proposal.proposedFrequency, 'ACTIVE'],
+          [
+            proposalId,
+            proposal.mangakaUserId,
+            proposal.title,
+            proposal.proposedFrequency,
+            'ACTIVE',
+          ],
         );
 
         await tx.query(

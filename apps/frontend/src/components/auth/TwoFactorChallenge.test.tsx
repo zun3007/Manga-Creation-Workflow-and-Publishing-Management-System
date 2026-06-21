@@ -53,7 +53,9 @@ describe('TwoFactorChallenge', () => {
   });
 
   it('shows an inline error and clears the inputs on a wrong code', async () => {
+    // isAxiosError flag makes axios.isAxiosError() (used by apiErrorMessage) accept the mock
     verifyTwoFactor.mockRejectedValue({
+      isAxiosError: true,
       response: { data: { message: 'Mã không đúng. Còn 4 lần thử.' } },
     });
     const onVerified = vi.fn();

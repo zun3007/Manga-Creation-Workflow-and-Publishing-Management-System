@@ -145,6 +145,8 @@ export interface SubmissionItem {
   status: SubmissionStatus;
   note: string | null;
   fileUrl: string;
+  /** The original page image the assistant worked from (for side-by-side compare). */
+  originalUrl?: string | null;
   submittedAt: string;
   taskId?: number;
   task?: string;

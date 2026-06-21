@@ -38,6 +38,8 @@ export interface StudioProps {
   onSaveRegions?: (frames: RectN[]) => void;
   saving?: boolean;
   title?: string;
+  /** Label for the primary save/commit button (default "Lưu"). Assistants submit, so they pass "Nộp bài". */
+  saveLabel?: string;
 }
 
 export function Studio({
@@ -49,6 +51,7 @@ export function Studio({
   onSaveRegions,
   saving,
   title,
+  saveLabel = 'Lưu',
 }: StudioProps) {
   const { confirm } = useConfirm();
   const [tool, setTool] = useState<ToolId>('brush');
@@ -124,8 +127,9 @@ export function Studio({
     toolRef.current = tool;
   }, [tool]);
 
-  // Create tools once
-  const tools = useRef(
+  // Create tools once (lazy state initializer — runs exactly once, render-safe).
+  // eslint-disable-next-line react-hooks/refs -- the callbacks handed to createTools only dereference refs when invoked from pointer/keyboard handlers, never during render
+  const [tools] = useState(() =>
     createTools({
       getSettings: () => settingsRef.current,
       getColor: () => colorRef.current,
@@ -151,7 +155,7 @@ export function Studio({
         }
       },
     })
-  ).current;
+  );
 
   // Subscribe to engine changes
   useEffect(() => {
@@ -598,7 +602,7 @@ export function Studio({
               aria-label="Save"
             >
               {saving && <span className="animate-spin">⟳</span>}
-              Lưu
+              {saveLabel}
             </button>
 
             {/* Fullscreen */}

@@ -8,10 +8,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import {
-  AnnotationTargetType,
-  AnnotationCategory,
-} from '@manga/shared';
+import { AnnotationTargetType, AnnotationCategory } from '@manga/shared';
 
 export class CreateAnnotationDto {
   @IsEnum(AnnotationTargetType)

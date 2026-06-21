@@ -67,9 +67,7 @@ export class UsersService {
     return user;
   }
 
-  async getProfile(
-    userId: number,
-  ): Promise<{
+  async getProfile(userId: number): Promise<{
     id: number;
     email: string;
     fullName: string;

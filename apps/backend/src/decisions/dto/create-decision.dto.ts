@@ -1,4 +1,12 @@
-import { IsInt, IsEnum, IsOptional, IsString, IsNotEmpty, MaxLength, Min } from 'class-validator';
+import {
+  IsInt,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsNotEmpty,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import { DecisionType, Frequency } from '@manga/shared';
 
 export class CreateDecisionDto {

@@ -77,3 +77,6 @@ prompt.txt
 /.claude/
 /docs/
 /demo/
+
+# ───────────────── MOOC learning platform (separate git repo, never pushed from here) ─────────────────
+/MOOC/

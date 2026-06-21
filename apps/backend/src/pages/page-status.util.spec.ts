@@ -34,13 +34,13 @@ describe('derivePageStatus', () => {
 
 describe('syncPageStatusFromTasks', () => {
   const mkExec = (taskStatuses: string[], current: string) => {
-    const query = jest.fn(async (sql: string) => {
+    const query = jest.fn((sql: string) => {
       if (sql.includes('FROM `Task`')) {
         return taskStatuses.map((s) => ({ task_status: s }));
       }
       return [];
     });
-    const queryOne = jest.fn(async () => ({ page_status: current }));
+    const queryOne = jest.fn(() => ({ page_status: current }));
     return { query, queryOne };
   };
 

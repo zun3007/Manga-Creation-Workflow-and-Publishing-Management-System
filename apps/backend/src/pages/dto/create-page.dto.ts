@@ -1,4 +1,11 @@
-import { IsString, IsInt, IsOptional, IsNotEmpty, MaxLength, Min } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  IsOptional,
+  IsNotEmpty,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class CreatePageDto {
   @IsInt()
