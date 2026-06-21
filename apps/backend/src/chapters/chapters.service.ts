@@ -222,6 +222,7 @@ export class ChaptersService {
     return this.db.query(
       `SELECT c.chapter_id AS id, c.chapter_number AS number, c.chapter_title AS title,
               c.chapter_status AS status, c.deadline, s.series_id AS seriesId, s.title AS series,
+              s.proposal_id AS proposalId,
               (SELECT COUNT(*) FROM \`Page\` p WHERE p.chapter_id = c.chapter_id) AS pages
        FROM \`Chapter\` c
        JOIN \`Series\` s ON s.series_id = c.series_id

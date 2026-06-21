@@ -14,6 +14,7 @@ import {
   Role,
 } from '@manga/shared';
 import { CreateProposalDto } from './dto/create-proposal.dto';
+import { UpdateProposalDto } from './dto/update-proposal.dto';
 
 @Injectable()
 export class ProposalsService {
@@ -24,14 +25,15 @@ export class ProposalsService {
 
   async create(mangakaUserId: number, dto: CreateProposalDto) {
     const proposalId = await this.db.insert(
-      `INSERT INTO \`Series_Proposal\` (mangaka_user_id, title, synopsis, proposed_frequency, proposal_status)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO \`Series_Proposal\` (mangaka_user_id, title, synopsis, proposed_frequency, proposal_status, sample_manuscript_url)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         mangakaUserId,
         dto.title,
         dto.synopsis ?? null,
         dto.proposedFrequency,
         ProposalStatus.DRAFT,
+        dto.sampleManuscriptUrl ?? null,
       ],
     );
 
@@ -58,6 +60,7 @@ export class ProposalsService {
         sp.submitted_at AS submittedAt,
         sp.created_at AS createdAt,
         sp.updated_at AS updatedAt,
+        sp.sample_manuscript_url AS sampleManuscriptUrl,
         GROUP_CONCAT(g.genre_name SEPARATOR ',') AS genres
        FROM \`Series_Proposal\` sp
        LEFT JOIN \`Proposal_Genre\` pg ON sp.proposal_id = pg.proposal_id
@@ -113,6 +116,7 @@ export class ProposalsService {
         sp.submitted_at AS submittedAt,
         sp.created_at AS createdAt,
         sp.updated_at AS updatedAt,
+        sp.sample_manuscript_url AS sampleManuscriptUrl,
         GROUP_CONCAT(g.genre_name SEPARATOR ',') AS genres
        FROM \`Series_Proposal\` sp
        LEFT JOIN \`Proposal_Genre\` pg ON sp.proposal_id = pg.proposal_id
@@ -122,6 +126,68 @@ export class ProposalsService {
        ORDER BY sp.created_at DESC`,
       [mangakaUserId],
     );
+  }
+
+  /** Edit a DRAFT proposal (S1-F07). Mangaka-owned + DRAFT only. */
+  async update(
+    proposalId: number,
+    mangakaUserId: number,
+    dto: UpdateProposalDto,
+  ) {
+    const proposal = await this.findOne(proposalId);
+    if (!proposal) {
+      throw new NotFoundException('Proposal not found');
+    }
+    if ((proposal as { mangakaUserId: number }).mangakaUserId !== mangakaUserId) {
+      throw new ForbiddenException('You do not own this proposal');
+    }
+    if ((proposal as { status: string }).status !== ProposalStatus.DRAFT) {
+      throw new BadRequestException(
+        'Chỉ có thể sửa đề xuất khi còn ở trạng thái nháp',
+      );
+    }
+
+    const sets: string[] = [];
+    const params: unknown[] = [];
+    if (dto.title !== undefined) {
+      sets.push('title = ?');
+      params.push(dto.title);
+    }
+    if (dto.synopsis !== undefined) {
+      sets.push('synopsis = ?');
+      params.push(dto.synopsis ?? null);
+    }
+    if (dto.proposedFrequency !== undefined) {
+      sets.push('proposed_frequency = ?');
+      params.push(dto.proposedFrequency);
+    }
+    if (dto.sampleManuscriptUrl !== undefined) {
+      sets.push('sample_manuscript_url = ?');
+      params.push(dto.sampleManuscriptUrl ?? null);
+    }
+
+    await this.db.transaction(async (tx) => {
+      if (sets.length > 0) {
+        params.push(proposalId);
+        await tx.query(
+          `UPDATE \`Series_Proposal\` SET ${sets.join(', ')} WHERE proposal_id = ?`,
+          params,
+        );
+      }
+      if (dto.genreIds !== undefined) {
+        await tx.query(`DELETE FROM \`Proposal_Genre\` WHERE proposal_id = ?`, [
+          proposalId,
+        ]);
+        for (const genreId of dto.genreIds) {
+          await tx.query(
+            `INSERT INTO \`Proposal_Genre\` (proposal_id, genre_id) VALUES (?, ?)`,
+            [proposalId, genreId],
+          );
+        }
+      }
+    });
+
+    return this.findOne(proposalId);
   }
 
   async submit(proposalId: number, mangakaUserId: number) {

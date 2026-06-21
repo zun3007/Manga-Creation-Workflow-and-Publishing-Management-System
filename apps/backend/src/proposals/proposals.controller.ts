@@ -14,6 +14,7 @@ import { Roles } from '../auth/roles.decorator';
 import { Role } from '@manga/shared';
 import { ProposalsService } from './proposals.service';
 import { CreateProposalDto } from './dto/create-proposal.dto';
+import { UpdateProposalDto } from './dto/update-proposal.dto';
 import { DecisionDto } from './dto/decision.dto';
 
 @Controller('proposals')
@@ -37,6 +38,16 @@ export class ProposalsController {
   @Roles(Role.MANGAKA)
   async submit(@Param('id') id: string, @Req() req: any) {
     return this.service.submit(+id, req.user.id);
+  }
+
+  @Patch(':id')
+  @Roles(Role.MANGAKA)
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProposalDto,
+    @Req() req: any,
+  ) {
+    return this.service.update(+id, req.user.id, dto);
   }
 
   @Get('review-queue')

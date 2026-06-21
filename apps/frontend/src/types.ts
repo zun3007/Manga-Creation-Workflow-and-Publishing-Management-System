@@ -78,6 +78,7 @@ export interface Proposal {
   mangakaName?: string;
   reviewDueDate?: string | null;
   submittedAt?: string | null;
+  sampleManuscriptUrl?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -163,6 +164,7 @@ export interface EditorChapter {
   deadline: string | null;
   seriesId: number;
   series: string;
+  proposalId?: number;
   pages: number;
 }
 
