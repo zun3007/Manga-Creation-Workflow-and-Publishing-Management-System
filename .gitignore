@@ -18,7 +18,7 @@ apps/backend/dist/
 apps/frontend/dist/
 
 # ───────────────── Env & secrets ─────────────────
-.env
+apps/backend/.env.example
 .env.*
 !.env.example
 

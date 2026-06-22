@@ -107,11 +107,33 @@ USE manga_creation_workflow_and_publishing_management_system;
 - TC-USR-UPD-005: Update my profile should fail when avatar url is not a string
 - TC-USR-UPD-006: Update my profile should fail when full name greater than 120 characters
 - TC-USR-UPD-007: Update my profile should fail when avatar url greater than 500 characters
-- TC-USR-UPD-008: Update my profile should fail when full name is null
+- TC-USR-UPD-008: Update my profile should fail when full name is null (Invalid response status(500), Dev need add validation in dto class)
 - TC-USR-UPD-009: Update my profile should return success when avatar url is null
 
+### Dashboard Summary API Test
+- TC-DB-SMR-001: Dashboard summary should return success
+- TC-DB-SMR-002: Dashboard summary should fail when missing access token
+- TC-DB-SMR-003: Dashboard summary should fail when access token is invalid
 
+### Dashboard Series API Test
+- TC-DB-SRS-001: Dashboard series should return success
+- TC-DB-SRS-002: Dashboard series should fail when missing access token
+- TC-DB-SRS-003: Dashboard series should fail when access token is invalid
 
+### Dashboard Tasks API Test
+- TC-DB-TAS-001: Dashboard tasks should return success
+- TC-DB-TAS-002: Dashboard tasks should fail when missing access token
+- TC-DB-TAS-003: Dashboard tasks should fail when access token is invalid
+
+### Dashboard Submissions API Test
+- TC-DB-SMS-001: Dashboard submissions should return success
+- TC-DB-SMS-002: Dashboard submissions should fail when missing access token
+- TC-DB-SMS-003: Dashboard submissions should fail when access token is invalid
+
+### Dashboard Notifications API Test
+- TC-DB-NOTI-001: Dashboard notifications should return success
+- TC-DB-NOTI-002: Dashboard notifications should fail when missing access token
+- TC-DB-NOTI-003: Dashboard notifications should fail when access token is invalid
 
 
 

@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 
-public class SubmissionsApiTest {
+public class SubmissionsResponseApiTest {
     // TC-DB-SMS-001: Dashboard submissions should return success
     @Test
     void dashboardSubmissionsShouldReturnSuccess() {
