@@ -13,10 +13,13 @@ describe('SubmissionsService', () => {
             submission_status: 'PENDING',
             task_id: 10,
             page_id: 20,
+            file_url: 'http://x/sub.png',
             assistant_user_id: 5,
             assignor_user_id: 3,
             task_status: 'SUBMITTED',
           })
+          // applying the approved artwork: Page_Version MAX(version_number)+1
+          .mockResolvedValueOnce({ next: 2 })
           // syncPageStatusFromTasks current-page lookup
           .mockResolvedValueOnce({ page_status: 'REVIEWING' }),
         query: jest.fn((sql: string) =>
