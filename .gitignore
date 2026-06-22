@@ -18,9 +18,13 @@ apps/backend/dist/
 apps/frontend/dist/
 
 # ───────────────── Env & secrets ─────────────────
-apps/backend/.env.example
+# Ignore ALL real env files (secrets) anywhere; keep only the committed templates.
+.env
 .env.*
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
 
 # ───────────────── Logs ─────────────────
 logs/
