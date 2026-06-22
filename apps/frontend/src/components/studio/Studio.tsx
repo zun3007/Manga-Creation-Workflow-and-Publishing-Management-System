@@ -40,6 +40,8 @@ export interface StudioProps {
   title?: string;
   /** Label for the primary save/commit button (default "Lưu"). Assistants submit, so they pass "Nộp bài". */
   saveLabel?: string;
+  /** Non-destructive guide rectangle (normalized 0..1) showing the assigned region to draw in. */
+  regionGuide?: RectN | null;
 }
 
 export function Studio({
@@ -52,6 +54,7 @@ export function Studio({
   saving,
   title,
   saveLabel = 'Lưu',
+  regionGuide,
 }: StudioProps) {
   const { confirm } = useConfirm();
   const [tool, setTool] = useState<ToolId>('brush');
@@ -642,7 +645,7 @@ export function Studio({
             onViewChange={setView}
             panning={tool === 'pan'}
             fitToken={fitToken}
-            overlays={pendingFrames}
+            overlays={regionGuide ? [...pendingFrames, regionGuide] : pendingFrames}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}

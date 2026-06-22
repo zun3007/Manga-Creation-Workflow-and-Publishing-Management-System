@@ -137,6 +137,11 @@ export interface TaskItem {
   chapter?: string;
   page?: number;
   regionType?: RegionType;
+  // Assigned region bounds, normalized 0..1 (DECIMAL → mysql2 returns strings).
+  regionX?: number | string | null;
+  regionY?: number | string | null;
+  regionWidth?: number | string | null;
+  regionHeight?: number | string | null;
   pageImage?: string | null;
   assignee?: string;
 }
