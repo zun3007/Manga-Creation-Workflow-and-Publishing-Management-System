@@ -163,6 +163,7 @@ export class SubmissionsService {
       submission_status: string;
       task_id: number;
       page_id: number;
+      file_url: string;
       assistant_user_id: number;
       assignor_user_id: number;
       task_status: string;
@@ -172,6 +173,7 @@ export class SubmissionsService {
         sub.submission_status,
         sub.task_id,
         sub.page_id,
+        sub.file_url,
         sub.assistant_user_id,
         t.assignor_user_id,
         t.task_status
@@ -245,6 +247,24 @@ export class SubmissionsService {
            WHERE user_id = ?`,
           [row.task_id, row.assistant_user_id],
         );
+
+        // Apply the approved artwork to the page: the submitted file becomes the
+        // page's new current version. Without this the original page never reflects
+        // the assistant's accepted work (it stayed a standalone Submission row).
+        const pv = await tx.queryOne<{ next: number }>(
+          `SELECT COALESCE(MAX(version_number), 0) + 1 AS next FROM \`Page_Version\` WHERE page_id = ?`,
+          [row.page_id],
+        );
+        const nextVersion = pv?.next ?? 1;
+        await tx.query(
+          `INSERT INTO \`Page_Version\` (page_id, version_number, image_url, uploaded_by_user_id, upload_note)
+           VALUES (?, ?, ?, ?, ?)`,
+          [row.page_id, nextVersion, row.file_url, row.assistant_user_id, 'Bài nộp đã duyệt'],
+        );
+        await tx.query(`UPDATE \`Page\` SET current_version = ? WHERE page_id = ?`, [
+          nextVersion,
+          row.page_id,
+        ]);
       }
 
       // Reconcile the page: COMPLETED once all its tasks are APPROVED,

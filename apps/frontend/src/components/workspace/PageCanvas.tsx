@@ -22,6 +22,23 @@ const REGION_LABELS: Record<string, string> = {
   [RegionType.EFFECT]: "Hiệu ứng",
 };
 
+interface Annotation {
+  id: number;
+  category: string;
+  context: string;
+  x: number | string | null;
+  y: number | string | null;
+  isResolved: 0 | 1 | boolean;
+}
+
+const ANNOTATION_LABELS: Record<string, string> = {
+  CONTENT_ISSUE: "Nội dung",
+  DIALOGUE_ISSUE: "Hội thoại",
+  SCRIPT_ISSUE: "Kịch bản",
+  VISUAL_ISSUE: "Hình ảnh",
+  GENERAL: "Chung",
+};
+
 interface Region extends RegionItem {
   isNew?: boolean;
 }
@@ -38,6 +55,7 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
 
   const [page, setPage] = useState<PageDetail | null>(null);
   const [regions, setRegions] = useState<Region[]>([]);
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -65,6 +83,15 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
       const res = await api.get<PageDetail>(`/pages/${pageId}`);
       setPage(res.data);
       setRegions(res.data.regions || []);
+      // Editor feedback markers (non-fatal — page still loads if this fails).
+      try {
+        const annotRes = await api.get<Annotation[]>("/annotations", {
+          params: { targetType: "PAGE", targetId: pageId },
+        });
+        setAnnotations(annotRes.data || []);
+      } catch {
+        setAnnotations([]);
+      }
     } catch (e) {
       console.error("Failed to load page", e);
       setError(true);
@@ -413,7 +440,58 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
             </Panel>
           </div>
         )}
+
+        {/* Editor feedback markers (read-only, numbered pins — distinct from coral region boxes) */}
+        {boxSize &&
+          annotations
+            .filter((a) => a.x !== null && a.y !== null)
+            .map((annot, idx) => (
+              <div
+                key={annot.id || idx}
+                title={`${ANNOTATION_LABELS[annot.category] ?? annot.category}: ${annot.context}`}
+                style={{
+                  position: "absolute",
+                  left: `${annot.x}%`,
+                  top: `${annot.y}%`,
+                  transform: "translate(-50%, -50%)",
+                }}
+                className={`grid h-6 w-6 place-items-center rounded-full border-2 border-white text-[0.6rem] font-bold text-white ${
+                  annot.isResolved ? "bg-ok/80" : "bg-info"
+                }`}
+              >
+                {idx + 1}
+              </div>
+            ))}
       </div>
+
+      {/* Editor feedback list — so the mangaka can read & locate each note */}
+      {annotations.length > 0 && (
+        <Panel className="p-4">
+          <h3 className="mb-3 font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft">
+            Góp ý của biên tập ({annotations.length})
+          </h3>
+          <div className="space-y-2.5">
+            {annotations.map((annot, idx) => (
+              <div key={annot.id || idx} className="flex gap-2.5 text-sm">
+                <span
+                  className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[0.6rem] font-bold text-white ${
+                    annot.isResolved ? "bg-ok/80" : "bg-info"
+                  }`}
+                >
+                  {idx + 1}
+                </span>
+                <div className="min-w-0">
+                  <span className="font-mono text-[0.58rem] uppercase tracking-wider text-info">
+                    {ANNOTATION_LABELS[annot.category] ?? annot.category}
+                    {annot.isResolved ? " · đã xử lý" : ""}
+                  </span>
+                  <p className="break-words text-ink">{annot.context}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
     </div>
   );
 }

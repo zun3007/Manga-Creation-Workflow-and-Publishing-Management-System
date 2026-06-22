@@ -140,6 +140,10 @@ export class TasksService {
         c.chapter_title AS chapter,
         p.page_number AS page,
         r.region_type AS regionType,
+        r.x_coordinate AS regionX,
+        r.y_coordinate AS regionY,
+        r.width AS regionWidth,
+        r.height AS regionHeight,
         pv.image_url AS pageImage
        FROM \`Task\` t
        JOIN \`Page\` p ON p.page_id = t.page_id
