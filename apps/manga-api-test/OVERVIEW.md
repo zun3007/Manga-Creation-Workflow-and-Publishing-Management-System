@@ -135,6 +135,27 @@ USE manga_creation_workflow_and_publishing_management_system;
 - TC-DB-NOTI-002: Dashboard notifications should fail when missing access token
 - TC-DB-NOTI-003: Dashboard notifications should fail when access token is invalid
 
+### Upload File API Test
+- TC-UPF-001: Upload file should return success
+- TC-UPF-002: Upload file should fail when no have file to send
+- TC-UPF-003: Upload file should fail when missing access token
+- TC-UPF-004: Upload file should fail when invalid access token
+
+### Notifications API Test
+- TC-NTF-001: Notifications should return success
+- TC-NTF-002: Notifications should fail when missing access token
+- TC-NTF-003: Notifications should fail when invalid access token
+
+### Notification Mark Read All API Test
+- TC-NTF-MA-001: Notifications mark all should return success
+- TC-NTF-MA-002: Notifications mark all should fail when missing access token
+- TC-NTF-MA-003: Notifications mark all should fail when invalid access token
+
+### Notification Mark By ID API Test
+- TC-NTF-MID-001: Notifications mark by id should return success
+- TC-NTF-MID-002: Notifications mark by id should fail when missing access token
+- TC-NTF-MID-003: Notifications mark by id should fail when invalid access token
+
 
 
 

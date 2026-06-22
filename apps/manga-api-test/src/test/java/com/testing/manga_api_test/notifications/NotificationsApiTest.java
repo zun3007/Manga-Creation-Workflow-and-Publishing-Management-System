@@ -1,46 +1,48 @@
-package com.testing.manga_api_test.dashboard;
+package com.testing.manga_api_test.notifications;
 
 import com.testing.manga_api_test.config.AuthTestConfig;
-import com.testing.manga_api_test.config.DashboardConfig;
+import com.testing.manga_api_test.config.NotificationsTestConfig;
+import com.testing.manga_api_test.config.UploadTestConfig;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
 
-public class SubmissionsResponseApiTest {
-    // TC-DB-SMS-001: Dashboard submissions should return success
+public class NotificationsApiTest {
+
+    // TC-NTF-001: Notifications should return success
     @Test
-    void dashboardSubmissionsShouldReturnSuccess() {
+    void notificationsShouldReturnSuccess() {
         // Login and verify to get access token
         String accessToken = AuthTestConfig.loginMangakaAccountAndVerifyToReturnAccessToken();
 
         // Generating HTTP Request
-        Response response = getSubmissionsSummaryResponse(accessToken);
+        Response response = getNotificationsResponse(accessToken);
+        response.then().log().all();
 
         // Starting to check result
         response.then()
                 .statusCode(200)
-                .body("size()", equalTo(1))
-                .body("[0].id", equalTo(2))
-                .body("[0].status", equalTo("UNDER_REVIEW"))
-                .body("[0].note", equalTo("nhân vật v1"))
-                .body("[0].task", equalTo("Tô nhân vật chính"))
-                .body("[0].assistant", equalTo("Kenji Sato"))
-                .body("[0].assistantAvatar", nullValue());
+                .body("size()", equalTo(5))
+                .body("[0].id", equalTo(1))
+                .body("[0].type", equalTo("RISK_ALERT"))
+                .body("[0].title",
+                        equalTo("Series \"The Tenth Panel\" đang ở mức rủi ro CAO"))
+                .body("[0].content",
+                        equalTo("Xếp hạng tuần này #8, điểm 55. Cân nhắc cải thiện nhịp truyện."));
     }
 
-    // TC-DB-SMS-002: Dashboard submissions should fail when missing access token
+    // TC-NTF-002: Notifications should fail when missing access token
     @Test
-    void dashboardSubmissionsShouldFailWhenMissingAccessToken() {
+    void notificationsShouldFailWhenMissingAccessToken() {
         // Login and verify to get access token
         String accessToken = AuthTestConfig.loginMangakaAccountAndVerifyToReturnAccessToken();
 
         // Generating HTTP Request
         Response response = RestAssured.given()
                 .when()
-                .get(DashboardConfig.DASHBOARD_URL + "/submissions");
+                .get(NotificationsTestConfig.NOTIFICATION_URL);
 
         // Starting to check result
         response.then()
@@ -49,14 +51,14 @@ public class SubmissionsResponseApiTest {
                 .body("statusCode", equalTo(401));
     }
 
-    // TC-DB-SMS-003: Dashboard submissions should fail when access token is invalid
+    // TC-NTF-003: Notifications should fail when invalid access token
     @Test
-    void dashboardSubmissionsShouldFailWhenInvalidAccessToken() {
+    void notificationsShouldFailWhenInvalidAccessToken() {
         // Login and verify to get access token
         String accessToken = AuthTestConfig.loginMangakaAccountAndVerifyToReturnAccessToken();
 
         // Generating HTTP Request
-        Response response = getSubmissionsSummaryResponse("InvalidAccessToken");
+        Response response = getNotificationsResponse("InvalidAccessToken");
         response.then().log().all();
 
         // Starting to check result
@@ -67,11 +69,13 @@ public class SubmissionsResponseApiTest {
     }
 
     // ================================== HELPER METHODS ==================================
-    private Response getSubmissionsSummaryResponse(String accessToken) {
+    private Response getNotificationsResponse(String accessToken) {
+
         return RestAssured.given()
                 .header( "Authorization",
                         "Bearer " + accessToken)
                 .when()
-                .get(DashboardConfig.DASHBOARD_URL + "/submissions");
+                .get(NotificationsTestConfig.NOTIFICATION_URL);
+
     }
 }

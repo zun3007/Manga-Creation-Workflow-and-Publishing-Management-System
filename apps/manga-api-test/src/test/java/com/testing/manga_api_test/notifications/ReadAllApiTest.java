@@ -1,46 +1,40 @@
-package com.testing.manga_api_test.dashboard;
+package com.testing.manga_api_test.notifications;
 
 import com.testing.manga_api_test.config.AuthTestConfig;
 import com.testing.manga_api_test.config.DashboardConfig;
+import com.testing.manga_api_test.config.NotificationsTestConfig;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
 
-public class SubmissionsResponseApiTest {
-    // TC-DB-SMS-001: Dashboard submissions should return success
+public class ReadAllApiTest {
+
+    // TC-NTF-MA-001: Notifications mark all should return success
     @Test
-    void dashboardSubmissionsShouldReturnSuccess() {
+    void markAllNotificationsAsReadShouldReturnSuccess() {
         // Login and verify to get access token
         String accessToken = AuthTestConfig.loginMangakaAccountAndVerifyToReturnAccessToken();
 
         // Generating HTTP Request
-        Response response = getSubmissionsSummaryResponse(accessToken);
+        Response response = markReadAllNotificationsRequest(accessToken);
 
-        // Starting to check result
         response.then()
                 .statusCode(200)
-                .body("size()", equalTo(1))
-                .body("[0].id", equalTo(2))
-                .body("[0].status", equalTo("UNDER_REVIEW"))
-                .body("[0].note", equalTo("nhân vật v1"))
-                .body("[0].task", equalTo("Tô nhân vật chính"))
-                .body("[0].assistant", equalTo("Kenji Sato"))
-                .body("[0].assistantAvatar", nullValue());
+                .body("ok", equalTo(true));
     }
 
-    // TC-DB-SMS-002: Dashboard submissions should fail when missing access token
+    // TC-NTF-MA-002: Notifications mark all should fail when missing access token
     @Test
-    void dashboardSubmissionsShouldFailWhenMissingAccessToken() {
+    void markAllNotificationsAsReadShouldFailWhenMissingAccessToken() {
         // Login and verify to get access token
         String accessToken = AuthTestConfig.loginMangakaAccountAndVerifyToReturnAccessToken();
 
         // Generating HTTP Request
         Response response = RestAssured.given()
                 .when()
-                .get(DashboardConfig.DASHBOARD_URL + "/submissions");
+                .get(DashboardConfig.DASHBOARD_URL + "/notifications");
 
         // Starting to check result
         response.then()
@@ -49,14 +43,14 @@ public class SubmissionsResponseApiTest {
                 .body("statusCode", equalTo(401));
     }
 
-    // TC-DB-SMS-003: Dashboard submissions should fail when access token is invalid
+    // TC-NTF-MA-003: Notifications mark all should fail when invalid access token
     @Test
-    void dashboardSubmissionsShouldFailWhenInvalidAccessToken() {
+    void markAllNotificationsShouldFailWhenInvalidAccessToken() {
         // Login and verify to get access token
         String accessToken = AuthTestConfig.loginMangakaAccountAndVerifyToReturnAccessToken();
 
         // Generating HTTP Request
-        Response response = getSubmissionsSummaryResponse("InvalidAccessToken");
+        Response response = markReadAllNotificationsRequest("InvalidAccessToken");
         response.then().log().all();
 
         // Starting to check result
@@ -67,11 +61,13 @@ public class SubmissionsResponseApiTest {
     }
 
     // ================================== HELPER METHODS ==================================
-    private Response getSubmissionsSummaryResponse(String accessToken) {
+    private Response markReadAllNotificationsRequest(String accessToken) {
+
         return RestAssured.given()
                 .header( "Authorization",
                         "Bearer " + accessToken)
                 .when()
-                .get(DashboardConfig.DASHBOARD_URL + "/submissions");
+                .patch(NotificationsTestConfig.NOTIFICATION_URL + "/read-all");
+
     }
 }

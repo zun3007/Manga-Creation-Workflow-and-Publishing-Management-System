@@ -1,62 +1,53 @@
-package com.testing.manga_api_test.dashboard;
+package com.testing.manga_api_test.notifications;
 
 import com.testing.manga_api_test.config.AuthTestConfig;
-import com.testing.manga_api_test.config.DashboardConfig;
+import com.testing.manga_api_test.config.NotificationsTestConfig;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
 
-public class SubmissionsResponseApiTest {
-    // TC-DB-SMS-001: Dashboard submissions should return success
+public class ReadByIdApiTest {
+    // TC-NTF-MID-001: Notifications mark by id should return success
     @Test
-    void dashboardSubmissionsShouldReturnSuccess() {
+    void markReadNotificationsByIDShouldReturnSuccess() {
         // Login and verify to get access token
         String accessToken = AuthTestConfig.loginMangakaAccountAndVerifyToReturnAccessToken();
 
         // Generating HTTP Request
-        Response response = getSubmissionsSummaryResponse(accessToken);
+        Response response = markReadNotificationsByIdRequest(accessToken, 1);
 
-        // Starting to check result
         response.then()
                 .statusCode(200)
-                .body("size()", equalTo(1))
-                .body("[0].id", equalTo(2))
-                .body("[0].status", equalTo("UNDER_REVIEW"))
-                .body("[0].note", equalTo("nhân vật v1"))
-                .body("[0].task", equalTo("Tô nhân vật chính"))
-                .body("[0].assistant", equalTo("Kenji Sato"))
-                .body("[0].assistantAvatar", nullValue());
+                .body("ok", equalTo(true));
     }
 
-    // TC-DB-SMS-002: Dashboard submissions should fail when missing access token
+    // TC-NTF-MID-002: Notifications mark by id should fail when missing access token
     @Test
-    void dashboardSubmissionsShouldFailWhenMissingAccessToken() {
+    void markReadNotificationsByIDShouldFailWhenMissingAccessToken() {
         // Login and verify to get access token
         String accessToken = AuthTestConfig.loginMangakaAccountAndVerifyToReturnAccessToken();
 
         // Generating HTTP Request
         Response response = RestAssured.given()
                 .when()
-                .get(DashboardConfig.DASHBOARD_URL + "/submissions");
+                .patch(NotificationsTestConfig.NOTIFICATION_URL + "/" + 1 +"/read");
 
-        // Starting to check result
         response.then()
                 .statusCode(401)
                 .body("message", equalTo("Unauthorized"))
                 .body("statusCode", equalTo(401));
     }
 
-    // TC-DB-SMS-003: Dashboard submissions should fail when access token is invalid
+    // TC-NTF-MID-003: Notifications mark by id should fail when invalid access token
     @Test
-    void dashboardSubmissionsShouldFailWhenInvalidAccessToken() {
+    void markReadNotificationsByIDShouldFailWhenInvalidAccessToken() {
         // Login and verify to get access token
         String accessToken = AuthTestConfig.loginMangakaAccountAndVerifyToReturnAccessToken();
 
         // Generating HTTP Request
-        Response response = getSubmissionsSummaryResponse("InvalidAccessToken");
+        Response response = markReadNotificationsByIdRequest("InvalidAccessToken", 1);
         response.then().log().all();
 
         // Starting to check result
@@ -67,11 +58,13 @@ public class SubmissionsResponseApiTest {
     }
 
     // ================================== HELPER METHODS ==================================
-    private Response getSubmissionsSummaryResponse(String accessToken) {
+    private Response markReadNotificationsByIdRequest(String accessToken, int notificationId) {
+
         return RestAssured.given()
                 .header( "Authorization",
                         "Bearer " + accessToken)
                 .when()
-                .get(DashboardConfig.DASHBOARD_URL + "/submissions");
+                .patch(NotificationsTestConfig.NOTIFICATION_URL + "/" + notificationId +"/read");
+
     }
 }
