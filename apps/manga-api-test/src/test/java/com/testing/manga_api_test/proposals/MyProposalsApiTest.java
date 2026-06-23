@@ -9,6 +9,12 @@ import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.*;
 
+/**
+ * Test Case Amount: 3
+ * Test Case Success: 3
+ * Test Case Failed: 0
+ * UPDATED DATE: 23/06/2026
+ */
 public class MyProposalsApiTest {
 
     // TC-MP-001: Get my proposals should return success

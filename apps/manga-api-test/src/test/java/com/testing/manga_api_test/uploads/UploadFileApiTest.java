@@ -10,6 +10,12 @@ import java.io.File;
 
 import static org.hamcrest.Matchers.*;
 
+/**
+ * Test Case Amount: 4
+ * Test Case Success: 4
+ * Test Case Failed: 0
+ * UPDATED DATE: 23/06/2026
+ */
 public class UploadFileApiTest {
 
     private final String filePath = "src/test/resources/files/test-upload-file.jpg";

@@ -26,6 +26,7 @@ public class SummaryResponseApiTest {
 
         // Generating HTTP Request
         Response response = getDashboardSummaryResponse(accessToken);
+        response.then().log().all();
 
         // Starting to check result
         response.then()

@@ -8,6 +8,12 @@ import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.equalTo;
 
+/**
+ * Test Case Amount: 3
+ * Test Case Success: 3
+ * Test Case Failed: 0
+ * UPDATED DATE: 23/06/2026
+ */
 public class NotificationsResponseApiTest {
     // TC-DB-NOTI-001: Dashboard notifications should return success
     @Test

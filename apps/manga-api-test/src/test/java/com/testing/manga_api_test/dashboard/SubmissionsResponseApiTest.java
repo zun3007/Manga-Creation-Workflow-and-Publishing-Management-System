@@ -9,6 +9,12 @@ import org.junit.jupiter.api.Test;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 
+/**
+ * Test Case Amount: 3
+ * Test Case Success: 3
+ * Test Case Failed: 0
+ * UPDATED DATE: 23/06/2026
+ */
 public class SubmissionsResponseApiTest {
     // TC-DB-SMS-001: Dashboard submissions should return success
     @Test

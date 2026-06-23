@@ -1,26 +1,38 @@
 package com.testing.manga_api_test.proposals;
 
 import com.testing.manga_api_test.config.AuthTestConfig;
+import com.testing.manga_api_test.config.DatabaseConnectionConfig;
 import com.testing.manga_api_test.config.ProposalsTestConfig;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.List;
 
 import static org.hamcrest.Matchers.*;
 
+/**
+ * TODO Fix reset method
+ */
 public class CreateProposalApiTest {
     private final String NEW_PROPOSAL_TITLE = "Solo Leveling";
     private final String NEW_PROPOSAL_SYNOPSIS = "A hunter becomes stronger";
     private final String NEW_PROPOSAL_FREQUENCY = "WEEKLY";
     private final List<Long> NEW_PROPOSAL_GENRE_ID = List.of(1L, 2L, 3L);
     private final List<Long> INVALID_GENRE_IDS = List.of(99999L);
+    private boolean isCreatedNewProposal;
 
     // TC-CP-001: Create proposal should return success
     @Test
-    void createProposalShouldReturnSuccess() {
+    void createProposalShouldReturnSuccess() throws SQLException {
+        isCreatedNewProposal = false;
+
         // Login and verify to get access token
         String accessToken = AuthTestConfig.loginMangakaAccountAndVerifyToReturnAccessToken();
 
@@ -45,6 +57,11 @@ public class CreateProposalApiTest {
                 .body("proposedFrequency", equalTo(NEW_PROPOSAL_FREQUENCY))
                 .body("sampleManuscriptUrl", nullValue())
                 .body("genres", equalTo("Action,Fantasy,Romance"));
+
+        // Reset to default
+        isCreatedNewProposal = true;
+        Long proposalId = response.jsonPath().getLong("id");
+        resetProposalTableToDefault(proposalId);
     }
 
     // TC-CP-002: Create proposal should fail when missing access token
@@ -124,6 +141,7 @@ public class CreateProposalApiTest {
                 .body("message", equalTo("Lỗi máy chủ. Vui lòng thử lại."))
                 .body("statusCode", equalTo(500))
                 .body("error", equalTo("Internal Server Error"));
+
     }
 
     // TC-CP-005: Create proposal should fail when title is missing
@@ -398,7 +416,34 @@ public class CreateProposalApiTest {
                 .body("statusCode", equalTo(400));
     }
 
-//- TC-CP-014: Create proposal should fail when genreIds is missing
+    // TC-CP-014: Create proposal should fail when genreIds is missing
+    @Test
+    void createProposalShouldFailWhenGenreIdsIsMissing() {
+        String accessToken =
+                AuthTestConfig.loginMangakaAccountAndVerifyToReturnAccessToken();
+
+        Response response = RestAssured.given()
+                .contentType(ContentType.JSON)
+                .header("Authorization", "Bearer " + accessToken)
+                .body("""
+            {
+                "title": "Solo Leveling",
+                "proposedFrequency": "WEEKLY",
+                "synopsis": "A hunter becomes stronger"
+            }
+            """)
+                .when()
+                .post(ProposalsTestConfig.PROPOSALS_URL);
+
+        response.then().log().all();
+
+        response.then()
+                .statusCode(400)
+                .body("message", hasItem("genreIds must be an array"))
+                .body("error", equalTo("Bad Request"))
+                .body("statusCode", equalTo(400));
+    }
+
 //- TC-CP-015: Create proposal should fail when genreIds is empty
 //- TC-CP-016: Create proposal should fail when genreIds is not an array
 //- TC-CP-017: Create proposal should fail when genreIds contains null values
@@ -429,5 +474,30 @@ public class CreateProposalApiTest {
                 .when()
                 .post(ProposalsTestConfig.PROPOSALS_URL);
 
+    }
+
+    public void resetProposalTableToDefault(Long proposalId) throws SQLException {
+        if (!isCreatedNewProposal) {
+            return;
+        }
+
+        // Get connection
+        Connection connection = DriverManager.getConnection(
+                DatabaseConnectionConfig.URL,
+                DatabaseConnectionConfig.USER,
+                DatabaseConnectionConfig.PASSWORD
+        );
+
+        // Create query
+        // Delete proposal that created
+        PreparedStatement preparedStatement = connection.prepareStatement("""
+             DELETE FROM Series_Proposal
+             WHERE proposal_id = ?
+        """);
+
+        preparedStatement.setLong(1, proposalId);
+        preparedStatement.executeUpdate();
+        preparedStatement.close();
+        connection.close();
     }
 }
