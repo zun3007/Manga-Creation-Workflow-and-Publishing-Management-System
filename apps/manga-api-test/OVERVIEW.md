@@ -156,6 +156,54 @@ USE manga_creation_workflow_and_publishing_management_system;
 - TC-NTF-MID-002: Notifications mark by id should fail when missing access token
 - TC-NTF-MID-003: Notifications mark by id should fail when invalid access token
 
+### Get My Proposals API Test
+- TC-MP-001: Get my proposals should return success
+- TC-MP-002: Get my proposals should fail when missing access token
+- TC-MP-003: Get my proposals should fail when invalid access token
+
+### Create Proposals API Test
+- TC-CP-001: Create proposal should return success
+- TC-CP-002: Create proposal should fail when missing access token
+- TC-CP-003: Create proposal should fail when invalid access token
+- TC-CP-004: Create proposal should fail when genreId not exist
+
+- TC-CP-005: Create proposal should fail when title is missing
+- TC-CP-006: Create proposal should fail when title is empty
+- TC-CP-007: Create proposal should fail when title exceeds 200 characters
+- TC-CP-008: Create proposal should fail when title is not a string
+
+- TC-CP-009: Create proposal should fail when synopsis exceeds 5000 characters
+- TC-CP-010: Create proposal should fail when synopsis is not a string
+
+- TC-CP-011: Create proposal should fail when proposed frequency is missing
+- TC-CP-012: Create proposal should fail when proposed frequency is invalid
+- TC-CP-013: Create proposal should fail when proposed frequency is not a valid value
+
+- TC-CP-014: Create proposal should fail when genreIds is missing
+- TC-CP-015: Create proposal should fail when genreIds is empty
+- TC-CP-016: Create proposal should fail when genreIds is not an array
+- TC-CP-017: Create proposal should fail when genreIds contains null values
+- TC-CP-018: Create proposal should fail when genreIds contains string values
+- TC-CP-019: Create proposal should fail when genreIds contains decimal values
+
+- TC-CP-020: Create proposal should fail when sample manuscript url > 500 characters
+
+### Update Proposals API Test
+- TC-UP-001: Update proposal should return success when updating all fields
+- TC-UP-002: Update proposal should return success when updating title only
+- TC-UP-003: Update proposal should return success when updating synopsis only
+- TC-UP-004: Update proposal should return success when updating proposed frequency only
+- TC-UP-005: Update proposal should return success when updating genreIds only
+- TC-UP-006: Update proposal should return success when updating sample manuscript URL only
+- TC-UP-007: Update proposal should return success when request body is empty
+- TC-UP-008: Update proposal should fail when missing access token
+- TC-UP-009: Update proposal should fail when invalid access token
+- TC-UP-010: Update proposal should fail when status is not "DRAFT"
+- 
+### Get All Genres API Test
+- TC-GR-001: Get all genres should return success
+- TC-GR-002: Get all genres should fail when missing access token
+- TC-GR-003: Get all genres should fail when invalid access token
 
 
 

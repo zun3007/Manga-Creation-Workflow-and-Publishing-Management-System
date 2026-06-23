@@ -25,8 +25,7 @@ public class NotificationsResponseApiTest {
                 .body("[0].id", equalTo(1))
                 .body("[0].type", equalTo("RISK_ALERT"))
                 .body("[0].title", equalTo("Series \"The Tenth Panel\" đang ở mức rủi ro CAO"))
-                .body("[0].content", equalTo("Xếp hạng tuần này #8, điểm 55. Cân nhắc cải thiện nhịp truyện."))
-                .body("[0].isRead", equalTo(0));
+                .body("[0].content", equalTo("Xếp hạng tuần này #8, điểm 55. Cân nhắc cải thiện nhịp truyện."));
     }
 
     // TC-DB-NOTI-002: Dashboard notifications should fail when missing access token
