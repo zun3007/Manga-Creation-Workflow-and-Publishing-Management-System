@@ -496,7 +496,8 @@ public class CreateProposalApiTest {
         """);
 
         preparedStatement.setLong(1, proposalId);
-        preparedStatement.executeUpdate();
+        int rows = preparedStatement.executeUpdate();
+        System.out.println("DELETE ROWS: " + rows);
         preparedStatement.close();
         connection.close();
     }

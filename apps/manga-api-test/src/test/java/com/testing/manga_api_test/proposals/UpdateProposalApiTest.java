@@ -281,48 +281,45 @@ public class UpdateProposalApiTest {
 
     @BeforeEach
     public void createNewProposalForDraftStatus() throws SQLException {
-        // Get connection
+
         Connection connection = DriverManager.getConnection(
                 DatabaseConnectionConfig.URL,
                 DatabaseConnectionConfig.USER,
                 DatabaseConnectionConfig.PASSWORD
         );
 
-        // Create query
-        // Delete proposal that created
-        PreparedStatement preparedStatement = connection.prepareStatement("""
-             INSERT INTO `Series_Proposal` (proposal_id, mangaka_user_id, title, synopsis, proposal_status, proposed_frequency)
-                VALUES
-                     (4, 1, 'Shadow Requiem',
-                        'Một sát thủ mang lời nguyền bóng tối tìm cách chuộc lại quá khứ.',
-                        'DRAFT',
-                        'WEEKLY'
-                     );
-        """);
+        PreparedStatement deleteStmt = connection.prepareStatement("""
+        DELETE FROM Series_Proposal
+        WHERE proposal_id = 4
+    """);
 
-        preparedStatement.executeUpdate();
-        preparedStatement.close();
-        connection.close();
-    }
+        deleteStmt.executeUpdate();
+        deleteStmt.close();
 
-    @AfterEach
-    public void resetProposalTableToDefault() throws SQLException {
-        // Get connection
-        Connection connection = DriverManager.getConnection(
-                DatabaseConnectionConfig.URL,
-                DatabaseConnectionConfig.USER,
-                DatabaseConnectionConfig.PASSWORD
-        );
+        PreparedStatement insertStmt = connection.prepareStatement("""
+        INSERT INTO Series_Proposal
+        (
+            proposal_id,
+            mangaka_user_id,
+            title,
+            synopsis,
+            proposal_status,
+            proposed_frequency
+        )
+        VALUES
+        (
+            4,
+            1,
+            'Shadow Requiem',
+            'Một sát thủ mang lời nguyền bóng tối tìm cách chuộc lại quá khứ.',
+            'DRAFT',
+            'WEEKLY'
+        )
+    """);
 
-        // Create query
-        // Delete proposal that created
-        PreparedStatement preparedStatement = connection.prepareStatement("""
-             DELETE FROM `Series_Proposal`
-             WHERE proposal_id = 4
-        """);
+        insertStmt.executeUpdate();
+        insertStmt.close();
 
-        preparedStatement.executeUpdate();
-        preparedStatement.close();
         connection.close();
     }
 }
