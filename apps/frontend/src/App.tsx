@@ -24,10 +24,12 @@ import AdminConsole from "./pages/admin/Console";
 import AdminDisputes from "./pages/admin/Disputes";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import PublicationSchedule from "./pages/board/PublicationSchedule";
 import { AppShell } from "./components/app/AppShell";
 import { RoleProtected } from "./components/app/RoleProtected";
 import { ToastProvider } from "./components/ui/Toast";
 import { ConfirmProvider } from "./lib/confirm";
+
 
 function Splash() {
   return (
@@ -248,6 +250,16 @@ function AppRoutes() {
           </Protected>
         }
       />
+        <Route
+            path="/board/publication-schedule"
+            element={
+                <Protected>
+                    <AppShell>
+                        <PublicationSchedule />
+                    </AppShell>
+                </Protected>
+            }
+        />
     </Routes>
   );
 }
