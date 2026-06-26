@@ -151,7 +151,7 @@ export default function PublicationSchedule() {
                         {/* Chapter */}
                         <div>
                             <label className="mb-2 block text-sm font-medium text-ink">
-                                Chapter
+                                Chương
                             </label>
 
                             <select
@@ -167,7 +167,7 @@ export default function PublicationSchedule() {
                                 }
                             >
                                 <option value="">
-                                    Chọn Chapter
+                                    Chọn chương
                                 </option>
 
                                 {selectedSeries?.chapters.map((chapter) => (
@@ -224,7 +224,7 @@ export default function PublicationSchedule() {
                             <thead className="bg-bg">
                             <tr className="border-b border-line text-left">
                                 <th className="px-4 py-4 font-semibold">
-                                    Chapter
+                                    Chương
                                 </th>
 
                                 <th className="px-4 py-4 font-semibold">

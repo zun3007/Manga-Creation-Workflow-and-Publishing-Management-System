@@ -2,6 +2,7 @@ import { Role } from "@manga/shared";
 import { LayoutDashboard, FileText, BookOpen, ListChecks, Inbox, Shield, Trophy, CircleDollarSign, Scale, User } from "lucide-react";
 import type { NavItem } from "../ui/Sidebar";
 import { CalendarDays } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 
 export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   [Role.MANGAKA]: [
@@ -29,6 +30,7 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { label: "Xếp hạng", to: "/board/rankings", icon: Trophy },
     { label: "Hồ sơ", to: "/profile", icon: User },
     { label: "Lịch xuất bản", to: "/board/publication-schedule", icon: CalendarDays,},
+    { label: "Phê duyệt chương", to: "/board/chapter-approval", icon: CheckCircle2, },
   ],
   [Role.ADMIN]: [
     { label: "Tổng quan", to: "/", icon: LayoutDashboard },
