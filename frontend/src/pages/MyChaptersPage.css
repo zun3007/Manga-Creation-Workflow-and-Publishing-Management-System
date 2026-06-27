@@ -1,0 +1,121 @@
+.chapters-page {
+  display: grid;
+  grid-template-columns: 320px 420px 1fr;
+  gap: 22px;
+}
+
+.chapter-control-card,
+.chapter-form-card,
+.chapter-list-card {
+  padding: 24px;
+  border: 3px solid #1b1b22;
+  border-radius: 28px;
+  background: white;
+  box-shadow: 0 14px 28px rgba(27, 27, 34, 0.1);
+}
+
+.chapter-control-card h2,
+.chapter-form-card h2,
+.chapter-list-card h2 {
+  margin: 0 0 18px;
+  color: #1b1b22;
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.chapter-control-card label,
+.chapter-form-card label {
+  display: block;
+  margin: 12px 0 7px;
+  color: #4b5563;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.chapter-control-card input,
+.chapter-form-card input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 2px solid #1b1b22;
+  border-radius: 16px;
+  background: #fffaf0;
+  color: #1b1b22;
+  font: inherit;
+}
+
+.chapter-message {
+  margin-top: 16px;
+  padding: 12px;
+  border: 2px solid rgba(27, 27, 34, 0.14);
+  border-radius: 16px;
+  background: #fff8e7;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.chapter-list {
+  display: grid;
+  gap: 16px;
+}
+
+.chapter-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px;
+  border: 3px solid #1b1b22;
+  border-radius: 22px;
+  background: #fff8e7;
+}
+
+.chapter-number {
+  display: inline-flex;
+  margin-bottom: 10px;
+  padding: 6px 12px;
+  border: 2px solid #1b1b22;
+  border-radius: 999px;
+  background: #fff1b8;
+  color: #1b1b22;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.chapter-item h3 {
+  margin: 0 0 8px;
+  color: #1b1b22;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.chapter-item p {
+  margin: 4px 0;
+  color: #6b7280;
+}
+
+.chapter-item button {
+  align-self: center;
+  min-width: 130px;
+  height: 44px;
+  border: 3px solid #1b1b22;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ef4444, #8b5cf6);
+  color: white;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+@media (max-width: 1150px) {
+  .chapters-page {
+    grid-template-columns: 1fr;
+  }
+
+  .chapter-item {
+    flex-direction: column;
+  }
+
+  .chapter-item button {
+    width: 100%;
+  }
+}

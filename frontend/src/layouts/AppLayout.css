@@ -1,0 +1,136 @@
+.mf-v5-page {
+  min-height: 100vh;
+  padding: 26px;
+  background:
+    radial-gradient(circle at 8% 2%, rgba(244, 163, 58, 0.25), transparent 30%),
+    radial-gradient(circle at 92% 4%, rgba(123, 203, 143, 0.22), transparent 28%),
+    linear-gradient(180deg, var(--bg), #fffcf7);
+}
+
+.mf-v5-page .app {
+  min-height: calc(100vh - 52px);
+}
+
+.app-logo {
+  cursor: pointer;
+}
+
+.app-logo small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.app-side nav {
+  display: grid;
+  gap: 2px;
+}
+
+.app-side button.side-link {
+  width: 100%;
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.app-side button.side-link:hover {
+  background: #fff;
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.mf-v5-subtitle {
+  max-width: 720px;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.search input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.mf-v5-logout {
+  border: none;
+  cursor: pointer;
+}
+
+@media (max-width: 1120px) {
+  .mf-v5-page {
+    padding: 14px;
+  }
+
+  .mf-v5-page .app {
+    min-height: auto;
+  }
+
+  .right {
+    flex-wrap: wrap;
+  }
+
+  .search {
+    min-width: 210px;
+  }
+}
+
+/* ===== FIX MAIN CONTENT WIDTH ===== */
+
+.app {
+  width: min(100%, 1480px);
+  overflow: hidden;
+}
+
+.app-main {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.topbar {
+  min-width: 0;
+}
+
+.topbar .right {
+  min-width: 0;
+}
+
+.search {
+  min-width: 0;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 1000;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: 0.2s ease;
+}
+
+.avatar:hover {
+  transform: translateY(-2px);
+  background: var(--primary-soft);
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}

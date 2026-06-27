@@ -1,0 +1,7 @@
+allowBuilds:
+  '@nestjs/core': true
+  'unrs-resolver': true
+  '@prisma/engines': true
+  'prisma': true
+  'esbuild': true
+  '@scarf/scarf': set this to true or false

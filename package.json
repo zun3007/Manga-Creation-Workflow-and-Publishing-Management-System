@@ -4,9 +4,12 @@
   "private": true,
   "packageManager": "pnpm@11.4.0",
   "scripts": {
-    "dev:api": "pnpm --dir apps/api start:dev",
-    "dev:web": "pnpm --dir apps/web dev",
-    "build:api": "pnpm --dir apps/api build",
-    "build:web": "pnpm --dir apps/web build"
+    "dev:backend": "pnpm --dir backend start:dev",
+    "dev:frontend": "pnpm --dir frontend dev",
+    "build:backend": "pnpm --dir backend build",
+    "build:frontend": "pnpm --dir frontend build"
+  },
+  "dependencies": {
+    "@react-oauth/google": "^0.13.5"
   }
 }

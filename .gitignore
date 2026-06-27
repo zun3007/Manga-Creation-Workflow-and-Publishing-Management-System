@@ -1,91 +1,3 @@
-<<<<<<< HEAD
-# ───────────────── Dependencies ─────────────────
-node_modules/
-.pnp
-.pnp.js
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# ───────────────── Build output ─────────────────
-dist/
-build/
-out/
-*.tsbuildinfo
-.vite/
-apps/backend/dist/
-apps/frontend/dist/
-
-# ───────────────── Env & secrets ─────────────────
-# Ignore ALL real env files (secrets) anywhere; keep only the committed templates.
-.env
-.env.*
-**/.env
-**/.env.*
-!.env.example
-!**/.env.example
-
-# ───────────────── Logs ─────────────────
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# ───────────────── Testing / coverage ─────────────────
-coverage/
-.nyc_output/
-
-# ───────────────── Local file storage (uploads MVP) ─────────────────
-# NOTE: only ignore the runtime upload STORAGE dir, never the source module
-# at apps/backend/src/uploads/ (uploads.controller.ts / uploads.module.ts).
-apps/backend/uploads/
-storage/
-
-# ───────────────── OS ─────────────────
-.DS_Store
-Thumbs.db
-desktop.ini
-~$*
-
-# ───────────────── IDE / editor ─────────────────
-.idea/
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-*.swp
-*.swo
-
-# ───────────────── Claude Code ─────────────────
-# Share .claude/settings.json and .claude/rules/; keep personal overrides local
-.claude/settings.local.json
-CLAUDE.local.md
-
-# ───────────────── Misc ─────────────────
-.cache/
-.temp/
-tmp/
-# Mermaid diagram render artifacts (working aid, regenerated on demand)
-.mmblk/
-# Scratch prompt file (local-only)
-prompt.txt
-
-# ───────────────── Brainstorm visual companion (superpowers) ─────────────────
-.superpowers/
-
-# ───────────────── Local-only: AI workflow + project meta (not pushed to the app repo) ─────────────────
-# These are working aids, not part of the deliverable app. Kept on disk, never committed.
-/CLAUDE.md
-/.claude/
-/docs/
-/demo/
-
-# ───────────────── MOOC learning platform (separate git repo, never pushed from here) ─────────────────
-/MOOC/
-=======
 # Dependencies
 node_modules/
 .pnpm-store/
@@ -116,4 +28,9 @@ uploads/
 # Prisma local files
 *.db
 *.db-journal
->>>>>>> 82c72b4 (chore: initialize project)
+
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md
+backup_cleanup_*/
+backup_cleanup_*/
