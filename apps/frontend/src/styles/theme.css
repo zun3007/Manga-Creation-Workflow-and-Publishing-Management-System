@@ -35,10 +35,6 @@
 @theme inline {
   --color-bg: var(--app-bg);
   --color-surface: var(--app-surface);
-  /* Elevated/alternate surface for toolbars, dropdowns, sticky bars. Mapped to the
-     paper bg so `bg-surface-alt` reads as a subtle step off the white panels (it was
-     previously undefined → transparent, leaving the Studio top bar/menus with no bg). */
-  --color-surface-alt: var(--app-bg);
   --color-ink: var(--app-ink);
   --color-ink-soft: var(--app-ink-soft);
   --color-line: var(--app-line);

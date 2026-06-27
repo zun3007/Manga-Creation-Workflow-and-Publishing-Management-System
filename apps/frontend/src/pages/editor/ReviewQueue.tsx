@@ -6,7 +6,6 @@ import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { EmptyState } from "../../components/ui/EmptyState";
-import { ProposalDetailModal } from "../../components/workspace/ProposalDetailModal";
 
 export default function ReviewQueue() {
   const navigate = useNavigate();
@@ -18,7 +17,10 @@ export default function ReviewQueue() {
   const [revisingId, setRevisingId] = useState<number | null>(null);
   const [feedbackText, setFeedbackText] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [viewProposalId, setViewProposalId] = useState<number | null>(null);
+
+  useEffect(() => {
+    loadChapters();
+  }, []);
 
   async function loadChapters() {
     setLoading(true);
@@ -33,10 +35,6 @@ export default function ReviewQueue() {
       setLoading(false);
     }
   }
-
-  useEffect(() => {
-    loadChapters();
-  }, []);
 
   async function decide(
     id: number,
@@ -135,15 +133,6 @@ export default function ReviewQueue() {
                     >
                       Xem & duyệt
                     </Button>
-                    {chapter.proposalId && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => setViewProposalId(chapter.proposalId!)}
-                        disabled={submitting}
-                      >
-                        Xem đề xuất
-                      </Button>
-                    )}
                     <Button
                       variant="accent"
                       onClick={() => decide(chapter.id, "APPROVE")}
@@ -202,13 +191,6 @@ export default function ReviewQueue() {
             </Panel>
           ))}
         </div>
-      )}
-
-      {viewProposalId !== null && (
-        <ProposalDetailModal
-          proposalId={viewProposalId}
-          onClose={() => setViewProposalId(null)}
-        />
       )}
     </div>
   );

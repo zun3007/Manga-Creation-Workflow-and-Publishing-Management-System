@@ -17,10 +17,7 @@ export class GoogleOauthGuard extends AuthGuard('google') {
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
     if (!clientId) {
       const res = context.switchToHttp().getResponse();
-      const client = this.config.get<string>(
-        'CLIENT_URL',
-        'http://localhost:5173',
-      );
+      const client = this.config.get<string>('CLIENT_URL', 'http://localhost:5173');
       res.redirect(`${client}/login?error=google_not_configured`);
       return false;
     }

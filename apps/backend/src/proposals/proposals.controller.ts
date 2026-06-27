@@ -14,7 +14,6 @@ import { Roles } from '../auth/roles.decorator';
 import { Role } from '@manga/shared';
 import { ProposalsService } from './proposals.service';
 import { CreateProposalDto } from './dto/create-proposal.dto';
-import { UpdateProposalDto } from './dto/update-proposal.dto';
 import { DecisionDto } from './dto/decision.dto';
 
 @Controller('proposals')
@@ -40,16 +39,6 @@ export class ProposalsController {
     return this.service.submit(+id, req.user.id);
   }
 
-  @Patch(':id')
-  @Roles(Role.MANGAKA)
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateProposalDto,
-    @Req() req: any,
-  ) {
-    return this.service.update(+id, req.user.id, dto);
-  }
-
   @Get('review-queue')
   @Roles(Role.EDITORIAL_BOARD)
   async reviewQueue() {
@@ -64,12 +53,5 @@ export class ProposalsController {
     @Req() req: any,
   ) {
     return this.service.decide(+id, dto.decision, req.user.id);
-  }
-
-  // Declared LAST so the static routes above ('mine', 'review-queue') match first.
-  @Get(':id')
-  @Roles(Role.MANGAKA, Role.EDITORIAL_BOARD, Role.TANTOU_EDITOR)
-  async getDetail(@Param('id') id: string, @Req() req: any) {
-    return this.service.getDetail(+id, req.user.id, req.user.role);
   }
 }

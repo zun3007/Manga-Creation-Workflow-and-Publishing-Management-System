@@ -10,10 +10,9 @@ const mockPut = vi.fn();
 const mockDelete = vi.fn();
 
 vi.mock("../../lib/api", () => ({
-  apiErrorMessage: (_err: unknown, fallback: string) => fallback,
   api: {
     get: (url: string) => mockGet(url),
-    put: (url: string, body: unknown) => mockPut(url, body),
+    put: (url: string, body: any) => mockPut(url, body),
     delete: (url: string) => mockDelete(url),
   },
 }));

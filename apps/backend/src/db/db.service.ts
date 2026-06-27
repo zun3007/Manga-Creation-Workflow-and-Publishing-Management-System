@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  OnModuleInit,
-  OnModuleDestroy,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as mysql from 'mysql2/promise';
 
@@ -57,17 +52,11 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
     try {
       await connection.beginTransaction();
       const tx: ITransactionContext = {
-        query: async <U = any>(
-          sql: string,
-          params: any[] = [],
-        ): Promise<U[]> => {
+        query: async <U = any>(sql: string, params: any[] = []): Promise<U[]> => {
           const [rows] = await connection.query(sql, params);
           return rows as U[];
         },
-        queryOne: async <U = any>(
-          sql: string,
-          params: any[] = [],
-        ): Promise<U | null> => {
+        queryOne: async <U = any>(sql: string, params: any[] = []): Promise<U | null> => {
           const rows = await tx.query<U>(sql, params);
           return rows[0] ?? null;
         },
@@ -83,7 +72,7 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
       await connection.rollback();
       throw error;
     } finally {
-      connection.release();
+      await connection.release();
     }
   }
 

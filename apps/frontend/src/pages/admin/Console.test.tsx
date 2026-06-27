@@ -8,12 +8,10 @@ import Console from "./Console";
 const mockGet = vi.fn();
 const mockPatch = vi.fn();
 
-vi.mock("../../lib/api", async (importOriginal) => ({
-  // Keep the real helpers (apiErrorMessage, ...) — only the HTTP layer is mocked.
-  ...(await importOriginal<typeof import("../../lib/api")>()),
+vi.mock("../../lib/api", () => ({
   api: {
     get: (url: string) => mockGet(url),
-    patch: (url: string, body: unknown) => mockPatch(url, body),
+    patch: (url: string, body: any) => mockPatch(url, body),
   },
 }));
 
@@ -155,9 +153,6 @@ describe("Console", () => {
 
   it("displays action error when patch fails", async () => {
     mockPatch.mockRejectedValueOnce({
-      // Make axios.isAxiosError() recognize this mock so apiErrorMessage
-      // extracts the server-provided message (axios v1 checks this flag).
-      isAxiosError: true,
       response: {
         data: {
           message: "Không thể khoá admin cuối cùng.",

@@ -17,34 +17,23 @@ export class SeedService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    const password = this.config.get<string>(
-      'DEMO_USER_PASSWORD',
-      'Dung123456@',
-    );
-    const primary = this.config.get<string>(
-      'DEMO_USER_EMAIL',
-      'dungminer69@gmail.com',
-    );
+    const password = this.config.get<string>('DEMO_USER_PASSWORD', 'Dung123456@');
+    const primary = this.config.get<string>('DEMO_USER_EMAIL', 'dungminer69@gmail.com');
     const emails = [
       primary,
-      'mai.assistant@inkframe.studio', // ASSISTANT (seed user 2)
-      'hiroshi.editor@inkframe.studio', // TANTOU_EDITOR (seed user 5)
-      'yamamoto.board@inkframe.studio', // EDITORIAL_BOARD (seed user 6)
-      'admin@inkframe.studio', // ADMIN (seed user 7)
+      'mai.assistant@inkframe.studio',     // ASSISTANT (seed user 2)
+      'hiroshi.editor@inkframe.studio',     // TANTOU_EDITOR (seed user 5)
+      'yamamoto.board@inkframe.studio',     // EDITORIAL_BOARD (seed user 6)
+      'admin@inkframe.studio',              // ADMIN (seed user 7)
     ];
     try {
       const hash = await bcrypt.hash(password, 10);
       for (const email of emails) {
-        const r: any = await this.db.query(
-          'UPDATE `User` SET password_hash = ? WHERE email = ?',
-          [hash, email],
-        );
+        const r: any = await this.db.query('UPDATE `User` SET password_hash = ? WHERE email = ?', [hash, email]);
         if (r?.affectedRows) this.logger.log(`Demo login ready → ${email}`);
       }
     } catch (err: any) {
-      this.logger.error(
-        `Could not apply demo passwords: ${err?.message ?? err}`,
-      );
+      this.logger.error(`Could not apply demo passwords: ${err?.message ?? err}`);
     }
   }
 }

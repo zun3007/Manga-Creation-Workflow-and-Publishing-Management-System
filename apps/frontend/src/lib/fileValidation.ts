@@ -8,17 +8,7 @@ export type FileValidationOptions = {
 };
 
 const DEFAULT_MAX_MB = 25;
-const DEFAULT_ACCEPT = [
-  'image/png',
-  'image/jpeg',
-  'image/webp',
-  'application/pdf',
-  // Photoshop — the submission picker invites .psd, so the validator must allow it.
-  // .psd MIME is unreliable (often empty / application/octet-stream), hence the
-  // extension fallback in isValidFileType.
-  'image/vnd.adobe.photoshop',
-  '.psd',
-];
+const DEFAULT_ACCEPT = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'];
 
 export function validateUpload(
   file: File,
@@ -64,16 +54,11 @@ function isValidFileType(file: File, accept: string[]): boolean {
     }
   }
 
-  // Check file extension for known types (e.g., .psd) — .psd MIME is unreliable
-  // (often empty or application/octet-stream), so accept it by extension when the
-  // caller opts in via the photoshop MIME, a wildcard, or the ".psd" extension token.
+  // Check file extension for known types (e.g., .psd)
   const name = file.name.toLowerCase();
   if (name.endsWith('.psd')) {
-    if (
-      accept.includes('image/vnd.adobe.photoshop') ||
-      accept.includes('image/*') ||
-      accept.includes('.psd')
-    ) {
+    // Photoshop files often have type 'application/octet-stream'
+    if (accept.includes('image/vnd.adobe.photoshop') || accept.includes('image/*')) {
       return true;
     }
   }

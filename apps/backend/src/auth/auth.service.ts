@@ -65,7 +65,6 @@ export class AuthService {
     if (!ok) {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
-    this.assertActive(user);
     if (!this.twoFactorEnabled) {
       return this.issue(user);
     }
@@ -90,18 +89,7 @@ export class AuthService {
         profile.googleId,
       );
     }
-    this.assertActive(user);
     return this.issue(user);
-  }
-
-  /** Block a deactivated ("Khóa") account from authenticating on ANY path. */
-  private assertActive(user: UserRow): void {
-    // mysql2 returns the TINYINT(1) is_activated flag as 0/1; admin deactivate sets 0.
-    if (!user.is_activated) {
-      throw new UnauthorizedException(
-        'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.',
-      );
-    }
   }
 
   // ── 2FA ────────────────────────────────────────────────────────────────────
@@ -133,7 +121,6 @@ export class AuthService {
     await this.otp.verify(userId, code);
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException('Không tìm thấy người dùng');
-    this.assertActive(user);
     return this.issue(user);
   }
 

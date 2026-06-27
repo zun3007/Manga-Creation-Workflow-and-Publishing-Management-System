@@ -91,30 +91,6 @@ export class RegionsService {
     );
   }
 
-  async updateType(regionId: number, userId: number, regionType: string) {
-    // Verify ownership via region -> page -> chapter -> series -> mangaka
-    const region = await this.db.queryOne<{ region_id: number }>(
-      `SELECT r.region_id
-       FROM \`Region\` r
-       JOIN \`Page\` p ON r.page_id = p.page_id
-       JOIN \`Chapter\` c ON p.chapter_id = c.chapter_id
-       JOIN \`Series\` s ON c.series_id = s.series_id
-       WHERE r.region_id = ? AND s.mangaka_user_id = ?`,
-      [regionId, userId],
-    );
-
-    if (!region) {
-      throw new ForbiddenException('You do not own this region');
-    }
-
-    await this.db.query(
-      `UPDATE \`Region\` SET region_type = ? WHERE region_id = ?`,
-      [regionType, regionId],
-    );
-
-    return this.findOne(regionId, userId);
-  }
-
   async delete(regionId: number, userId: number) {
     // Verify ownership: region -> page -> chapter -> series -> mangaka_user_id
     const region = await this.db.queryOne<{

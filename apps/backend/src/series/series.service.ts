@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { DbService } from '../db/db.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '@manga/shared';
@@ -73,12 +73,10 @@ export class SeriesService {
   }
 
   async assignEditor(seriesId: number, editorUserId: number) {
-    const series = await this.db.queryOne<{
-      title: string;
-      mangaka_user_id: number;
-    }>(`SELECT title, mangaka_user_id FROM \`Series\` WHERE series_id = ?`, [
-      seriesId,
-    ]);
+    const series = await this.db.queryOne<{ title: string; mangaka_user_id: number }>(
+      `SELECT title, mangaka_user_id FROM \`Series\` WHERE series_id = ?`,
+      [seriesId],
+    );
 
     if (!series) {
       throw new NotFoundException('Series not found');

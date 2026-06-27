@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api, apiErrorMessage } from "../../lib/api";
+import { api } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
 import { useConfirm } from "../../lib/confirm";
 import { Panel } from "../../components/ui/Panel";
@@ -34,6 +34,10 @@ export default function BoardSeries() {
   const [savingId, setSavingId] = useState<number | null>(null);
   const [actionError, setActionError] = useState("");
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
   async function loadData() {
     setLoading(true);
     setError("");
@@ -51,10 +55,6 @@ export default function BoardSeries() {
       setLoading(false);
     }
   }
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   async function handleEditorChange(seriesId: number, value: string) {
     const currentRow = rows.find((r) => r.id === seriesId);
@@ -104,8 +104,10 @@ export default function BoardSeries() {
         );
         toast.success('Đã phân công biên tập.');
       }
-    } catch (e) {
-      setActionError(apiErrorMessage(e, "Không thể cập nhật."));
+    } catch (e: any) {
+      const message =
+        e?.response?.data?.message || "Không thể cập nhật.";
+      setActionError(message);
       console.error("Failed to update editor", e);
     } finally {
       setSavingId(null);

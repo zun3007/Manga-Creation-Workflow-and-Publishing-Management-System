@@ -36,9 +36,7 @@ export class StorageService implements OnModuleInit {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
     } catch {
       try {
-        await this.client.send(
-          new CreateBucketCommand({ Bucket: this.bucket }),
-        );
+        await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
         this.logger.log(`Created S3 bucket "${this.bucket}"`);
       } catch (e) {
         this.logger.warn(
@@ -50,23 +48,14 @@ export class StorageService implements OnModuleInit {
 
   async put(key: string, body: Buffer, contentType?: string): Promise<void> {
     await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: key,
-        Body: body,
-        ContentType: contentType,
-      }),
+      new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentType: contentType }),
     );
   }
 
-  async get(key: string): Promise<{
-    stream: Readable;
-    contentType?: string;
-    contentLength?: number;
-  }> {
-    const res = await this.client.send(
-      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
-    );
+  async get(
+    key: string,
+  ): Promise<{ stream: Readable; contentType?: string; contentLength?: number }> {
+    const res = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
     return {
       stream: res.Body as Readable,
       contentType: res.ContentType,

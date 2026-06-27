@@ -38,10 +38,6 @@ export interface StudioProps {
   onSaveRegions?: (frames: RectN[]) => void;
   saving?: boolean;
   title?: string;
-  /** Label for the primary save/commit button (default "Lưu"). Assistants submit, so they pass "Nộp bài". */
-  saveLabel?: string;
-  /** Non-destructive guide rectangle (normalized 0..1) showing the assigned region to draw in. */
-  regionGuide?: RectN | null;
 }
 
 export function Studio({
@@ -53,8 +49,6 @@ export function Studio({
   onSaveRegions,
   saving,
   title,
-  saveLabel = 'Lưu',
-  regionGuide,
 }: StudioProps) {
   const { confirm } = useConfirm();
   const [tool, setTool] = useState<ToolId>('brush');
@@ -130,9 +124,8 @@ export function Studio({
     toolRef.current = tool;
   }, [tool]);
 
-  // Create tools once (lazy state initializer — runs exactly once, render-safe).
-  // eslint-disable-next-line react-hooks/refs -- the callbacks handed to createTools only dereference refs when invoked from pointer/keyboard handlers, never during render
-  const [tools] = useState(() =>
+  // Create tools once
+  const tools = useRef(
     createTools({
       getSettings: () => settingsRef.current,
       getColor: () => colorRef.current,
@@ -158,7 +151,7 @@ export function Studio({
         }
       },
     })
-  );
+  ).current;
 
   // Subscribe to engine changes
   useEffect(() => {
@@ -605,7 +598,7 @@ export function Studio({
               aria-label="Save"
             >
               {saving && <span className="animate-spin">⟳</span>}
-              {saveLabel}
+              Lưu
             </button>
 
             {/* Fullscreen */}
@@ -645,7 +638,7 @@ export function Studio({
             onViewChange={setView}
             panning={tool === 'pan'}
             fitToken={fitToken}
-            overlays={regionGuide ? [...pendingFrames, regionGuide] : pendingFrames}
+            overlays={pendingFrames}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}

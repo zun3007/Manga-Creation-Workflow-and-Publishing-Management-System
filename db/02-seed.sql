@@ -15,8 +15,7 @@ INSERT INTO `User` (user_id, email, password_hash, full_name, avatar_url, role, 
 (4, 'lan.assistant@inkframe.studio',     NULL, 'Lan Trần',       NULL, 'ASSISTANT',       'LOCAL', NULL, 1),
 (5, 'hiroshi.editor@inkframe.studio',    NULL, 'Hiroshi Tanaka', NULL, 'TANTOU_EDITOR',   'LOCAL', NULL, 1),
 (6, 'yamamoto.board@inkframe.studio',    NULL, 'Yuki Yamamoto',  NULL, 'EDITORIAL_BOARD', 'LOCAL', NULL, 1),
-(7, 'admin@inkframe.studio',             NULL, 'System Admin',   NULL, 'ADMIN',           'LOCAL', NULL, 1),
-(8, 'inactive@gmail.com', '$2a$12$rMoXu1ZzbdSQPI1H.CCCuOGc/2Vie6NnfFZl8DRCvboKo5YJsg7C.', 'Inactive User', NULL, 'MANGAKA', 'LOCAL', NULL, 0);
+(7, 'admin@inkframe.studio',             NULL, 'System Admin',   NULL, 'ADMIN',           'LOCAL', NULL, 1);
 
 -- ===== Profiles =====
 INSERT INTO `Mangaka_Profile` (user_id, pen_name, biography, years_experrence, studio_name, social_link) VALUES

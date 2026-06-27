@@ -24,7 +24,7 @@ describe('DisputesService', () => {
       };
       const service = new DisputesService(db, notifications);
 
-      await service.file(5, {
+      const result = await service.file(5, {
         taskId: 7,
         reason: 'ít quá',
         expectedAmount: 150,
@@ -32,9 +32,7 @@ describe('DisputesService', () => {
 
       // Should query task
       expect(db.queryOne).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'SELECT task_id, assignee_user_id, task_status, payment_amount',
-        ),
+        expect.stringContaining('SELECT task_id, assignee_user_id, task_status, payment_amount'),
         [7],
       );
 
@@ -46,9 +44,7 @@ describe('DisputesService', () => {
 
       // Should query admins
       expect(db.query).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'SELECT user_id FROM `User` WHERE role = ? AND is_activated = 1',
-        ),
+        expect.stringContaining('SELECT user_id FROM `User` WHERE role = ? AND is_activated = 1'),
         ['ADMIN'],
       );
 
@@ -133,7 +129,7 @@ describe('DisputesService', () => {
             payment_amount: 100,
           }),
         query: jest.fn().mockResolvedValue([]),
-        transaction: jest.fn((fn) => fn(db)),
+        transaction: jest.fn(async (fn) => fn(db)),
       };
       const notifications: any = {
         notify: jest.fn().mockResolvedValue(undefined),
@@ -149,9 +145,7 @@ describe('DisputesService', () => {
       // Should query dispute
       expect(db.queryOne).toHaveBeenNthCalledWith(
         1,
-        expect.stringContaining(
-          'SELECT dispute_status, task_id, assistant_user_id',
-        ),
+        expect.stringContaining('SELECT dispute_status, task_id, assistant_user_id'),
         [3],
       );
 
@@ -172,9 +166,7 @@ describe('DisputesService', () => {
       // Should update assistant earnings (delta = 150 - 100 = 50)
       expect(db.query).toHaveBeenNthCalledWith(
         2,
-        expect.stringContaining(
-          'UPDATE `Assistant_Profile` SET total_earnings',
-        ),
+        expect.stringContaining('UPDATE `Assistant_Profile` SET total_earnings'),
         [50, 5],
       );
 
@@ -206,7 +198,7 @@ describe('DisputesService', () => {
           assistant_user_id: 5,
         }),
         query: jest.fn().mockResolvedValue([]),
-        transaction: jest.fn((fn) => fn(db)),
+        transaction: jest.fn(async (fn) => fn(db)),
       };
       const notifications: any = {
         notify: jest.fn().mockResolvedValue(undefined),
@@ -316,9 +308,7 @@ describe('DisputesService', () => {
       };
       const service = new DisputesService(db, notifications);
 
-      await expect(service.markUnderReview(999, 9)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.markUnderReview(999, 9)).rejects.toThrow(NotFoundException);
     });
 
     it('throws when invalid state transition', async () => {
@@ -333,9 +323,7 @@ describe('DisputesService', () => {
       const service = new DisputesService(db, notifications);
 
       // Cannot transition from RESOLVED to UNDER_REVIEW
-      await expect(service.markUnderReview(3, 9)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.markUnderReview(3, 9)).rejects.toThrow(BadRequestException);
     });
   });
 });

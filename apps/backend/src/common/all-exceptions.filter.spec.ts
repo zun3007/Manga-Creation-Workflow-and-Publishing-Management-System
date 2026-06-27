@@ -1,10 +1,11 @@
+import { Test } from '@nestjs/testing';
 import { BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 
 describe('AllExceptionsFilter', () => {
   let filter: AllExceptionsFilter;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     filter = new AllExceptionsFilter();
   });
 

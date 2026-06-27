@@ -25,7 +25,7 @@ export function Header({ title }: HeaderProps) {
 
   return (
     <>
-    <header className="sticky top-0 z-50 flex items-center justify-between border-b border-line bg-bg/95 px-6 py-3 backdrop-blur">
+    <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-bg/95 px-6 py-3 backdrop-blur">
       <div className="text-sm font-mono uppercase tracking-wider text-ink-soft">
         {title ?? "Manga Studio"}
       </div>

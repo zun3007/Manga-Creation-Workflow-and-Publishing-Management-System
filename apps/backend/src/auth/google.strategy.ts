@@ -16,10 +16,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     // Placeholder values keep construction from throwing when OAuth isn't configured yet.
     // GoogleOauthGuard blocks the route until real credentials are present.
     super({
-      clientID:
-        config.get<string>('GOOGLE_CLIENT_ID') || 'GOOGLE_NOT_CONFIGURED',
-      clientSecret:
-        config.get<string>('GOOGLE_CLIENT_SECRET') || 'GOOGLE_NOT_CONFIGURED',
+      clientID: config.get<string>('GOOGLE_CLIENT_ID') || 'GOOGLE_NOT_CONFIGURED',
+      clientSecret: config.get<string>('GOOGLE_CLIENT_SECRET') || 'GOOGLE_NOT_CONFIGURED',
       callbackURL:
         config.get<string>('GOOGLE_CALLBACK_URL') ||
         'http://localhost:3000/api/auth/google/callback',

@@ -4,9 +4,7 @@ import { NotificationType } from '@manga/shared';
 describe('SeriesService', () => {
   it('assignEditor unassigns current editor, inserts new assignment, and notifies', async () => {
     const db: any = {
-      queryOne: jest
-        .fn()
-        .mockResolvedValue({ title: 'My Series', mangaka_user_id: 5 }),
+      queryOne: jest.fn().mockResolvedValue({ title: 'My Series', mangaka_user_id: 5 }),
       query: jest.fn().mockResolvedValue([]),
     };
     const notifications: any = {
@@ -61,8 +59,6 @@ describe('SeriesService', () => {
     };
 
     const service = new SeriesService(db, notifications);
-    await expect(service.assignEditor(999, 9)).rejects.toThrow(
-      'Series not found',
-    );
+    await expect(service.assignEditor(999, 9)).rejects.toThrow('Series not found');
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import type { StudioEngine } from '../../lib/studio/engine';
 import type { View } from '../../lib/studio/view';
 import { screenToDoc } from '../../lib/studio/view';
@@ -30,21 +30,13 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
   const panDrag = useRef<{ id: number; x: number; y: number; panX: number; panY: number } | null>(null);
   const marchingAntsAnimationRef = useRef<number | null>(null);
   const marchingAntsOffsetRef = useRef(0);
-  const antsLastFrameRef = useRef(0);
-  const antsMaskRef = useRef<Uint8Array | null>(null);
-  const antsSegsRef = useRef<Float32Array | null>(null);
   const cachedCompositeRef = useRef<Uint8ClampedArray | null>(null);
   const compositeValidRef = useRef(false);
-  const rafRenderRef = useRef<number | null>(null);
 
   // Single source of truth: mirror the latest view/overlays into refs so the
   // engine-change render callback (registered once) never reads stale values.
-  // useLayoutEffect (not render-time writes) keeps this concurrent-render safe
-  // while still committing before the browser paints.
-  useLayoutEffect(() => {
-    viewRef.current = props.view;
-    overlaysRef.current = props.overlays;
-  });
+  viewRef.current = props.view;
+  overlaysRef.current = props.overlays;
 
   const ensureBitmap = () => {
     const { width, height } = props.engine.doc;
@@ -54,63 +46,47 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
     return b;
   };
 
-  // Marching-ants contour. Scanning every pixel to find selection edges is O(w*h),
-  // so we do it ONLY when the selection mask changes (cached by identity) and store
-  // the boundary as flat [x0,y0,x1,y1,...] segments. Per animation frame we just
-  // re-stroke the cached segments with a new dash offset (one beginPath + one
-  // stroke per colour pass). The previous code re-scanned every pixel AND issued a
-  // beginPath+stroke PER edge pixel on EVERY frame, TWICE — on a full manga page
-  // (~1.4M px) that blew the 16ms budget and made the canvas stutter/blink while a
-  // selection was active ("chớp nháy" when drawing an ellipse/rectangle marquee).
-  const buildContourSegments = (sel: Uint8Array, w: number, h: number): Float32Array => {
-    const segs: number[] = [];
+  const drawSelectionContour = (ctx: CanvasRenderingContext2D, sel: Uint8Array, w: number, h: number) => {
+    // Draw edges where selection changes from selected to unselected
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const idx = y * w + x;
-        if (sel[idx] === 0) continue;
-        if (y === 0 || sel[idx - w] === 0) segs.push(x, y, x + 1, y); // top
-        if (y === h - 1 || sel[idx + w] === 0) segs.push(x, y + 1, x + 1, y + 1); // bottom
-        if (x === 0 || sel[idx - 1] === 0) segs.push(x, y, x, y + 1); // left
-        if (x === w - 1 || sel[idx + 1] === 0) segs.push(x + 1, y, x + 1, y + 1); // right
+        const isSelected = sel[idx] > 0;
+        if (!isSelected) continue;
+
+        // Check each edge and draw if it borders an unselected pixel
+        const left = x === 0 || sel[idx - 1] === 0;
+        const right = x === w - 1 || sel[idx + 1] === 0;
+        const top = y === 0 || sel[idx - w] === 0;
+        const bottom = y === h - 1 || sel[idx + w] === 0;
+
+        // Draw line segments on edges
+        if (top) {
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + 1, y);
+          ctx.stroke();
+        }
+        if (bottom) {
+          ctx.beginPath();
+          ctx.moveTo(x, y + 1);
+          ctx.lineTo(x + 1, y + 1);
+          ctx.stroke();
+        }
+        if (left) {
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x, y + 1);
+          ctx.stroke();
+        }
+        if (right) {
+          ctx.beginPath();
+          ctx.moveTo(x + 1, y);
+          ctx.lineTo(x + 1, y + 1);
+          ctx.stroke();
+        }
       }
     }
-    return new Float32Array(segs);
-  };
-
-  const contourSegments = (sel: Uint8Array, w: number, h: number): Float32Array => {
-    if (antsMaskRef.current !== sel || antsSegsRef.current === null) {
-      antsMaskRef.current = sel;
-      antsSegsRef.current = buildContourSegments(sel, w, h);
-    }
-    return antsSegsRef.current;
-  };
-
-  const strokeContour = (ctx: CanvasRenderingContext2D, segs: Float32Array) => {
-    ctx.beginPath();
-    for (let i = 0; i < segs.length; i += 4) {
-      ctx.moveTo(segs[i], segs[i + 1]);
-      ctx.lineTo(segs[i + 2], segs[i + 3]);
-    }
-    ctx.stroke();
-  };
-
-  const drawMarchingAnts = (ctx: CanvasRenderingContext2D, sel: Uint8Array, w: number, h: number, zoom: number) => {
-    const segs = contourSegments(sel, w, h);
-    ctx.save();
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.setLineDash([6, 4]);
-    ctx.lineDashOffset = -(marchingAntsOffsetRef.current);
-    // Black outline first (visible on light art), then white dashes on top.
-    ctx.strokeStyle = '#000000';
-    ctx.globalAlpha = 0.5;
-    ctx.lineWidth = 3 / zoom;
-    strokeContour(ctx, segs);
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.globalAlpha = 1;
-    ctx.lineWidth = 1.5 / zoom;
-    strokeContour(ctx, segs);
-    ctx.restore();
   };
 
   const updateComposite = useCallback(() => {
@@ -120,11 +96,7 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
     if (bctx) {
       const composite = props.engine.composite();
       cachedCompositeRef.current = composite;
-      bctx.putImageData(
-        new ImageData(composite as Uint8ClampedArray<ArrayBuffer>, w, h),
-        0,
-        0,
-      );
+      bctx.putImageData(new ImageData(composite as any, w, h), 0, 0);
     }
     compositeValidRef.current = true;
   }, [props.engine]);
@@ -184,7 +156,27 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
     // Marching ants selection overlay (animated dashed outline).
     const sel = props.engine.selectionMask;
     if (sel && sel.length === w * h) {
-      drawMarchingAnts(ctx, sel, w, h, v.zoom);
+      ctx.save();
+      ctx.lineWidth = 1.5 / v.zoom;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.setLineDash([6, 4]);
+      ctx.lineDashOffset = -(marchingAntsOffsetRef.current);
+
+      // High-contrast alternating strokes (white primary, black outline for visibility)
+      // Draw black outline first for visibility on light backgrounds
+      ctx.strokeStyle = '#000000';
+      ctx.globalAlpha = 0.5;
+      ctx.lineWidth = (3 / v.zoom);
+      drawSelectionContour(ctx, sel, w, h);
+
+      // Then draw white stroke on top
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = (1.5 / v.zoom);
+      drawSelectionContour(ctx, sel, w, h);
+
+      ctx.restore();
     }
 
     ctx.restore();
@@ -240,7 +232,24 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
     // Marching ants only
     const sel = props.engine.selectionMask;
     if (sel && sel.length === w * h) {
-      drawMarchingAnts(ctx, sel, w, h, v.zoom);
+      ctx.save();
+      ctx.lineWidth = 1.5 / v.zoom;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.setLineDash([6, 4]);
+      ctx.lineDashOffset = -(marchingAntsOffsetRef.current);
+
+      ctx.strokeStyle = '#000000';
+      ctx.globalAlpha = 0.5;
+      ctx.lineWidth = (3 / v.zoom);
+      drawSelectionContour(ctx, sel, w, h);
+
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = (1.5 / v.zoom);
+      drawSelectionContour(ctx, sel, w, h);
+
+      ctx.restore();
     }
 
     ctx.restore();
@@ -260,36 +269,17 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
     render();
   }, [props.engine, props.onViewChange, render]);
 
-  // Coalesce engine-driven repaints into one per animation frame. A live brush
-  // stamp or Move drag emits a change on every pointermove (often faster than the
-  // display refresh); rendering synchronously each time recomposites ALL layers
-  // through WASM repeatedly only to show the last paint — wasted work that causes
-  // drag jank/tearing. Batching collapses them to a single composite per frame.
-  const scheduleRender = useCallback(() => {
-    if (rafRenderRef.current !== null) return;
-    rafRenderRef.current = requestAnimationFrame(() => {
-      rafRenderRef.current = null;
-      render();
-    });
-  }, [render]);
-
   // Repaint on engine changes (stable render reads the latest viewRef).
-  // Invalidate cached composite when document changes; first paint is synchronous.
+  // Invalidate cached composite when document changes.
   useEffect(() => {
     const unsub = props.engine.onChange(() => {
       compositeValidRef.current = false;
-      scheduleRender();
+      render();
     });
     compositeValidRef.current = false;
     render();
-    return () => {
-      unsub();
-      if (rafRenderRef.current !== null) {
-        cancelAnimationFrame(rafRenderRef.current);
-        rafRenderRef.current = null;
-      }
-    };
-  }, [props.engine, render, scheduleRender]);
+    return unsub;
+  }, [props.engine, render]);
 
   // Repaint on external view changes.
   useEffect(() => { render(); }, [props.view, render]);
@@ -333,15 +323,9 @@ export function CanvasStage(props: CanvasStageProps): ReactNode {
       const sel = props.engine.selectionMask;
       const hasSel = !!sel && sel.length > 0;
       if (hasSel && marchingAntsAnimationRef.current === null) {
-        // Advance the dashes at ~15fps. 60fps gives no visual benefit and the
-        // contour re-stroke is the costly part, so gating it keeps the main thread
-        // free and the canvas smooth while a selection is active.
-        const animate = (t: number) => {
-          if (t - antsLastFrameRef.current >= 64) {
-            antsLastFrameRef.current = t;
-            marchingAntsOffsetRef.current += 4;
-            renderAntsOnly();
-          }
+        const animate = () => {
+          marchingAntsOffsetRef.current += 2;
+          renderAntsOnly();
           marchingAntsAnimationRef.current = requestAnimationFrame(animate);
         };
         marchingAntsAnimationRef.current = requestAnimationFrame(animate);

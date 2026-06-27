@@ -17,14 +17,7 @@ export class NotificationsService {
     await this.db.query(
       `INSERT INTO \`Notification\` (recipient_user_id, notification_type, title, content, related_entity_type, related_entity_id)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        recipientUserId,
-        type,
-        title,
-        content,
-        relatedEntityType,
-        relatedEntityId,
-      ],
+      [recipientUserId, type, title, content, relatedEntityType, relatedEntityId],
     );
   }
 

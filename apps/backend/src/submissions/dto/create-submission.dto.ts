@@ -1,11 +1,4 @@
-import {
-  IsInt,
-  IsOptional,
-  IsString,
-  IsNotEmpty,
-  MaxLength,
-  Min,
-} from 'class-validator';
+import { IsInt, IsOptional, IsString, IsNotEmpty, MaxLength, Min } from 'class-validator';
 
 export class CreateSubmissionDto {
   @IsInt()

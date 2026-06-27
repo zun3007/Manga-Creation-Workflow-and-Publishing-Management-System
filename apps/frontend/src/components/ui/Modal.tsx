@@ -115,11 +115,6 @@ export function Modal({ open, onClose, title, labelledBy, children, className = 
         onClick={handleContentClick}
       >
         <Panel className={`max-w-[90vw] max-h-[90vh] overflow-auto ${className}`}>
-          {title && (
-            <div className="flex items-center gap-3 border-b border-line px-5 py-3.5">
-              <h2 className="font-display text-lg leading-tight text-ink">{title}</h2>
-            </div>
-          )}
           {children}
         </Panel>
       </div>
