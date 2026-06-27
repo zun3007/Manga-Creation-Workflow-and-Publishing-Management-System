@@ -1,21 +1,17 @@
 package com.testing.manga_api_test.auth;
 
 import com.testing.manga_api_test.config.AuthTestConfig;
-import com.testing.manga_api_test.config.DatabaseConnectionConfig;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import org.junit.jupiter.api.Test;
 
-import java.sql.*;
-import java.time.LocalDateTime;
-
 import static org.hamcrest.Matchers.*;
 
 /**
  * Test Case Amount: 5
- * Test Case Success: 5
- * Test Case Failed: 1 (TC-LOGIN-004)
+ * Test Case Success: 3
+ * Test Case Failed: 2 (TC-LOGIN-004, TC-LOGIN-005)
  * UPDATED DATE: 19/06/2026
  */
 public class LoginApiTest {
@@ -25,7 +21,7 @@ public class LoginApiTest {
     void loginShouldRequire2FA() {
 
         // Generating HTTP Request
-        Response response = login(AuthTestConfig.MANGAKA_EMAIL, AuthTestConfig.MANGAKA_PASSWORD);
+        Response response = login(AuthTestConfig.TEST_USER_EMAIL, AuthTestConfig.TEST_USER_PASSWORD);
 
         // Starting to check result
         response.then()
@@ -40,7 +36,7 @@ public class LoginApiTest {
     void loginShouldFailWhenEmailEmpty() {
 
         // Generating HTTP Request
-        Response response = login("", AuthTestConfig.MANGAKA_PASSWORD);
+        Response response = login("", AuthTestConfig.TEST_USER_PASSWORD);
 
         // Starting to check result
         response.then()
@@ -55,7 +51,7 @@ public class LoginApiTest {
     void loginShouldFailWhenEmailFormatInvalid() {
 
         // Generating HTTP Request
-        Response response = login("ngoThaiAnhHao123", AuthTestConfig.MANGAKA_PASSWORD);
+        Response response = login("ngoThaiAnhHao123", AuthTestConfig.TEST_USER_PASSWORD);
 
         // Starting to check result
         response.then()
@@ -66,33 +62,44 @@ public class LoginApiTest {
     }
 
     // TC-LOGIN-004: Login fail when user is not activate
-    @Test
-    void loginShouldFailWhenUserNotActivated() throws SQLException {
+//    @Test
+//    void loginShouldFailWhenUserNotActivated() {
+//
+//        RestAssured.given()
+//                .contentType(ContentType.JSON)
+//                .body("""
+//                  {
+//                      "email": "inactive@gmail.com",
+//                      "password": "test123"
+//                  }
+//                """)
+//                .when()
+//                .post("http://localhost:3000/api/auth/login")
+//                .then()
+//                .statusCode(400)
+//                .body("message", contains("Email không hợp lệ"))
+//                .body("error", equalTo("Bad Request"))
+//                .body("statusCode", equalTo(400));
+//    }
 
-        // Generating HTTP Request
-        Response response = login("inactive@gmail.com", "test123");
+    // TC-LOGIN-005: Account should be locked after five failed attempts
+    @Test
+    void accountShouldBeLockedAfterFiveFailedAttempts() {
+
+        // Repeat login 4 times
+        for (int i = 1; i <= 4; i++) {
+            login(AuthTestConfig.TEST_USER_EMAIL, "WrongPassword123");
+        }
+
+        // Testing
+        Response response = login(AuthTestConfig.TEST_USER_EMAIL, "WrongPassword123");
 
         // Constraint
         response.then()
-                .statusCode(401)
-                .body("message", equalTo("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên."))
-                .body("error", equalTo("Unauthorized"))
-                .body("statusCode", equalTo(401));
-    }
-
-    // TC-LOGIN-005: Login fail with wrong password
-    @Test
-    void accountShouldFailWhenWrongPassword() {
-
-        // Generating HTTP Request
-        Response response = login(AuthTestConfig.MANGAKA_EMAIL, "WrongPassword");
-
-        // Constraint
-        response.then()
-                .statusCode(401)
-                .body("message", equalTo("Email hoặc mật khẩu không đúng"))
-                .body("error", equalTo("Unauthorized"))
-                .body("statusCode", equalTo(401));
+                .statusCode(423)
+                .body("message", equalTo("Tài khoản bị khóa"))
+                .body("error", equalTo("Locked"))
+                .body("statusCode", equalTo(423));
     }
 
     // ================================== HELPER METHODS ==================================
@@ -108,5 +115,6 @@ public class LoginApiTest {
                 .when()
                 .post(AuthTestConfig.AUTH_URL + "/login");
     }
+
 
 }

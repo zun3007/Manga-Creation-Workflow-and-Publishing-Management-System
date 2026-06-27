@@ -99,18 +99,18 @@ describe('AuthService.verifyTwoFactor', () => {
     jwt.verify.mockImplementation(() => {
       throw new Error('jwt expired');
     });
-    await expect(svc.verifyTwoFactor('bad.jwt', '123456')).rejects.toThrow(
-      /hết hạn|đăng nhập lại/i,
-    );
+    await expect(
+      svc.verifyTwoFactor('bad.jwt', '123456'),
+    ).rejects.toThrow(/hết hạn|đăng nhập lại/i);
     expect(otp.verify).not.toHaveBeenCalled();
   });
 
   it('rejects a challenge token that is not typed as 2fa', async () => {
     const { svc, jwt } = deps();
     jwt.verify.mockReturnValue({ sub: 1 }); // missing typ:'2fa'
-    await expect(svc.verifyTwoFactor('access.jwt', '123456')).rejects.toThrow(
-      /không hợp lệ/i,
-    );
+    await expect(
+      svc.verifyTwoFactor('access.jwt', '123456'),
+    ).rejects.toThrow(/không hợp lệ/i);
   });
 });
 

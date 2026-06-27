@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Role } from "@manga/shared";
-import { api, apiErrorMessage } from "../../lib/api";
+import { api } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
 import { useConfirm } from "../../lib/confirm";
 import type { AdminUser } from "../../types";
@@ -18,6 +18,10 @@ export default function Console() {
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const [savingId, setSavingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   async function loadData() {
     setLoading(true);
@@ -37,10 +41,6 @@ export default function Console() {
     }
   }
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   async function save(id: number, patch: Partial<AdminUser>) {
     setSavingId(id);
     setActionError("");
@@ -59,8 +59,10 @@ export default function Console() {
         prev.map((u) => (u.id === id ? { ...u, ...patch } : u))
       );
       toast.success('Đã cập nhật người dùng.');
-    } catch (e) {
-      setActionError(apiErrorMessage(e, "Không thể cập nhật người dùng."));
+    } catch (e: any) {
+      const message =
+        e?.response?.data?.message || "Không thể cập nhật người dùng.";
+      setActionError(message);
       console.error("Failed to save user", e);
     } finally {
       setSavingId(null);
@@ -149,7 +151,7 @@ export default function Console() {
                       <select
                         value={user.role}
                         onChange={(e) =>
-                          save(user.id, { role: e.target.value as Role })
+                          save(user.id, { role: e.target.value as any })
                         }
                         disabled={isSaving}
                         className="px-3 py-1 rounded border border-line bg-surface text-ink text-sm cursor-pointer disabled:opacity-50"

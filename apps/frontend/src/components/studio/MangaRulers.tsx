@@ -14,7 +14,7 @@ export function MangaRulers({ engine, color }: MangaRulersProps) {
 
   const handleSymmetryChange = (mode: 'none' | 'vertical' | 'horizontal') => {
     setSymmetry(mode);
-    engine.setSymmetry(mode);
+    engine.symmetry = mode;
   };
 
   const handleRadialFocusLines = () => {

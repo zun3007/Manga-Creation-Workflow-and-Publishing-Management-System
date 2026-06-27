@@ -1,12 +1,4 @@
-import {
-  IsIn,
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsNumber,
-  MaxLength,
-  Min,
-} from 'class-validator';
+import { IsIn, IsString, IsNotEmpty, IsOptional, IsNumber, MaxLength, Min } from 'class-validator';
 
 export class ResolveDisputeDto {
   @IsIn(['RESOLVED', 'REJECTED'])

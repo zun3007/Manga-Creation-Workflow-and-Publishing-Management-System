@@ -63,11 +63,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Patch('password')
   changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
-    return this.auth.changePassword(
-      req.user.id,
-      dto.currentPassword,
-      dto.newPassword,
-    );
+    return this.auth.changePassword(req.user.id, dto.currentPassword, dto.newPassword);
   }
 
   @UseGuards(GoogleOauthGuard)
@@ -80,10 +76,7 @@ export class AuthController {
   @Get('google/callback')
   async googleCallback(@Req() req: any, @Res() res: Response) {
     const { accessToken } = await this.auth.validateGoogle(req.user);
-    const client = this.config.get<string>(
-      'CLIENT_URL',
-      'http://localhost:5173',
-    );
+    const client = this.config.get<string>('CLIENT_URL', 'http://localhost:5173');
     res.redirect(`${client}/auth/callback?token=${accessToken}`);
   }
 }

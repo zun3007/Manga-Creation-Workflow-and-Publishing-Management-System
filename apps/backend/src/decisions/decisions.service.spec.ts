@@ -47,10 +47,7 @@ describe('DecisionsService.decide', () => {
     // Verify UPDATE Series status to CANCELLED
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE `Series` SET series_status'),
-      expect.arrayContaining([
-        DecisionType.CANCEL === DecisionType.CANCEL ? 'CANCELLED' : undefined,
-        7,
-      ]),
+      expect.arrayContaining([DecisionType.CANCEL === DecisionType.CANCEL ? 'CANCELLED' : undefined, 7]),
     );
 
     // Verify notify
@@ -94,14 +91,7 @@ describe('DecisionsService.decide', () => {
     // Verify INSERT with null ranking_id
     expect(db.insert).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO `Decision`'),
-      [
-        5,
-        null,
-        DecisionType.CHANGE_FREQUENCY,
-        Frequency.MONTHLY,
-        'artist request',
-        9,
-      ],
+      [5, null, DecisionType.CHANGE_FREQUENCY, Frequency.MONTHLY, 'artist request', 9],
     );
 
     // Verify UPDATE Series with new frequency
@@ -115,11 +105,13 @@ describe('DecisionsService.decide', () => {
 
   it('throws BadRequestException when CHANGE_FREQUENCY without newFrequency', async () => {
     const db: any = {
-      queryOne: jest.fn().mockResolvedValueOnce({
-        series_id: 5,
-        title: 'Series',
-        mangaka_user_id: 99,
-      }),
+      queryOne: jest
+        .fn()
+        .mockResolvedValueOnce({
+          series_id: 5,
+          title: 'Series',
+          mangaka_user_id: 99,
+        }),
       insert: jest.fn(),
       query: jest.fn(),
     };

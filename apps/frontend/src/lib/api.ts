@@ -42,14 +42,3 @@ api.interceptors.response.use(
 );
 
 export const googleLoginUrl = `${API_URL}/auth/google`;
-
-/** Extract the server-provided message from an API error without resorting to `any`. */
-export function apiErrorMessage(err: unknown, fallback: string): string {
-  if (axios.isAxiosError(err)) {
-    const msg = (err.response?.data as { message?: string | string[] } | undefined)
-      ?.message;
-    if (Array.isArray(msg)) return msg.join("; ");
-    if (msg) return msg;
-  }
-  return fallback;
-}

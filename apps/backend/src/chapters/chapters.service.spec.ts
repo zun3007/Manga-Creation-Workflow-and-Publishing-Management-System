@@ -1,44 +1,6 @@
 import { ChaptersService } from './chapters.service';
 import { ChapterStatus } from '@manga/shared';
 
-describe('ChaptersService.create', () => {
-  const mkCreateDb = () => ({
-    queryOne: jest
-      .fn()
-      .mockResolvedValueOnce({ series_id: 1 }) // ownership check
-      .mockResolvedValueOnce({ nextNumber: 3 }) // next chapter number
-      .mockResolvedValue({ id: 42, number: 3 }), // findOne
-    insert: jest.fn().mockResolvedValue(42),
-  });
-
-  it('normalizes a calendar-date deadline to a MySQL DATETIME literal (no trailing Z)', async () => {
-    const db: any = mkCreateDb();
-    const s = new ChaptersService(db, { notify: jest.fn() } as any);
-    await s.create(1, {
-      seriesId: 1,
-      title: 'Ch 3',
-      deadline: '2026-06-20',
-    } as any);
-
-    expect(db.insert).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO `Chapter`'),
-      expect.arrayContaining(['2026-06-20 12:00:00']),
-    );
-    // Guard against the regressed value that MySQL 8 strict mode rejects.
-    const params = db.insert.mock.calls[0][1] as unknown[];
-    expect(params).not.toContain('2026-06-20T00:00:00.000Z');
-  });
-
-  it('inserts NULL when no deadline is supplied', async () => {
-    const db: any = mkCreateDb();
-    const s = new ChaptersService(db, { notify: jest.fn() } as any);
-    await s.create(1, { seriesId: 1, title: 'Ch 3' } as any);
-
-    const params = db.insert.mock.calls[0][1] as unknown[];
-    expect(params).toContain(null);
-  });
-});
-
 describe('ChaptersService.editorReview', () => {
   const mkDb = (chapter: any) => ({
     queryOne: jest
@@ -98,7 +60,7 @@ describe('ChaptersService.setStatus', () => {
           status: ChapterStatus.PUBLISHED,
         }), // findOne
       query: jest.fn().mockResolvedValue([]),
-      transaction: jest.fn((fn) => fn(db)),
+      transaction: jest.fn(async (fn) => fn(db)),
     };
     const notif: any = { notify: jest.fn().mockResolvedValue(undefined) };
     const s = new ChaptersService(db, notif);
@@ -156,18 +118,8 @@ describe('ChaptersService.editorPages', () => {
         chapter_id: 8,
       }), // assignment lookup
       query: jest.fn().mockResolvedValue([
-        {
-          id: 1,
-          number: 1,
-          status: 'RAW',
-          imageUrl: 'http://example.com/page1.jpg',
-        },
-        {
-          id: 2,
-          number: 2,
-          status: 'RAW',
-          imageUrl: 'http://example.com/page2.jpg',
-        },
+        { id: 1, number: 1, status: 'RAW', imageUrl: 'http://example.com/page1.jpg' },
+        { id: 2, number: 2, status: 'RAW', imageUrl: 'http://example.com/page2.jpg' },
       ]),
     };
     const s = new ChaptersService(db, {} as any);

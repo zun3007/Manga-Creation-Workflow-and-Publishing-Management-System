@@ -72,17 +72,13 @@ export default function SeriesDetail() {
     setSubmitting(true);
     setSubmitError("");
     try {
-      const payload: { seriesId: number; title: string; deadline?: string } = {
+      const payload: any = {
         seriesId,
         title: formTitle.trim(),
       };
-      // Send the raw calendar date (YYYY-MM-DD) straight from the date input.
-      // NOT new Date().toISOString(): that appends a "Z" which MySQL 8 strict
-      // mode rejects (ERROR 1292), breaking the chapter insert. The backend
-      // normalizes this to a MySQL-safe DATETIME literal.
-      if (formDeadline) payload.deadline = formDeadline;
+      if (formDeadline) payload.deadline = new Date(formDeadline).toISOString();
 
-      const res = await api.post<ChapterItem>("/chapters", payload);
+      const res = await api.post("/chapters", payload);
       // Prepend new chapter to list
       const newChapter = res.data;
       setChapters([newChapter, ...chapters]);

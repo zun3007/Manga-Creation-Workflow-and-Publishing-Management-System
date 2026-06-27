@@ -13,7 +13,6 @@ import {
   NotificationType,
 } from '@manga/shared';
 import { CreateChapterDto } from './dto/create-chapter.dto';
-import { toMysqlDeadline } from '../common/date.util';
 
 @Injectable()
 export class ChaptersService {
@@ -49,7 +48,7 @@ export class ChaptersService {
         dto.seriesId,
         chapterNumber,
         dto.title,
-        toMysqlDeadline(dto.deadline),
+        dto.deadline ?? null,
         ChapterStatus.DRAFT,
       ],
     );
@@ -102,31 +101,18 @@ export class ChaptersService {
       throw new NotFoundException('Chapter not found');
     }
 
-    if (!canTransition(CHAPTER_TRANSITIONS, chapter.chapter_status, status)) {
+    if (
+      !canTransition(CHAPTER_TRANSITIONS, chapter.chapter_status, status)
+    ) {
       throw new BadRequestException(
         `Invalid chapter transition ${chapter.chapter_status} → ${status}`,
       );
     }
 
-    // For PUBLISHED status, verify every page is ready. A page is ready when it
-    // has content (a current version) AND no outstanding assistant task. A page is
-    // NOT ready if it has nothing drawn/uploaded, or it still has a task that is not
-    // APPROVED. This lets a Mangaka who draws pages themselves (no tasks) publish,
-    // while still blocking pages with unfinished assistant work — the previous gate
-    // required page_status='COMPLETED', which a task-less self-drawn page never
-    // reaches, so such chapters could never be published.
+    // For PUBLISHED status, verify all pages are COMPLETED
     if (status === ChapterStatus.PUBLISHED) {
       const incompletePages = await this.db.queryOne<{ c: number }>(
-        `SELECT COUNT(*) AS c
-         FROM \`Page\` p
-         WHERE p.chapter_id = ?
-           AND (
-             COALESCE(p.current_version, 0) = 0
-             OR EXISTS (
-               SELECT 1 FROM \`Task\` t
-               WHERE t.page_id = p.page_id AND t.task_status <> 'APPROVED'
-             )
-           )`,
+        `SELECT COUNT(*) AS c FROM \`Page\` WHERE chapter_id = ? AND page_status <> 'COMPLETED'`,
         [chapterId],
       );
 
@@ -142,17 +128,19 @@ export class ChaptersService {
       );
 
       if ((totalPages?.c ?? 0) === 0) {
-        throw new BadRequestException('Chương chưa có trang');
+        throw new BadRequestException(
+          'Chương chưa có trang',
+        );
       }
     }
 
     // Execute DB writes in transaction for PUBLISHED status, direct update otherwise
     if (status === ChapterStatus.PUBLISHED) {
       await this.db.transaction(async (tx) => {
-        await tx.query(
-          `UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`,
-          [status, chapterId],
-        );
+        await tx.query(`UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`, [
+          status,
+          chapterId,
+        ]);
 
         await tx.query(
           `INSERT INTO \`Publication_Schedule\` (chapter_id, release_date, publish_status, scheduled_by_user_id, published_at)
@@ -162,10 +150,10 @@ export class ChaptersService {
         );
       });
     } else {
-      await this.db.query(
-        `UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`,
-        [status, chapterId],
-      );
+      await this.db.query(`UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`, [
+        status,
+        chapterId,
+      ]);
     }
 
     // Send notifications after transaction commits
@@ -222,7 +210,6 @@ export class ChaptersService {
     return this.db.query(
       `SELECT c.chapter_id AS id, c.chapter_number AS number, c.chapter_title AS title,
               c.chapter_status AS status, c.deadline, s.series_id AS seriesId, s.title AS series,
-              s.proposal_id AS proposalId,
               (SELECT COUNT(*) FROM \`Page\` p WHERE p.chapter_id = c.chapter_id) AS pages
        FROM \`Chapter\` c
        JOIN \`Series\` s ON s.series_id = c.series_id
@@ -301,9 +288,7 @@ export class ChaptersService {
     );
 
     if (!ok) {
-      throw new ForbiddenException(
-        'Bạn không phải biên tập phụ trách chương này',
-      );
+      throw new ForbiddenException('Bạn không phải biên tập phụ trách chương này');
     }
 
     // Return pages with current version details

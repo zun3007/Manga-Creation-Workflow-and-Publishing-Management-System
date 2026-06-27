@@ -64,11 +64,6 @@ export class ChaptersController {
     @Body() dto: EditorReviewDto,
     @Req() req: any,
   ) {
-    return this.service.editorReview(
-      +id,
-      req.user.id,
-      dto.decision,
-      dto.feedback,
-    );
+    return this.service.editorReview(+id, req.user.id, dto.decision, dto.feedback);
   }
 }

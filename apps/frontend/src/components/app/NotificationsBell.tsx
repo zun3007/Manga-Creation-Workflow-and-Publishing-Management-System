@@ -8,16 +8,6 @@ export function NotificationsBell() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  async function loadNotifications() {
-    try {
-      const res = await api.get<AppNotification[]>("/notifications");
-      setNotifications(res.data || []);
-    } catch (err) {
-      console.error("Failed to load notifications", err);
-      setNotifications([]);
-    }
-  }
-
   useEffect(() => {
     loadNotifications();
     // Set up 20-second polling interval
@@ -48,6 +38,16 @@ export function NotificationsBell() {
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [isOpen]);
+
+  async function loadNotifications() {
+    try {
+      const res = await api.get<AppNotification[]>("/notifications");
+      setNotifications(res.data || []);
+    } catch (err) {
+      console.error("Failed to load notifications", err);
+      setNotifications([]);
+    }
+  }
 
   async function markAsRead(id: number) {
     const previousNotifications = notifications;

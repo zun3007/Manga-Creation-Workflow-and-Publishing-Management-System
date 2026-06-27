@@ -1,45 +1,10 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { DbService } from '../db/db.service';
 import { CreateAnnotationDto } from './dto/create-annotation.dto';
 
 @Injectable()
 export class AnnotationsService {
   constructor(private readonly db: DbService) {}
-
-  /**
-   * Authorize a user against an annotation target before reading/creating.
-   * Without this, any editor/mangaka could read OR create annotations for ANY
-   * target id (cross-series IDOR). For PAGE targets, access is granted only to
-   * the series' mangaka or an actively-assigned tantou editor. Other target
-   * types are not surfaced in the UI yet; tighten when they are.
-   */
-  async assertAccess(
-    userId: number,
-    targetType: string,
-    targetId: number,
-  ): Promise<void> {
-    if (targetType === 'PAGE') {
-      const row = await this.db.queryOne<{ ok: number }>(
-        `SELECT 1 AS ok
-         FROM \`Page\` p
-         JOIN \`Chapter\` c ON c.chapter_id = p.chapter_id
-         JOIN \`Series\` s ON s.series_id = c.series_id
-         LEFT JOIN \`Series_Tantou_Editor\` ste
-           ON ste.series_id = s.series_id
-          AND ste.unassigned_at IS NULL
-          AND ste.editor_user_id = ?
-         WHERE p.page_id = ?
-           AND (s.mangaka_user_id = ? OR ste.editor_user_id IS NOT NULL)
-         LIMIT 1`,
-        [userId, targetId, userId],
-      );
-      if (!row) {
-        throw new ForbiddenException(
-          'Bạn không có quyền truy cập góp ý của trang này',
-        );
-      }
-    }
-  }
 
   async create(userId: number, dto: CreateAnnotationDto) {
     const annotationId = await this.db.insert(

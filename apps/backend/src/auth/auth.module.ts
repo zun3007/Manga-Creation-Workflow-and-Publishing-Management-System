@@ -26,9 +26,7 @@ import { OtpService } from './otp.service';
         }
         return {
           secret: secret || 'dev-secret',
-          signOptions: {
-            expiresIn: config.get<string>('JWT_EXPIRES', '7d') as any,
-          },
+          signOptions: { expiresIn: config.get<string>('JWT_EXPIRES', '7d') as any },
         };
       },
     }),

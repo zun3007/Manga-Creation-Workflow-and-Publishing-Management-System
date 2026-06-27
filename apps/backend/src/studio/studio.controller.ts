@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  Param,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -23,12 +15,7 @@ export class StudioController {
   @Post('page-versions')
   @Roles(Role.MANGAKA)
   savePageVersion(@Body() dto: SavePageVersionDto, @Req() req: any) {
-    return this.service.savePageVersion(
-      req.user.id,
-      dto.pageId,
-      dto.imageUrl,
-      dto.note,
-    );
+    return this.service.savePageVersion(req.user.id, dto.pageId, dto.imageUrl, dto.note);
   }
 
   @Post('docs')

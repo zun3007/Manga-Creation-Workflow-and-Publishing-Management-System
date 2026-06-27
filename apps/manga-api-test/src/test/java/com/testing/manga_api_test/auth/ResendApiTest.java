@@ -29,9 +29,7 @@ public class ResendApiTest {
     @Test
     void resendOtpShouldSendNewOtpSuccess() throws SQLException {
         // Login and get Challenge Token
-        String challengeToken = AuthTestConfig.loginAndGetChallengeToken(
-                AuthTestConfig.MANGAKA_EMAIL,
-                AuthTestConfig.MANGAKA_PASSWORD);
+        String challengeToken = AuthTestConfig.loginAndGetChallengeToken();
 
         // Skip 60 seconds
         makeOtpOlderThan60Seconds();
@@ -49,9 +47,7 @@ public class ResendApiTest {
     @Test
     void resendOtpShouldFailWhenChallengeTokenInvalid() throws SQLException {
         // Login
-        AuthTestConfig.loginAndGetChallengeToken(
-                AuthTestConfig.MANGAKA_EMAIL,
-                AuthTestConfig.MANGAKA_PASSWORD);
+        AuthTestConfig.loginAndGetChallengeToken();
 
         // Skip 60 seconds
         makeOtpOlderThan60Seconds();
@@ -71,9 +67,7 @@ public class ResendApiTest {
     @Test
     void resendOtpShouldFailWhenHasManyRequest() {
         // Login and get Challenge Token
-        String challengeToken = AuthTestConfig.loginAndGetChallengeToken(
-                AuthTestConfig.MANGAKA_EMAIL,
-                AuthTestConfig.MANGAKA_PASSWORD);
+        String challengeToken = AuthTestConfig.loginAndGetChallengeToken();
 
         // Generating HTTP Request
         Response response = resendOtp(challengeToken);
@@ -133,7 +127,7 @@ public class ResendApiTest {
         """);
 
         // Execute query
-        preparedStatement.setLong(1, AuthTestConfig.MANGAKA_ID);
+        preparedStatement.setLong(1, AuthTestConfig.TEST_USER_ID);
         preparedStatement.executeUpdate();
     }
 

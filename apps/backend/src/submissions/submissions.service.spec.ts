@@ -1,5 +1,5 @@
 import { SubmissionsService } from './submissions.service';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 
 describe('SubmissionsService', () => {
   describe('review()', () => {
@@ -13,21 +13,18 @@ describe('SubmissionsService', () => {
             submission_status: 'PENDING',
             task_id: 10,
             page_id: 20,
-            file_url: 'http://x/sub.png',
             assistant_user_id: 5,
             assignor_user_id: 3,
             task_status: 'SUBMITTED',
           })
-          // applying the approved artwork: Page_Version MAX(version_number)+1
-          .mockResolvedValueOnce({ next: 2 })
           // syncPageStatusFromTasks current-page lookup
           .mockResolvedValueOnce({ page_status: 'REVIEWING' }),
-        query: jest.fn((sql: string) =>
+        query: jest.fn(async (sql: string) =>
           String(sql).includes('SELECT task_status FROM `Task`')
             ? [{ task_status: 'APPROVED' }] // page's only task is now approved
             : [],
         ),
-        transaction: jest.fn((fn) => fn(db)),
+        transaction: jest.fn(async (fn) => fn(db)),
       };
       const notifications: any = {
         notify: jest.fn().mockResolvedValue(undefined),
@@ -90,12 +87,12 @@ describe('SubmissionsService', () => {
           })
           // syncPageStatusFromTasks current-page lookup
           .mockResolvedValueOnce({ page_status: 'REVIEWING' }),
-        query: jest.fn((sql: string) =>
+        query: jest.fn(async (sql: string) =>
           String(sql).includes('SELECT task_status FROM `Task`')
             ? [{ task_status: 'REVISION_REQUIRED' }] // task bounced back
             : [],
         ),
-        transaction: jest.fn((fn) => fn(db)),
+        transaction: jest.fn(async (fn) => fn(db)),
       };
       const notifications: any = {
         notify: jest.fn().mockResolvedValue(undefined),
@@ -150,9 +147,7 @@ describe('SubmissionsService', () => {
       };
       const service = new SubmissionsService(db, notifications);
 
-      await expect(service.review(999, 3, 'APPROVED')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.review(999, 3, 'APPROVED')).rejects.toThrow(NotFoundException);
     });
 
     it('throws when mangaka does not own the submission', async () => {
@@ -171,9 +166,7 @@ describe('SubmissionsService', () => {
       };
       const service = new SubmissionsService(db, notifications);
 
-      await expect(service.review(1, 999, 'APPROVED')).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(service.review(1, 999, 'APPROVED')).rejects.toThrow(ForbiddenException);
     });
   });
 });

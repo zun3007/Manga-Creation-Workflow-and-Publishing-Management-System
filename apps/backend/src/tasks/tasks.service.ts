@@ -16,7 +16,6 @@ import {
 } from '@manga/shared';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { syncPageStatusFromTasks } from '../pages/page-status.util';
-import { toMysqlDeadline } from '../common/date.util';
 
 @Injectable()
 export class TasksService {
@@ -52,9 +51,10 @@ export class TasksService {
       user_id: number;
       full_name: string;
       role: string;
-    }>(`SELECT user_id, full_name, role FROM \`User\` WHERE user_id = ?`, [
-      dto.assigneeUserId,
-    ]);
+    }>(
+      `SELECT user_id, full_name, role FROM \`User\` WHERE user_id = ?`,
+      [dto.assigneeUserId],
+    );
 
     if (!assignee) {
       throw new NotFoundException('User not found');
@@ -100,7 +100,7 @@ export class TasksService {
         dto.assigneeUserId,
         dto.description ?? null,
         dto.instruction ?? null,
-        toMysqlDeadline(dto.deadline),
+        dto.deadline ?? null,
         TaskStatus.ASSIGNED,
         payment,
         ruleId,
@@ -140,10 +140,6 @@ export class TasksService {
         c.chapter_title AS chapter,
         p.page_number AS page,
         r.region_type AS regionType,
-        r.x_coordinate AS regionX,
-        r.y_coordinate AS regionY,
-        r.width AS regionWidth,
-        r.height AS regionHeight,
         pv.image_url AS pageImage
        FROM \`Task\` t
        JOIN \`Page\` p ON p.page_id = t.page_id
@@ -203,11 +199,7 @@ export class TasksService {
     }
 
     if (
-      !canTransition(
-        TASK_TRANSITIONS,
-        task.status as TaskStatus,
-        TaskStatus.IN_PROGRESS,
-      )
+      !canTransition(TASK_TRANSITIONS, task.status as TaskStatus, TaskStatus.IN_PROGRESS)
     ) {
       throw new BadRequestException(
         `Cannot transition from ${task.status} to IN_PROGRESS`,

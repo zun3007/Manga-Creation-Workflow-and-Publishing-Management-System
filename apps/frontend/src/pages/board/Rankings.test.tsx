@@ -8,10 +8,9 @@ const mockGet = vi.fn();
 const mockPost = vi.fn();
 
 vi.mock("../../lib/api", () => ({
-  apiErrorMessage: (_err: unknown, fallback: string) => fallback,
   api: {
     get: (url: string) => mockGet(url),
-    post: (url: string, body: unknown) => mockPost(url, body),
+    post: (url: string, body: any) => mockPost(url, body),
   },
 }));
 

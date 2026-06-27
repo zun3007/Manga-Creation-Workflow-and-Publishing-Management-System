@@ -30,8 +30,6 @@ export class StudioEngine {
 
   private get N() { return this.doc.width * this.doc.height * 4; }
 
-  setSymmetry(mode: 'none' | 'vertical' | 'horizontal') { this.symmetry = mode; }
-
   ensureBuffer(id: string): Uint8ClampedArray {
     let b = this.buffers.get(id);
     if (!b) { b = new Uint8ClampedArray(this.N); this.buffers.set(id, b); }

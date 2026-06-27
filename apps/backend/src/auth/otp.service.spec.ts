@@ -83,9 +83,7 @@ describe('OtpService', () => {
         query: jest.fn(),
       };
       const s = new OtpService(db);
-      await expect(s.verify(7, '123456')).rejects.toThrow(
-        /hết hạn|không tồn tại/i,
-      );
+      await expect(s.verify(7, '123456')).rejects.toThrow(/hết hạn|không tồn tại/i);
     });
   });
 

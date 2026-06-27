@@ -61,7 +61,9 @@ export class RankingsService {
     );
 
     if (!period || period.status !== 'OPEN') {
-      throw new BadRequestException('Kỳ bình chọn đã đóng hoặc không tồn tại');
+      throw new BadRequestException(
+        'Kỳ bình chọn đã đóng hoặc không tồn tại',
+      );
     }
 
     // Upsert vote
@@ -144,9 +146,10 @@ export class RankingsService {
       // Get mangaka user ID
       const series = await this.db.queryOne<{
         mangaka_user_id: number;
-      }>(`SELECT mangaka_user_id FROM \`Series\` WHERE series_id=?`, [
-        period.series_id,
-      ]);
+      }>(
+        `SELECT mangaka_user_id FROM \`Series\` WHERE series_id=?`,
+        [period.series_id],
+      );
 
       if (series) {
         await this.notifications.notify(

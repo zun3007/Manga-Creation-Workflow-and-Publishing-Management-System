@@ -66,6 +66,10 @@ export default function ChapterReview() {
     GENERAL: "Chung",
   };
 
+  useEffect(() => {
+    loadPages();
+  }, [chapterId]);
+
   async function loadPages() {
     if (!chapterId) return;
     setLoading(true);
@@ -97,20 +101,13 @@ export default function ChapterReview() {
     }
   }
 
-  useEffect(() => {
-    loadPages();
-  }, [chapterId]);
-
   function handleImageClick(
     e: React.MouseEvent<HTMLImageElement>,
     pageId: number
   ) {
     const rect = e.currentTarget.getBoundingClientRect();
-    // Clamp to [0, 100] so a click on the very edge can never produce an
-    // out-of-bounds marker (which would float off the image).
-    const clamp = (v: number) => Math.max(0, Math.min(100, v));
-    const x = clamp(((e.clientX - rect.left) / rect.width) * 100);
-    const y = clamp(((e.clientY - rect.top) / rect.height) * 100);
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
     setFormState({ pageId, x, y });
     setFormCategory("GENERAL");
     setFormContext("");
@@ -121,40 +118,33 @@ export default function ChapterReview() {
 
     setSubmitting(true);
     try {
-      const pageId = formState.pageId;
       const payload = {
         targetType: "PAGE" as const,
-        targetId: pageId,
+        targetId: formState.pageId,
         category: formCategory,
         context: formContext.trim(),
         x: formState.x,
         y: formState.y,
       };
-      const res = await api.post<Annotation>("/annotations", payload);
+      await api.post("/annotations", payload);
 
-      // Use the annotation the backend returns (it carries the REAL id and
-      // resolved state). Without this the marker kept id:0, so the "Đã xử lý"
-      // button hit /annotations/0/resolve and silently failed on reload, and
-      // multiple new markers collided on the same React key.
-      const created = res?.data;
-      const saved: Annotation =
-        created && typeof created.id === "number"
-          ? { ...created, isResolved: created.isResolved ? 1 : 0 }
-          : {
-              id: -Date.now(), // unique temp id until reload; never 0
-              targetType: "PAGE",
-              targetId: pageId,
-              category: formCategory,
-              context: payload.context,
-              x: formState.x,
-              y: formState.y,
-              isResolved: 0,
-              createdAt: new Date().toISOString(),
-            };
-
+      // Add to local state
       setAnnotationsByPageId((prev) => ({
         ...prev,
-        [pageId]: [...(prev[pageId] || []), saved],
+        [formState.pageId]: [
+          ...(prev[formState.pageId] || []),
+          {
+            id: 0, // temporary; real id comes from backend
+            targetType: "PAGE",
+            targetId: formState.pageId,
+            category: formCategory,
+            context: formContext,
+            x: formState.x,
+            y: formState.y,
+            isResolved: 0,
+            createdAt: new Date().toISOString(),
+          },
+        ],
       }));
 
       toast.success('Đã thêm góp ý.');
@@ -295,7 +285,7 @@ export default function ChapterReview() {
                         .filter((a) => a.x !== null && a.y !== null)
                         .map((annot, idx) => (
                           <button
-                            key={annot.id}
+                            key={annot.id || idx}
                             type="button"
                             aria-label={`Góp ý: ${annot.context}`}
                             className="absolute w-6 h-6 bg-accent text-white rounded-full flex items-center justify-center text-xs font-bold cursor-pointer hover:brightness-95 transition"
@@ -379,9 +369,9 @@ export default function ChapterReview() {
                       <p className="text-xs text-ink-soft">Chưa có góp ý nào.</p>
                     ) : (
                       <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {(annotationsByPageId[page.id] || []).map((annot) => (
+                        {(annotationsByPageId[page.id] || []).map((annot, idx) => (
                           <div
-                            key={annot.id}
+                            key={annot.id || idx}
                             className={`p-3 rounded border ${
                               annot.isResolved === 1
                                 ? "bg-bg border-line opacity-60"
