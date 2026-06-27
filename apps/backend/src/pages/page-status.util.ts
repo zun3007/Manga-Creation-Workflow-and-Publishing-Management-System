@@ -34,8 +34,7 @@ export function derivePageStatus(
 ): PageStatus | null {
   if (taskStatuses.length === 0) return null;
 
-  const every = (pred: (s: TaskStatus) => boolean) =>
-    taskStatuses.every(pred);
+  const every = (pred: (s: TaskStatus) => boolean) => taskStatuses.every(pred);
   const some = (pred: (s: TaskStatus) => boolean) => taskStatuses.some(pred);
 
   if (every((s) => s === TaskStatus.APPROVED)) return PageStatus.COMPLETED;

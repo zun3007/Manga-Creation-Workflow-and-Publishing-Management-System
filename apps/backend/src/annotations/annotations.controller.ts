@@ -24,6 +24,7 @@ export class AnnotationsController {
   @Post()
   @Roles(Role.TANTOU_EDITOR)
   async create(@Body() dto: CreateAnnotationDto, @Req() req: any) {
+    await this.service.assertAccess(req.user.id, dto.targetType, dto.targetId);
     return this.service.create(req.user.id, dto);
   }
 
@@ -32,7 +33,9 @@ export class AnnotationsController {
   async list(
     @Query('targetType') targetType: string,
     @Query('targetId') targetId: string,
+    @Req() req: any,
   ) {
+    await this.service.assertAccess(req.user.id, targetType, +targetId);
     return this.service.list(targetType, +targetId);
   }
 

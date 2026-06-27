@@ -1,0 +1,540 @@
+.series-page {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 22px;
+}
+
+.series-list-card,
+.chapter-header-card,
+.chapter-form-card,
+.chapter-list-card {
+  border: 3px solid #1b1b22;
+  border-radius: 26px;
+  background: white;
+  box-shadow: 0 10px 24px rgba(27, 27, 34, 0.1);
+}
+
+.series-list-card {
+  padding: 24px;
+}
+
+.series-list-card h2,
+.chapter-header-card h2 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.series-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.series-item {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 3px solid #1b1b22;
+  border-radius: 18px;
+  background: #fff8e7;
+  color: #1b1b22;
+  text-align: left;
+  cursor: pointer;
+}
+
+.series-item.active {
+  background: linear-gradient(90deg, #ef4444, #8b5cf6);
+  color: white;
+}
+
+.series-item strong {
+  font-size: 16px;
+}
+
+.series-item span {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.chapter-workspace {
+  display: grid;
+  gap: 22px;
+}
+
+.chapter-header-card {
+  padding: 26px;
+}
+
+.chapter-header-card p {
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+.chapter-grid {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 22px;
+}
+
+.chapter-form-card,
+.chapter-list-card {
+  padding: 24px;
+}
+
+.chapter-form-card h3,
+.chapter-list-card h3 {
+  margin: 0 0 20px;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.chapter-form-card {
+  display: grid;
+  gap: 10px;
+}
+
+.chapter-form-card label {
+  color: #4b5563;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.chapter-form-card input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 2px solid #1b1b22;
+  border-radius: 16px;
+  background: #fffaf0;
+  color: #1b1b22;
+  font: inherit;
+}
+
+.primary-action {
+  height: 50px;
+  margin-top: 12px;
+  border: 3px solid #1b1b22;
+  border-radius: 999px;
+  background: #1b1b22;
+  color: white;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.series-message {
+  margin: 12px 0 0;
+  padding: 12px;
+  border: 2px solid rgba(27, 27, 34, 0.14);
+  border-radius: 16px;
+  background: #fff8e7;
+  color: #374151;
+}
+
+.chapter-list {
+  display: grid;
+  gap: 14px;
+}
+
+.chapter-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border: 3px solid #1b1b22;
+  border-radius: 20px;
+  background: #fff8e7;
+}
+
+.chapter-item h4 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.chapter-item p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.chapter-item span {
+  align-self: flex-start;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #1b1b22;
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.empty-text {
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+@media (max-width: 1000px) {
+  .series-page,
+  .chapter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== V5 Compact My Series Page ===== */
+
+.series-page,
+.mangaka-series-page,
+.my-series-page {
+  --v5-ink: #2f2925;
+  --v5-muted: #81766c;
+  --v5-line: #ead8bd;
+  --v5-soft: #fff8ed;
+  --v5-card: rgba(255, 255, 255, 0.84);
+  --v5-accent: #f5a623;
+}
+
+/* Grid chính gọn hơn */
+.series-workspace,
+.series-grid,
+.my-series-grid {
+  display: grid !important;
+  grid-template-columns: 300px minmax(0, 1fr) !important;
+  gap: 20px !important;
+  align-items: start !important;
+}
+
+/* Card tổng */
+.series-list-card,
+.series-overview-card,
+.chapter-workspace-card,
+.create-chapter-card,
+.chapters-card {
+  border: 1.5px solid var(--v5-line) !important;
+  border-radius: 28px !important;
+  background:
+    radial-gradient(circle at top right, rgba(255, 226, 178, 0.28), transparent 34%),
+    var(--v5-card) !important;
+  box-shadow: 0 16px 38px rgba(75, 55, 32, 0.08) !important;
+}
+
+/* Bỏ viền đen nặng ở các card */
+.series-list-card,
+.chapter-workspace-card,
+.create-chapter-card,
+.chapters-card {
+  border-color: var(--v5-line) !important;
+}
+
+/* Left card nhỏ gọn */
+.series-list-card {
+  padding: 24px !important;
+  min-height: 620px !important;
+}
+
+.series-list-card h2,
+.chapter-workspace-card h2,
+.create-chapter-card h2,
+.chapters-card h2 {
+  margin: 16px 0 18px !important;
+  color: var(--v5-ink) !important;
+  font-size: 30px !important;
+  line-height: 1.05 !important;
+  font-weight: 1000 !important;
+  letter-spacing: -0.8px !important;
+}
+
+/* Chip title */
+.section-chip,
+.v5-kicker {
+  display: inline-flex !important;
+  width: fit-content !important;
+  min-height: 34px !important;
+  padding: 0 14px !important;
+  align-items: center !important;
+  border: 1.5px solid #efcf8c !important;
+  border-radius: 999px !important;
+  background: #fff4cf !important;
+  color: #9b6200 !important;
+  font-size: 12px !important;
+  font-weight: 1000 !important;
+  letter-spacing: 0.02em !important;
+}
+
+/* Series item */
+.series-item,
+.series-card,
+.approved-series-item {
+  min-height: 64px !important;
+  padding: 14px 16px !important;
+  margin-bottom: 12px !important;
+  border: 1.5px solid var(--v5-line) !important;
+  border-radius: 18px !important;
+  background: #fffaf3 !important;
+  color: var(--v5-ink) !important;
+  box-shadow: 0 8px 18px rgba(75, 55, 32, 0.05) !important;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.series-item:hover,
+.series-card:hover,
+.approved-series-item:hover {
+  transform: translateY(-1px);
+  border-color: #f0b14a !important;
+  box-shadow: 0 12px 26px rgba(75, 55, 32, 0.09) !important;
+}
+
+/* Selected series */
+.series-item.is-selected,
+.series-card.is-selected,
+.approved-series-item.is-selected,
+.series-item.active,
+.series-card.active,
+.approved-series-item.active {
+  border-color: #f0b14a !important;
+  background: linear-gradient(135deg, #ff6b87 0%, #8b5cf6 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 30px rgba(139, 92, 246, 0.2) !important;
+}
+
+.series-item h3,
+.series-card h3,
+.approved-series-item h3 {
+  margin: 0 0 4px !important;
+  font-size: 17px !important;
+  line-height: 1.15 !important;
+  font-weight: 1000 !important;
+}
+
+.series-item p,
+.series-card p,
+.approved-series-item p,
+.series-item span,
+.series-card span,
+.approved-series-item span {
+  margin: 0 !important;
+  font-size: 11px !important;
+  font-weight: 1000 !important;
+  text-transform: uppercase !important;
+}
+
+/* Workspace header */
+.chapter-workspace-card {
+  padding: 26px 30px !important;
+  min-height: 150px !important;
+}
+
+.chapter-workspace-card h2 {
+  margin-bottom: 8px !important;
+}
+
+.chapter-workspace-card p {
+  margin: 0 !important;
+  color: #6f7a8a !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+}
+
+/* Khu tạo chapter + list chapter */
+.series-content-grid,
+.chapter-content-grid,
+.chapter-management-grid {
+  display: grid !important;
+  grid-template-columns: 340px minmax(0, 1fr) !important;
+  gap: 20px !important;
+  margin-top: 20px !important;
+}
+
+.create-chapter-card,
+.chapters-card {
+  padding: 24px !important;
+  min-height: 430px !important;
+}
+
+/* Form nhỏ lại */
+.create-chapter-card label {
+  display: grid !important;
+  gap: 7px !important;
+  margin-bottom: 14px !important;
+  color: #586170 !important;
+  font-size: 13px !important;
+  font-weight: 1000 !important;
+}
+
+.create-chapter-card input {
+  min-height: 48px !important;
+  padding: 0 15px !important;
+  border: 1.5px solid var(--v5-line) !important;
+  border-radius: 16px !important;
+  background: #fffaf4 !important;
+  color: var(--v5-ink) !important;
+  font-size: 15px !important;
+  font-weight: 850 !important;
+  outline: none !important;
+}
+
+.create-chapter-card input:focus {
+  border-color: #f0b14a !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.13) !important;
+}
+
+.create-chapter-card button {
+  min-height: 52px !important;
+  width: 100% !important;
+  border: none !important;
+  border-radius: 18px !important;
+  background: #2f2925 !important;
+  color: #ffffff !important;
+  font-size: 15px !important;
+  font-weight: 1000 !important;
+  box-shadow: 0 14px 28px rgba(47, 41, 36, 0.14) !important;
+}
+
+/* Chapter card */
+.chapter-item,
+.chapter-card {
+  padding: 18px 20px !important;
+  border: 1.5px solid var(--v5-line) !important;
+  border-radius: 20px !important;
+  background: #fffaf3 !important;
+  box-shadow: 0 10px 22px rgba(75, 55, 32, 0.05) !important;
+}
+
+.chapter-item h3,
+.chapter-card h3 {
+  margin: 0 0 8px !important;
+  color: var(--v5-ink) !important;
+  font-size: 18px !important;
+  line-height: 1.15 !important;
+  font-weight: 1000 !important;
+}
+
+.chapter-item p,
+.chapter-card p {
+  margin: 0 !important;
+  color: #6f7a8a !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+}
+
+/* Status chip */
+.chapter-status,
+.status-DRAFT,
+.status-chip {
+  display: inline-flex !important;
+  min-height: 28px !important;
+  padding: 0 11px !important;
+  align-items: center !important;
+  border-radius: 999px !important;
+  background: #2f2925 !important;
+  color: white !important;
+  font-size: 11px !important;
+  font-weight: 1000 !important;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .series-workspace,
+  .series-grid,
+  .my-series-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .series-list-card {
+    min-height: auto !important;
+  }
+
+  .series-content-grid,
+  .chapter-content-grid,
+  .chapter-management-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+
+/* ===== Kill old black borders - V5 soft border ===== */
+
+.my-series-page *,
+.series-page *,
+.mangaka-series-page * {
+  border-color: #ead8bd !important;
+}
+
+/* Main cards */
+.my-series-page section,
+.my-series-page article,
+.series-page section,
+.series-page article,
+.mangaka-series-page section,
+.mangaka-series-page article {
+  border-width: 1.5px !important;
+  border-color: #ead8bd !important;
+}
+
+/* Direct card classes */
+.series-list-card,
+.chapter-workspace-card,
+.create-chapter-card,
+.chapters-card,
+.series-panel,
+.chapter-panel,
+.series-card-panel {
+  border: 1.5px solid #ead8bd !important;
+  border-radius: 28px !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 226, 178, 0.25), transparent 34%),
+    rgba(255, 255, 255, 0.88) !important;
+  box-shadow: 0 18px 44px rgba(75, 55, 32, 0.08) !important;
+}
+
+/* Inputs vẫn giữ viền đậm vừa phải, không đen nặng */
+.create-chapter-card input,
+.my-series-page input,
+.series-page input,
+.mangaka-series-page input {
+  border: 1.5px solid #ead8bd !important;
+  border-radius: 16px !important;
+  background: #fffaf4 !important;
+}
+
+/* Button vẫn giữ màu đen cho nổi bật */
+.create-chapter-card button,
+.my-series-page button.primary-action,
+.series-page button.primary-action {
+  border: none !important;
+}
+
+/* Chapter item */
+.chapter-item,
+.chapter-card {
+  border: 1.5px solid #ead8bd !important;
+  border-radius: 20px !important;
+  background: #fffaf3 !important;
+}
+
+/* Series item */
+.series-item,
+.series-card,
+.approved-series-item {
+  border: 1.5px solid #ead8bd !important;
+  border-radius: 18px !important;
+}
+
+/* Selected series vẫn nổi bật nhưng không viền đen */
+.series-item.is-selected,
+.series-card.is-selected,
+.approved-series-item.is-selected,
+.series-item.active,
+.series-card.active,
+.approved-series-item.active {
+  border: 1.5px solid #f5a623 !important;
+}
+
+/* Status chip không bị đổi thành viền vàng */
+.status-chip,
+.chapter-status,
+.status-DRAFT {
+  border: none !important;
+}
+

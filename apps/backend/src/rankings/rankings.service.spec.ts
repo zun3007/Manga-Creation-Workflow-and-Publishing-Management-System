@@ -183,10 +183,12 @@ describe('RankingsService', () => {
         comment: 'Good',
       });
 
-      expect(db.query).toHaveBeenCalledWith(
-        expect.stringContaining('Vote'),
-        [5, 10, 4, 'Good'],
-      );
+      expect(db.query).toHaveBeenCalledWith(expect.stringContaining('Vote'), [
+        5,
+        10,
+        4,
+        'Good',
+      ]);
       expect(result).toEqual({ ok: true });
     });
   });

@@ -31,7 +31,10 @@ import { DisputesModule } from './disputes/disputes.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['apps/backend/.env', '.env'],
+    }),
     ThrottlerModule.forRoot([
       {
         ttl: 60000,

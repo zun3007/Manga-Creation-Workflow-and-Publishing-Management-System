@@ -45,7 +45,9 @@ export class DisputesService {
     }
 
     if (task.task_status !== 'APPROVED') {
-      throw new BadRequestException('Chỉ khiếu nại việc đã được duyệt/thanh toán');
+      throw new BadRequestException(
+        'Chỉ khiếu nại việc đã được duyệt/thanh toán',
+      );
     }
 
     // Insert dispute
@@ -129,14 +131,13 @@ export class DisputesService {
     );
   }
 
-  async markUnderReview(id: number, adminId: number) {
+  async markUnderReview(id: number, _adminId: number) {
     // Load dispute
     const dispute = await this.db.queryOne<{
       dispute_status: string;
-    }>(
-      `SELECT dispute_status FROM \`Earning_Dispute\` WHERE dispute_id = ?`,
-      [id],
-    );
+    }>(`SELECT dispute_status FROM \`Earning_Dispute\` WHERE dispute_id = ?`, [
+      id,
+    ]);
 
     if (!dispute) {
       throw new NotFoundException('Dispute not found');
@@ -199,10 +200,9 @@ export class DisputesService {
         // Get current task payment
         const task = await tx.queryOne<{
           payment_amount: number;
-        }>(
-          `SELECT payment_amount FROM \`Task\` WHERE task_id = ?`,
-          [dispute.task_id],
-        );
+        }>(`SELECT payment_amount FROM \`Task\` WHERE task_id = ?`, [
+          dispute.task_id,
+        ]);
 
         if (task) {
           const old = Number(task.payment_amount);
@@ -233,7 +233,9 @@ export class DisputesService {
 
     // Notify assistant after transaction commits
     const resolutionTitle =
-      dto.status === 'RESOLVED' ? 'Khiếu nại đã được giải quyết' : 'Khiếu nại bị từ chối';
+      dto.status === 'RESOLVED'
+        ? 'Khiếu nại đã được giải quyết'
+        : 'Khiếu nại bị từ chối';
     await this.notifications.notify(
       dispute.assistant_user_id,
       NotificationType.DISPUTE,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api } from "../../lib/api";
+import { api, apiErrorMessage } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
 import { useConfirm } from "../../lib/confirm";
 import { Panel } from "../../components/ui/Panel";
@@ -42,10 +42,6 @@ export default function Disputes() {
     adjustedAmount: "",
   });
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   async function loadData() {
     setLoading(true);
     setError("");
@@ -60,6 +56,10 @@ export default function Disputes() {
     }
   }
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
   async function handleReview(id: number) {
     setSavingId(id);
     setActionError("");
@@ -69,10 +69,8 @@ export default function Disputes() {
         prev.map((d) => (d.id === id ? { ...d, status: "UNDER_REVIEW" } : d))
       );
       toast.success('Đã chuyển sang Đang xử lý.');
-    } catch (e: any) {
-      const message =
-        e?.response?.data?.message || "Không thể bắt đầu xem xét khiếu nại.";
-      setActionError(message);
+    } catch (e) {
+      setActionError(apiErrorMessage(e, "Không thể bắt đầu xem xét khiếu nại."));
       console.error("Failed to review dispute", e);
     } finally {
       setSavingId(null);
@@ -121,10 +119,8 @@ export default function Disputes() {
       setEditingId(null);
       setForm({ disputeId: 0, resolutionNote: "", adjustedAmount: "" });
       toast.success('Đã xử lý khiếu nại.');
-    } catch (e: any) {
-      const message =
-        e?.response?.data?.message || "Không thể giải quyết khiếu nại.";
-      setActionError(message);
+    } catch (e) {
+      setActionError(apiErrorMessage(e, "Không thể giải quyết khiếu nại."));
       console.error("Failed to resolve dispute", e);
     } finally {
       setSavingId(null);
@@ -165,10 +161,8 @@ export default function Disputes() {
       );
       setEditingId(null);
       setForm({ disputeId: 0, resolutionNote: "", adjustedAmount: "" });
-    } catch (e: any) {
-      const message =
-        e?.response?.data?.message || "Không thể từ chối khiếu nại.";
-      setActionError(message);
+    } catch (e) {
+      setActionError(apiErrorMessage(e, "Không thể từ chối khiếu nại."));
       console.error("Failed to reject dispute", e);
     } finally {
       setSavingId(null);

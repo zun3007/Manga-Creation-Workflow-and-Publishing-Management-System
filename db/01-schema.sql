@@ -109,6 +109,7 @@ CREATE TABLE `Series_Proposal` (
     `proposed_frequency` ENUM('WEEKLY','MONTHLY') NOT NULL,
     `review_due_date` DATE,
     `submitted_at` DATETIME,
+    `sample_manuscript_url` VARCHAR(500),
 	`created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     

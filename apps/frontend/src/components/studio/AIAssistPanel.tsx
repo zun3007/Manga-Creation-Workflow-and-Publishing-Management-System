@@ -55,13 +55,13 @@ export function AIAssistPanel({ engine, ai, onPanels }: AIAssistPanelProps) {
       await ai.colorize(engine, controller.signal);
       engine.requestRender?.();
       toast.update(toastId, 'success', 'AI đã tô màu xong.');
-    } catch (err: any) {
-      if (err?.name === 'AbortError') {
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
         // User cancelled — clear the loading toast quietly, no error.
         toast.dismiss(toastId);
       } else {
         console.warn('[AIAssistPanel] colorize error:', err);
-        const msg = err?.message?.includes('timeout') ? 'Tô màu quá lâu. Thử lại nhé.' : 'Tô màu thất bại. Thử lại nhé.';
+        const msg = err instanceof Error && err.message.includes('timeout') ? 'Tô màu quá lâu. Thử lại nhé.' : 'Tô màu thất bại. Thử lại nhé.';
         toast.update(toastId, 'error', msg);
       }
     } finally {

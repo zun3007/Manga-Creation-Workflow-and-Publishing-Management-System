@@ -5,12 +5,7 @@ import {
 } from '@nestjs/common';
 import { DbService } from '../db/db.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import {
-  DecisionType,
-  Frequency,
-  SeriesStatus,
-  NotificationType,
-} from '@manga/shared';
+import { DecisionType, SeriesStatus, NotificationType } from '@manga/shared';
 import { CreateDecisionDto } from './dto/create-decision.dto';
 
 @Injectable()

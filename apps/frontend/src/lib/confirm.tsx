@@ -87,7 +87,6 @@ function ConfirmDialog({
   return (
     <Modal open={open} onClose={onClose} title={options.title} className="w-full max-w-sm">
       <div className="p-6">
-        {options.title && <h2 className="text-lg font-semibold text-ink mb-2">{options.title}</h2>}
         {options.body && <p className="text-sm text-ink-soft mb-6">{options.body}</p>}
         <div className="flex gap-3 justify-end">
           <Button variant="ghost" onClick={onClose}>

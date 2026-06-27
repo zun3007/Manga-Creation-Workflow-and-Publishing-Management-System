@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../../lib/api";
+import { api, apiErrorMessage } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
@@ -22,10 +22,6 @@ export default function BoardProposals() {
   const [error, setError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<number | null>(null);
 
-  useEffect(() => {
-    loadProposals();
-  }, []);
-
   async function loadProposals() {
     try {
       setLoading(true);
@@ -40,6 +36,10 @@ export default function BoardProposals() {
     }
   }
 
+  useEffect(() => {
+    loadProposals();
+  }, []);
+
   async function handleDecision(proposalId: number, decision: "APPROVED" | "REJECTED") {
     try {
       setProcessingId(proposalId);
@@ -50,9 +50,9 @@ export default function BoardProposals() {
       } else {
         toast.success('Đã từ chối đề xuất.');
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(`Failed to ${decision.toLowerCase()} proposal:`, err);
-      setError(err.response?.data?.message || `Lỗi khi xử lý đề xuất`);
+      setError(apiErrorMessage(err, "Lỗi khi xử lý đề xuất"));
     } finally {
       setProcessingId(null);
     }

@@ -15,7 +15,6 @@ import {
   NotificationType,
 } from '@manga/shared';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
-import { ReviewSubmissionDto } from './dto/review-submission.dto';
 import { syncPageStatusFromTasks } from '../pages/page-status.util';
 
 @Injectable()
@@ -57,45 +56,63 @@ export class SubmissionsService {
         TaskStatus.SUBMITTED,
       )
     ) {
-      throw new BadRequestException(
-        'Start the task before submitting',
-      );
+      throw new BadRequestException('Start the task before submitting');
     }
 
-    // Calculate next version number
-    const versionResult = await this.db.queryOne<{ nextVersion: number }>(
-      `SELECT COALESCE(MAX(version_number), 0) + 1 AS nextVersion
-       FROM \`Submission\`
-       WHERE task_id = ?`,
-      [dto.taskId],
-    );
+    // Atomically: compute the next version (locked), insert the submission,
+    // advance the task to SUBMITTED, and reconcile the page — all in one
+    // transaction so a mid-way failure can't leave the task marked SUBMITTED with
+    // no submission row. The version is read FOR UPDATE and a duplicate-key
+    // collision from two concurrent submits on the same task is retried, so the
+    // UNIQUE(task_id, version_number) constraint never surfaces as a 500.
+    let submissionId = 0;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        submissionId = await this.db.transaction(async (tx) => {
+          const versionResult = await tx.queryOne<{ nextVersion: number }>(
+            `SELECT COALESCE(MAX(version_number), 0) + 1 AS nextVersion
+             FROM \`Submission\`
+             WHERE task_id = ?
+             FOR UPDATE`,
+            [dto.taskId],
+          );
+          const version = versionResult?.nextVersion ?? 1;
 
-    const version = versionResult?.nextVersion ?? 1;
+          const id = await tx.insert(
+            `INSERT INTO \`Submission\`
+             (task_id, page_id, assistant_user_id, version_number, file_url, version_note, submission_status)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              dto.taskId,
+              task.page_id,
+              assistantUserId,
+              version,
+              dto.fileUrl,
+              dto.versionNote ?? null,
+              SubmissionStatus.PENDING,
+            ],
+          );
 
-    // Insert submission
-    const submissionId = await this.db.insert(
-      `INSERT INTO \`Submission\`
-       (task_id, page_id, assistant_user_id, version_number, file_url, version_note, submission_status)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        dto.taskId,
-        task.page_id,
-        assistantUserId,
-        version,
-        dto.fileUrl,
-        dto.versionNote ?? null,
-        SubmissionStatus.PENDING,
-      ],
-    );
+          // Update task status to SUBMITTED
+          await tx.query(`UPDATE \`Task\` SET task_status = ? WHERE task_id = ?`, [
+            TaskStatus.SUBMITTED,
+            dto.taskId,
+          ]);
 
-    // Update task status to SUBMITTED
-    await this.db.query(
-      `UPDATE \`Task\` SET task_status = ? WHERE task_id = ?`,
-      [TaskStatus.SUBMITTED, dto.taskId],
-    );
-
-    // Page enters review once its work is submitted (IN_PROGRESS -> REVIEWING)
-    await syncPageStatusFromTasks(this.db, task.page_id);
+          // Page enters review once its work is submitted (IN_PROGRESS -> REVIEWING)
+          await syncPageStatusFromTasks(tx, task.page_id);
+          return id;
+        });
+        break;
+      } catch (e) {
+        const dup =
+          !!e &&
+          typeof e === 'object' &&
+          (e as { code?: string }).code === 'ER_DUP_ENTRY';
+        if (dup && attempt < 3) continue;
+        throw e;
+      }
+    }
 
     // Send notification to the mangaka (assignor)
     await this.notifications.notify(
@@ -121,10 +138,13 @@ export class SubmissionsService {
         t.task_id AS taskId,
         t.task_description AS task,
         u.full_name AS assistant,
-        u.avatar_url AS assistantAvatar
+        u.avatar_url AS assistantAvatar,
+        pv.image_url AS originalUrl
        FROM \`Submission\` sub
        JOIN \`Task\` t ON t.task_id = sub.task_id
        JOIN \`User\` u ON u.user_id = sub.assistant_user_id
+       JOIN \`Page\` p ON p.page_id = sub.page_id
+       LEFT JOIN \`Page_Version\` pv ON pv.page_id = p.page_id AND pv.version_number = p.current_version
        WHERE t.assignor_user_id = ? AND sub.submission_status IN (?, ?)
        ORDER BY sub.submitted_at ASC`,
       [mangakaUserId, SubmissionStatus.PENDING, SubmissionStatus.UNDER_REVIEW],
@@ -143,6 +163,7 @@ export class SubmissionsService {
       submission_status: string;
       task_id: number;
       page_id: number;
+      file_url: string;
       assistant_user_id: number;
       assignor_user_id: number;
       task_status: string;
@@ -152,6 +173,7 @@ export class SubmissionsService {
         sub.submission_status,
         sub.task_id,
         sub.page_id,
+        sub.file_url,
         sub.assistant_user_id,
         t.assignor_user_id,
         t.task_status
@@ -186,7 +208,9 @@ export class SubmissionsService {
 
     // Guard: task status must allow the transition to APPROVED or REVISION_REQUIRED
     const newTaskStatus =
-      decision === 'APPROVED' ? TaskStatus.APPROVED : TaskStatus.REVISION_REQUIRED;
+      decision === 'APPROVED'
+        ? TaskStatus.APPROVED
+        : TaskStatus.REVISION_REQUIRED;
     if (
       !canTransition(
         TASK_TRANSITIONS,
@@ -210,10 +234,10 @@ export class SubmissionsService {
       );
 
       // Update task
-      await tx.query(
-        `UPDATE \`Task\` SET task_status = ? WHERE task_id = ?`,
-        [newTaskStatus, row.task_id],
-      );
+      await tx.query(`UPDATE \`Task\` SET task_status = ? WHERE task_id = ?`, [
+        newTaskStatus,
+        row.task_id,
+      ]);
 
       // Accrue earnings to assistant profile
       if (decision === 'APPROVED') {
@@ -223,6 +247,24 @@ export class SubmissionsService {
            WHERE user_id = ?`,
           [row.task_id, row.assistant_user_id],
         );
+
+        // Apply the approved artwork to the page: the submitted file becomes the
+        // page's new current version. Without this the original page never reflects
+        // the assistant's accepted work (it stayed a standalone Submission row).
+        const pv = await tx.queryOne<{ next: number }>(
+          `SELECT COALESCE(MAX(version_number), 0) + 1 AS next FROM \`Page_Version\` WHERE page_id = ?`,
+          [row.page_id],
+        );
+        const nextVersion = pv?.next ?? 1;
+        await tx.query(
+          `INSERT INTO \`Page_Version\` (page_id, version_number, image_url, uploaded_by_user_id, upload_note)
+           VALUES (?, ?, ?, ?, ?)`,
+          [row.page_id, nextVersion, row.file_url, row.assistant_user_id, 'Bài nộp đã duyệt'],
+        );
+        await tx.query(`UPDATE \`Page\` SET current_version = ? WHERE page_id = ?`, [
+          nextVersion,
+          row.page_id,
+        ]);
       }
 
       // Reconcile the page: COMPLETED once all its tasks are APPROVED,

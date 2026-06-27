@@ -1,0 +1,735 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum UserRole {
+  ADMIN
+  MANGAKA
+  ASSISTANT
+  TANTOU_EDITOR
+  EDITORIAL_BOARD
+}
+
+enum ProposalStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum PublicationFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  IRREGULAR
+}
+
+enum SeriesStatus {
+  ACTIVE
+  ON_HOLD
+  AT_RISK
+  CANCELLED
+  COMPLETED
+}
+
+enum ChapterStatus {
+  DRAFT
+  IN_PROGRESS
+  READY_FOR_REVIEW
+  REVISION_REQUESTED
+  APPROVED
+  SCHEDULED
+  PUBLISHED
+}
+
+enum PageStatus {
+  DRAFT
+  IN_PROGRESS
+  SUBMITTED
+  APPROVED
+  LOCKED
+}
+
+enum ManuscriptStatus {
+  DRAFT
+  SUBMITTED
+  REVISION_REQUESTED
+  APPROVED
+}
+
+enum RegionType {
+  PANEL
+  CHARACTER
+  BACKGROUND
+  SPEECH_BUBBLE
+  EFFECT
+  LINE_ART
+  COLORING
+  OTHER
+}
+
+enum TaskStatus {
+  ASSIGNED
+  IN_PROGRESS
+  SUBMITTED
+  REVISION_REQUESTED
+  APPROVED
+  CANCELLED
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  REVISION_REQUESTED
+  APPROVED
+  REJECTED
+}
+
+enum PublishStatus {
+  SCHEDULED
+  PUBLISHED
+  CANCELLED
+}
+
+enum RankingPeriodType {
+  WEEKLY
+  MONTHLY
+}
+
+enum VotePeriodStatus {
+  OPEN
+  CLOSED
+  CALCULATED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum DecisionType {
+  CONTINUE
+  CHANGE_FREQUENCY
+  PAUSE
+  CANCEL
+}
+
+enum AnnotationTargetType {
+  PROPOSAL
+  CHAPTER
+  PAGE
+  PAGE_VERSION
+  REGION
+  SUBMISSION
+}
+
+enum AnnotationCategory {
+  CONTENT
+  DIALOGUE
+  SCRIPT
+  VISUAL
+  OTHER
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  SUBMISSION_RECEIVED
+  REVISION_REQUESTED
+  TASK_APPROVED
+  CHAPTER_REVIEW_REQUIRED
+  PROPOSAL_DECISION
+  RANKING_UPDATED
+  RISK_ALERT
+  DISPUTE_UPDATED
+  SYSTEM
+}
+
+model User {
+  id           Int      @id @default(autoincrement()) @map("user_id")
+  email        String   @unique @db.VarChar(255)
+  passwordHash String?  @map("password_hash") @db.VarChar(255)
+  displayName  String   @map("full_name") @db.VarChar(150)
+  avatarUrl    String?  @map("avatar_url") @db.VarChar(500)
+  role         UserRole
+  isActive     Boolean  @default(true) @map("is_activated")
+
+  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  googleSubject      String?   @unique @map("google_subject") @db.VarChar(255)
+  emailVerifiedAt    DateTime? @map("email_verified_at")
+  lastLoginAt        DateTime? @map("last_login_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  mangakaProfile        MangakaProfile?
+  assistantProfile      AssistantProfile?
+  tantouEditorProfile   TantouEditorProfile?
+  editorialBoardProfile EditorialBoardProfile?
+
+  proposals            SeriesProposal[]      @relation("ProposalMangaka")
+  series               Series[]              @relation("SeriesMangaka")
+  editorAssignments    SeriesTantouEditor[]  @relation("AssignedEditor")
+  pageVersions         PageVersion[]         @relation("PageVersionUploader")
+  manuscripts          Manuscript[]          @relation("ManuscriptUploader")
+  assignedTasks        Task[]                @relation("TaskAssignee")
+  createdTasks         Task[]                @relation("TaskAssignor")
+  reviewedSubmissions  Submission[]          @relation("SubmissionReviewer")
+  assistantSubmissions Submission[]          @relation("SubmissionAssistant")
+  schedules            PublicationSchedule[] @relation("ScheduleCreator")
+  votes                Vote[]                @relation("BoardVoter")
+  decisions            Decision[]            @relation("DecisionMaker")
+  createdPriceRules    TaskPriceRule[]       @relation("PriceRuleCreator")
+  annotations          Annotation[]          @relation("AnnotationCreator")
+  assistantDisputes    EarningDispute[]      @relation("DisputeAssistant")
+  resolvedDisputes     EarningDispute[]      @relation("DisputeResolver")
+  notifications        Notification[]        @relation("NotificationRecipient")
+  auditLogs            AuditLog[]            @relation("AuditActor")
+  updatedSystemConfigs SystemConfig[]        @relation("ConfigUpdater")
+  boardVotes           BoardVote[]
+
+  @@map("users")
+}
+
+model OtpCode {
+  id        Int       @id @default(autoincrement()) @map("otp_id")
+  email     String    @db.VarChar(255)
+  codeHash  String    @map("code_hash") @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("otp_codes")
+}
+
+model Genre {
+  id   Int    @id @default(autoincrement()) @map("genre_id")
+  name String @unique @map("genre_name") @db.VarChar(100)
+
+  proposalGenres ProposalGenre[]
+  seriesGenres   SeriesGenre[]
+
+  @@map("genres")
+}
+
+model MangakaProfile {
+  userId          Int     @id @map("user_id")
+  penName         String  @map("pen_name") @db.VarChar(150)
+  biography       String? @db.Text
+  yearsExperience Int     @default(0) @map("years_experience")
+  studioName      String? @map("studio_name") @db.VarChar(150)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mangaka_profiles")
+}
+
+model AssistantProfile {
+  userId        Int     @id @map("user_id")
+  salaryRate    Decimal @default(0) @map("salary_rate") @db.Decimal(12, 2)
+  skillSet      String? @map("skill_set") @db.Text
+  totalEarnings Decimal @default(0) @map("total_earnings") @db.Decimal(14, 2)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("assistant_profiles")
+}
+
+model TantouEditorProfile {
+  userId             Int     @id @map("user_id")
+  departmentName     String? @map("department_name") @db.VarChar(150)
+  specialization     String? @db.VarChar(255)
+  yearsExperience    Int     @default(0) @map("years_experience")
+  managedSeriesCount Int     @default(0) @map("managed_series_count")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("tantou_editor_profiles")
+}
+
+model EditorialBoardProfile {
+  userId             Int     @id @map("user_id")
+  departmentName     String? @map("department_name") @db.VarChar(150)
+  specialization     String? @db.VarChar(255)
+  yearsExperience    Int     @default(0) @map("years_experience")
+  managedSeriesCount Int     @default(0) @map("managed_series_count")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("editorial_board_profiles")
+}
+
+model SeriesProposal {
+  id                Int                  @id @default(autoincrement()) @map("proposal_id")
+  mangakaUserId     Int                  @map("mangaka_user_id")
+  title             String               @db.VarChar(255)
+  synopsis          String               @db.Text
+  proposedStatus    ProposalStatus       @default(DRAFT) @map("proposed_status")
+  proposedFrequency PublicationFrequency @map("proposed_frequency")
+  reviewDueDate     DateTime?            @map("review_due_date")
+  submittedAt       DateTime?            @map("submitted_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+
+  mangaka    User            @relation("ProposalMangaka", fields: [mangakaUserId], references: [id])
+  genres     ProposalGenre[]
+  boardVotes BoardVote[]
+  series     Series?
+
+  @@index([mangakaUserId])
+  @@map("series_proposals")
+}
+
+model ProposalGenre {
+  proposalId Int @map("proposal_id")
+  genreId    Int @map("genre_id")
+
+  proposal SeriesProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  genre    Genre          @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([proposalId, genreId])
+  @@map("proposal_genres")
+}
+
+model Series {
+  id                   Int                  @id @default(autoincrement()) @map("series_id")
+  proposalId           Int                  @unique @map("proposal_id")
+  mangakaUserId        Int                  @map("mangaka_user_id")
+  title                String               @db.VarChar(255)
+  publicationFrequency PublicationFrequency @map("publication_frequency")
+  status               SeriesStatus         @default(ACTIVE) @map("series_status")
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+
+  proposal          SeriesProposal       @relation(fields: [proposalId], references: [id])
+  mangaka           User                 @relation("SeriesMangaka", fields: [mangakaUserId], references: [id])
+  genres            SeriesGenre[]
+  editorAssignments SeriesTantouEditor[]
+  chapters          Chapter[]
+  votePeriods       VotePeriod[]
+  rankings          Ranking[]
+  decisions         Decision[]
+
+  @@index([mangakaUserId])
+  @@map("series")
+}
+
+model SeriesGenre {
+  seriesId Int @map("series_id")
+  genreId  Int @map("genre_id")
+
+  series Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  genre  Genre  @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([seriesId, genreId])
+  @@map("series_genres")
+}
+
+model SeriesTantouEditor {
+  seriesId     Int       @map("series_id")
+  editorUserId Int       @map("editor_user_id")
+  assignedAt   DateTime  @default(now()) @map("assigned_at")
+  unassignedAt DateTime? @map("unassigned_at")
+
+  series Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  editor User   @relation("AssignedEditor", fields: [editorUserId], references: [id])
+
+  @@id([seriesId, editorUserId, assignedAt])
+  @@index([editorUserId])
+  @@map("series_tantou_editors")
+}
+
+model Chapter {
+  id            Int           @id @default(autoincrement()) @map("chapter_id")
+  seriesId      Int           @map("series_id")
+  chapterNumber Int           @map("chapter_number")
+  title         String?       @map("chapter_title") @db.VarChar(255)
+  deadline      DateTime?
+  status        ChapterStatus @default(DRAFT) @map("chapter_status")
+  isLocked      Boolean       @default(false) @map("is_locked")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  series               Series                @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  pages                Page[]
+  manuscripts          Manuscript[]
+  publicationSchedules PublicationSchedule[]
+
+  @@unique([seriesId, chapterNumber])
+  @@map("chapters")
+}
+
+model Page {
+  id             Int        @id @default(autoincrement()) @map("page_id")
+  chapterId      Int        @map("chapter_id")
+  pageNumber     Int        @map("page_number")
+  currentVersion Int        @default(1) @map("current_version")
+  status         PageStatus @default(DRAFT) @map("page_status")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  chapter     Chapter       @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  versions    PageVersion[]
+  regions     Region[]
+  tasks       Task[]
+  submissions Submission[]
+
+  @@unique([chapterId, pageNumber])
+  @@map("pages")
+}
+
+model PageVersion {
+  id               Int      @id @default(autoincrement()) @map("page_version_id")
+  pageId           Int      @map("page_id")
+  uploadedByUserId Int      @map("uploaded_by_user_id")
+  versionNumber    Int      @map("version_number")
+  imageUrl         String   @map("image_url") @db.LongText
+  uploadNote       String?  @map("upload_note") @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  page       Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  uploadedBy User     @relation("PageVersionUploader", fields: [uploadedByUserId], references: [id])
+  regions    Region[]
+
+  @@unique([pageId, versionNumber])
+  @@index([uploadedByUserId])
+  @@map("page_versions")
+}
+
+model Manuscript {
+  id               Int              @id @default(autoincrement()) @map("manuscript_id")
+  chapterId        Int              @map("chapter_id")
+  uploadedByUserId Int              @map("uploaded_by_user_id")
+  versionNumber    Int              @map("version_number")
+  fileUrl          String           @map("file_url") @db.LongText
+  status           ManuscriptStatus @default(DRAFT) @map("manuscript_status")
+  uploadedAt       DateTime         @default(now()) @map("uploaded_at")
+
+  chapter    Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  uploadedBy User    @relation("ManuscriptUploader", fields: [uploadedByUserId], references: [id])
+
+  @@unique([chapterId, versionNumber])
+  @@index([uploadedByUserId])
+  @@map("manuscripts")
+}
+
+model Region {
+  id            Int        @id @default(autoincrement()) @map("region_id")
+  pageId        Int        @map("page_id")
+  pageVersionId Int        @map("page_version_id")
+  type          RegionType @map("region_type")
+  xCoordinate   Decimal    @map("x_coordinate") @db.Decimal(10, 6)
+  yCoordinate   Decimal    @map("y_coordinate") @db.Decimal(10, 6)
+  width         Decimal    @db.Decimal(10, 6)
+  height        Decimal    @db.Decimal(10, 6)
+  zIndex        Int        @default(0) @map("z_index")
+  aiSuggested   Boolean    @default(false) @map("ai_suggested")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  page        Page        @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  pageVersion PageVersion @relation(fields: [pageVersionId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+
+  @@index([pageId])
+  @@index([pageVersionId])
+  @@map("regions")
+}
+
+model TaskPriceRule {
+  id              Int        @id @default(autoincrement()) @map("rule_id")
+  createdByUserId Int        @map("created_by_user_id")
+  name            String     @map("rule_name") @db.VarChar(150)
+  regionType      RegionType @map("region_type")
+  basePrice       Decimal    @map("base_price") @db.Decimal(12, 2)
+  isActive        Boolean    @default(true) @map("is_active")
+  effectiveFrom   DateTime   @map("effective_from")
+  effectiveTo     DateTime?  @map("effective_to")
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  createdBy User   @relation("PriceRuleCreator", fields: [createdByUserId], references: [id])
+  tasks     Task[]
+
+  @@index([createdByUserId])
+  @@map("task_price_rules")
+}
+
+model Task {
+  id              Int        @id @default(autoincrement()) @map("task_id")
+  regionId        Int        @map("region_id")
+  pageId          Int        @map("page_id")
+  assignorUserId  Int        @map("assignor_user_id")
+  assigneeUserId  Int        @map("assignee_user_id")
+  taskPriceRuleId Int?       @map("task_price_rule_id")
+  description     String     @map("task_description") @db.VarChar(500)
+  instruction     String?    @db.Text
+  deadline        DateTime?
+  status          TaskStatus @default(ASSIGNED) @map("task_status")
+  paymentAmount   Decimal    @default(0) @map("payment_amount") @db.Decimal(12, 2)
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  region        Region           @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  page          Page             @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  assignor      User             @relation("TaskAssignor", fields: [assignorUserId], references: [id])
+  assignee      User             @relation("TaskAssignee", fields: [assigneeUserId], references: [id])
+  taskPriceRule TaskPriceRule?   @relation(fields: [taskPriceRuleId], references: [id])
+  submissions   Submission[]
+  disputes      EarningDispute[]
+
+  @@index([regionId])
+  @@index([pageId])
+  @@index([assignorUserId])
+  @@index([assigneeUserId])
+  @@index([taskPriceRuleId])
+  @@map("tasks")
+}
+
+model Submission {
+  id               Int              @id @default(autoincrement()) @map("submission_id")
+  taskId           Int              @map("task_id")
+  pageId           Int              @map("page_id")
+  assistantUserId  Int              @map("assistant_user_id")
+  reviewedByUserId Int?             @map("reviewed_by_user_id")
+  versionNumber    Int              @map("version_number")
+  fileUrl          String           @map("file_url") @db.LongText
+  status           SubmissionStatus @default(SUBMITTED) @map("submission_status")
+  feedback         String?          @db.Text
+  submittedAt      DateTime         @default(now()) @map("submitted_at")
+  reviewedAt       DateTime?        @map("reviewed_at")
+
+  task       Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  page       Page  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  assistant  User  @relation("SubmissionAssistant", fields: [assistantUserId], references: [id])
+  reviewedBy User? @relation("SubmissionReviewer", fields: [reviewedByUserId], references: [id])
+
+  @@unique([taskId, versionNumber])
+  @@index([pageId])
+  @@index([assistantUserId])
+  @@index([reviewedByUserId])
+  @@map("submissions")
+}
+
+model PublicationSchedule {
+  id                Int           @id @default(autoincrement()) @map("schedule_id")
+  chapterId         Int           @map("chapter_id")
+  scheduledByUserId Int           @map("scheduled_by_user_id")
+  releaseDate       DateTime      @map("release_date")
+  status            PublishStatus @default(SCHEDULED) @map("publish_status")
+  scheduledAt       DateTime      @default(now()) @map("scheduled_at")
+  publishedAt       DateTime?     @map("published_at")
+
+  chapter     Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  scheduledBy User    @relation("ScheduleCreator", fields: [scheduledByUserId], references: [id])
+
+  @@index([chapterId])
+  @@index([scheduledByUserId])
+  @@map("publication_schedules")
+}
+
+model VotePeriod {
+  id          Int               @id @default(autoincrement()) @map("vote_period_id")
+  seriesId    Int               @map("series_id")
+  type        RankingPeriodType @map("ranking_period_type")
+  periodStart DateTime          @map("period_start_date")
+  periodEnd   DateTime          @map("period_end_date")
+  status      VotePeriodStatus  @default(OPEN)
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  series  Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  votes   Vote[]
+  ranking Ranking?
+
+  @@unique([seriesId, type, periodStart, periodEnd])
+  @@map("vote_periods")
+}
+
+model Vote {
+  id           Int      @id @default(autoincrement()) @map("vote_id")
+  votePeriodId Int      @map("vote_period_id")
+  boardUserId  Int      @map("board_user_id")
+  score        Decimal  @db.Decimal(5, 2)
+  comment      String?  @db.Text
+  votedAt      DateTime @default(now()) @map("voted_at")
+
+  votePeriod VotePeriod @relation(fields: [votePeriodId], references: [id], onDelete: Cascade)
+  board      User       @relation("BoardVoter", fields: [boardUserId], references: [id])
+
+  @@unique([votePeriodId, boardUserId])
+  @@index([boardUserId])
+  @@map("votes")
+}
+
+model Ranking {
+  id           Int       @id @default(autoincrement()) @map("ranking_id")
+  seriesId     Int       @map("series_id")
+  votePeriodId Int       @unique @map("vote_period_id")
+  totalScore   Decimal   @map("total_score") @db.Decimal(10, 2)
+  riskLevel    RiskLevel @map("risk_level")
+  calculatedAt DateTime  @default(now()) @map("calculated_at")
+
+  series     Series     @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  votePeriod VotePeriod @relation(fields: [votePeriodId], references: [id], onDelete: Cascade)
+  decisions  Decision[]
+
+  @@index([seriesId])
+  @@map("rankings")
+}
+
+model Decision {
+  id              Int                   @id @default(autoincrement()) @map("decision_id")
+  seriesId        Int                   @map("series_id")
+  rankingId       Int                   @map("ranking_id")
+  decidedByUserId Int                   @map("decided_by_user_id")
+  type            DecisionType          @map("decision_type")
+  newFrequency    PublicationFrequency? @map("new_frequency")
+  reason          String?               @db.Text
+  decidedAt       DateTime              @default(now()) @map("decided_at")
+
+  series    Series  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  ranking   Ranking @relation(fields: [rankingId], references: [id], onDelete: Cascade)
+  decidedBy User    @relation("DecisionMaker", fields: [decidedByUserId], references: [id])
+
+  @@index([seriesId])
+  @@index([rankingId])
+  @@index([decidedByUserId])
+  @@map("decisions")
+}
+
+model Annotation {
+  id              Int                  @id @default(autoincrement()) @map("annotation_id")
+  createdByUserId Int                  @map("created_by_user_id")
+  targetType      AnnotationTargetType @map("target_type")
+  targetId        Int                  @map("target_id")
+  category        AnnotationCategory   @map("annotation_category")
+  content         String               @db.Text
+  xCoordinate     Decimal?             @map("x_coordinate") @db.Decimal(10, 6)
+  yCoordinate     Decimal?             @map("y_coordinate") @db.Decimal(10, 6)
+  isResolved      Boolean              @default(false) @map("is_resolved")
+  resolvedAt      DateTime?            @map("resolved_at")
+  createdAt       DateTime             @default(now()) @map("created_at")
+
+  createdBy User @relation("AnnotationCreator", fields: [createdByUserId], references: [id])
+
+  @@index([createdByUserId])
+  @@index([targetType, targetId])
+  @@map("annotations")
+}
+
+model EarningDispute {
+  id               Int           @id @default(autoincrement()) @map("dispute_id")
+  assistantUserId  Int           @map("assistant_user_id")
+  taskId           Int           @map("task_id")
+  resolvedByUserId Int?          @map("resolved_by_user_id")
+  reason           String        @map("dispute_reason") @db.Text
+  expectedAmount   Decimal       @map("expected_amount") @db.Decimal(12, 2)
+  status           DisputeStatus @default(OPEN) @map("dispute_status")
+  resolutionNote   String?       @map("resolution_note") @db.Text
+  resolvedAt       DateTime?     @map("resolved_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  assistant  User  @relation("DisputeAssistant", fields: [assistantUserId], references: [id])
+  task       Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  resolvedBy User? @relation("DisputeResolver", fields: [resolvedByUserId], references: [id])
+
+  @@index([assistantUserId])
+  @@index([taskId])
+  @@index([resolvedByUserId])
+  @@map("earning_disputes")
+}
+
+model Notification {
+  id                Int              @id @default(autoincrement()) @map("notification_id")
+  recipientUserId   Int              @map("recipient_user_id")
+  type              NotificationType @map("notification_type")
+  title             String           @db.VarChar(255)
+  content           String           @db.Text
+  relatedEntityType String?          @map("related_entity_type") @db.VarChar(100)
+  relatedEntityId   Int?             @map("related_entity_id")
+  isRead            Boolean          @default(false) @map("is_read")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  readAt            DateTime?        @map("read_at")
+
+  recipient User @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  @@index([recipientUserId, isRead])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement()) @map("log_id")
+  actorUserId Int?     @map("actor_user_id")
+  action      String   @db.VarChar(150)
+  entityType  String   @map("entity_type") @db.VarChar(100)
+  entityId    Int?     @map("entity_id")
+  beforeValue Json?    @map("before_value")
+  afterValue  Json?    @map("after_value")
+  ipAddress   String?  @map("ip_address") @db.VarChar(64)
+  userAgent   String?  @map("user_agent") @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id])
+
+  @@index([actorUserId])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+model SystemConfig {
+  key             String   @id @map("config_key") @db.VarChar(150)
+  updatedByUserId Int?     @map("updated_by_user_id")
+  value           String   @map("config_value") @db.Text
+  description     String?  @db.Text
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  updatedBy User? @relation("ConfigUpdater", fields: [updatedByUserId], references: [id])
+
+  @@index([updatedByUserId])
+  @@map("system_configs")
+}
+
+model BoardVote {
+  id          Int @id @default(autoincrement()) @map("vote_id")
+  proposalId  Int @map("proposal_id")
+  boardUserId Int @map("board_user_id")
+
+  artQuality      Decimal @map("art_quality") @db.Decimal(4, 1)
+  storyClarity    Decimal @map("story_clarity") @db.Decimal(4, 1)
+  marketPotential Decimal @map("market_potential") @db.Decimal(4, 1)
+  finalScore      Decimal @map("final_score") @db.Decimal(4, 1)
+
+  comment String?         @db.Text
+  status  BoardVoteStatus @default(REVIEWED)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  proposal  SeriesProposal @relation(fields: [proposalId], references: [id])
+  boardUser User           @relation(fields: [boardUserId], references: [id])
+
+  @@unique([proposalId, boardUserId])
+  @@index([proposalId])
+  @@index([boardUserId])
+  @@map("board_votes")
+}
+
+enum BoardVoteStatus {
+  REVIEWED
+  PENDING
+  REVISED
+}

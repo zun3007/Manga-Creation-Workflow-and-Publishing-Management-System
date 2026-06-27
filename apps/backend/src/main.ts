@@ -36,7 +36,8 @@ async function bootstrap() {
     try {
       const obj = await storage.get(key);
       if (obj.contentType) res.setHeader('Content-Type', obj.contentType);
-      if (obj.contentLength != null) res.setHeader('Content-Length', String(obj.contentLength));
+      if (obj.contentLength != null)
+        res.setHeader('Content-Length', String(obj.contentLength));
       res.setHeader('Cache-Control', 'public, max-age=86400');
       obj.stream.pipe(res);
     } catch {

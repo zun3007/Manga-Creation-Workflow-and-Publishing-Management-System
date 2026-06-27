@@ -78,6 +78,7 @@ export interface Proposal {
   mangakaName?: string;
   reviewDueDate?: string | null;
   submittedAt?: string | null;
+  sampleManuscriptUrl?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -136,6 +137,11 @@ export interface TaskItem {
   chapter?: string;
   page?: number;
   regionType?: RegionType;
+  // Assigned region bounds, normalized 0..1 (DECIMAL → mysql2 returns strings).
+  regionX?: number | string | null;
+  regionY?: number | string | null;
+  regionWidth?: number | string | null;
+  regionHeight?: number | string | null;
   pageImage?: string | null;
   assignee?: string;
 }
@@ -145,6 +151,8 @@ export interface SubmissionItem {
   status: SubmissionStatus;
   note: string | null;
   fileUrl: string;
+  /** The original page image the assistant worked from (for side-by-side compare). */
+  originalUrl?: string | null;
   submittedAt: string;
   taskId?: number;
   task?: string;
@@ -161,6 +169,7 @@ export interface EditorChapter {
   deadline: string | null;
   seriesId: number;
   series: string;
+  proposalId?: number;
   pages: number;
 }
 

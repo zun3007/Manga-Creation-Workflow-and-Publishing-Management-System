@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../../lib/api";
+import { api, apiErrorMessage } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
 import { SubmissionStatus } from "@manga/shared";
 import type { SubmissionItem } from "../../types";
@@ -8,18 +8,11 @@ import { Button } from "../../components/ui/Button";
 import { Avatar } from "../../components/ui/Avatar";
 import { Stamp } from "../../components/ui/Stamp";
 
-interface ToastMsg {
-  id: string;
-  text: string;
-  type: "ok" | "error";
-}
-
 export default function ReviewQueue() {
   const toast = useToast();
   const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState<Record<number, boolean>>({});
@@ -28,17 +21,17 @@ export default function ReviewQueue() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get("/submissions/review-queue");
+      const res = await api.get<SubmissionItem[]>("/submissions/review-queue");
       const items = res.data || [];
       // Defensive normalization: ensure status is an enum value
-      const normalized = items.map((item: any) => ({
+      const normalized = items.map((item) => ({
         ...item,
         status: item.status as SubmissionStatus,
       }));
       setSubmissions(normalized);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to load review queue", err);
-      setError(err?.response?.data?.message || "Không tải được hàng chờ duyệt");
+      setError(apiErrorMessage(err, "Không tải được hàng chờ duyệt"));
     } finally {
       setLoading(false);
     }
@@ -48,14 +41,6 @@ export default function ReviewQueue() {
     loadQueue();
   }, []);
 
-  const showToast = (text: string, type: "ok" | "error" = "ok") => {
-    const id = `${Date.now()}-${Math.random()}`;
-    setToasts((prev) => [...prev, { id, text, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
-  };
-
   const handleApprove = async (id: number) => {
     setSubmitting((prev) => ({ ...prev, [id]: true }));
     try {
@@ -64,9 +49,9 @@ export default function ReviewQueue() {
       });
       setSubmissions((prev) => prev.filter((s) => s.id !== id));
       toast.success('Đã duyệt bài nộp.');
-    } catch (err: any) {
+    } catch (err) {
       console.error("Approve failed", err);
-      showToast(err?.response?.data?.message || "Duyệt thất bại", "error");
+      toast.error(apiErrorMessage(err, "Duyệt thất bại"));
     } finally {
       setSubmitting((prev) => ({ ...prev, [id]: false }));
     }
@@ -75,7 +60,7 @@ export default function ReviewQueue() {
   const handleRevisionRequest = async (id: number) => {
     const fb = feedback[id]?.trim();
     if (!fb) {
-      showToast("Vui lòng nhập phản hồi", "error");
+      toast.error("Vui lòng nhập phản hồi");
       return;
     }
     setSubmitting((prev) => ({ ...prev, [id]: true }));
@@ -88,9 +73,9 @@ export default function ReviewQueue() {
       setFeedback((prev) => ({ ...prev, [id]: "" }));
       setExpandedId(null);
       toast.success('Đã yêu cầu chỉnh sửa.');
-    } catch (err: any) {
+    } catch (err) {
       console.error("Revision request failed", err);
-      showToast(err?.response?.data?.message || "Yêu cầu sửa thất bại", "error");
+      toast.error(apiErrorMessage(err, "Yêu cầu sửa thất bại"));
     } finally {
       setSubmitting((prev) => ({ ...prev, [id]: false }));
     }
@@ -173,10 +158,33 @@ export default function ReviewQueue() {
                   </div>
                 </div>
 
-                {/* Row 2: File preview (if image) or link */}
+                {/* Row 2: Compare original page vs submitted file */}
                 {sub.fileUrl && (
                   <div className="border-t border-line pt-4">
-                    {isImageUrl(sub.fileUrl) ? (
+                    {isImageUrl(sub.fileUrl) && isImageUrl(sub.originalUrl ?? undefined) ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        <figure className="m-0">
+                          <figcaption className="mb-1.5 font-mono text-[0.58rem] uppercase tracking-wider text-ink-soft">
+                            Trang gốc
+                          </figcaption>
+                          <img
+                            src={sub.originalUrl!}
+                            alt="Trang gốc"
+                            className="max-h-72 w-full rounded-lg border border-line bg-bg object-contain"
+                          />
+                        </figure>
+                        <figure className="m-0">
+                          <figcaption className="mb-1.5 flex items-center gap-1.5 font-mono text-[0.58rem] uppercase tracking-wider text-accent">
+                            <span className="h-1.5 w-1.5 rounded-full bg-accent" /> Bài nộp
+                          </figcaption>
+                          <img
+                            src={sub.fileUrl}
+                            alt="Bài nộp"
+                            className="max-h-72 w-full rounded-lg border border-accent bg-bg object-contain"
+                          />
+                        </figure>
+                      </div>
+                    ) : isImageUrl(sub.fileUrl) ? (
                       <img
                         src={sub.fileUrl}
                         alt="Bài nộp"
@@ -192,6 +200,16 @@ export default function ReviewQueue() {
                         → Xem bài nộp
                       </a>
                     )}
+                  </div>
+                )}
+
+                {/* Row 2.5: Assistant's note */}
+                {sub.note && (
+                  <div className="rounded-lg border border-line bg-bg p-3">
+                    <p className="mb-1 font-mono text-[0.58rem] uppercase tracking-wider text-ink-soft">
+                      Ghi chú từ assistant
+                    </p>
+                    <p className="whitespace-pre-wrap break-words text-sm text-ink">{sub.note}</p>
                   </div>
                 )}
 
@@ -256,21 +274,6 @@ export default function ReviewQueue() {
         </div>
       )}
 
-      {/* Toast notifications */}
-      <div className="fixed bottom-4 right-4 space-y-2 pointer-events-none">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={`rounded-lg px-4 py-3 text-sm font-semibold pointer-events-auto ${
-              t.type === "ok"
-                ? "bg-ok/15 text-ok border border-ok/30"
-                : "bg-danger/15 text-danger border border-danger/30"
-            }`}
-          >
-            {t.text}
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

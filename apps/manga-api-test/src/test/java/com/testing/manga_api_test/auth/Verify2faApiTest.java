@@ -6,12 +6,11 @@ import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.*;
 
 /**
- * Test Case Amount: 3
- * Test Case Success: 3
+ * Test Case Amount: 4
+ * Test Case Success: 4
  * Test Case Failed: 0
  * UPDATED DATE: 19/06/2026
  */
@@ -21,7 +20,9 @@ public class Verify2faApiTest {
     @Test
     void verify2faShouldReturnAccessToken() {
         // Login and get challenge token
-        String challengeToken = AuthTestConfig.loginAndGetChallengeToken();
+        String challengeToken = AuthTestConfig.loginAndGetChallengeToken(
+                AuthTestConfig.MANGAKA_EMAIL,
+                AuthTestConfig.MANGAKA_PASSWORD);
 
         // Generating HTTP Request
         Response response = verify2fa(challengeToken, AuthTestConfig.FIXED_OTP_FOR_VERIFY);
@@ -33,11 +34,13 @@ public class Verify2faApiTest {
 
     }
 
-    // TC-VERIFY-002: Verify 2 fa fail when otp wrong
+    // TC-VERIFY-002: Verify 2 fa fail when wrong otp
     @Test
-    void verify2faShouldFailWhenOtpWrong() {
+    void verify2faShouldFailWhenWrongOtp() {
         // Login and get challenge token
-        String challengeToken = AuthTestConfig.loginAndGetChallengeToken();
+        String challengeToken = AuthTestConfig.loginAndGetChallengeToken(
+                AuthTestConfig.MANGAKA_EMAIL,
+                AuthTestConfig.MANGAKA_PASSWORD);
 
         // Generating HTTP Request
         Response response = verify2fa(challengeToken, "000000");
@@ -54,7 +57,9 @@ public class Verify2faApiTest {
     @Test
     void verify2faShouldFailWhenChallengeTokenInvalid() {
         // Login and get challenge token
-        String challengeToken = AuthTestConfig.loginAndGetChallengeToken();
+        String challengeToken = AuthTestConfig.loginAndGetChallengeToken(
+                AuthTestConfig.MANGAKA_EMAIL,
+                AuthTestConfig.MANGAKA_PASSWORD);
 
         // Generating HTTP Request
         Response response = verify2fa("Invalid Challenge Token", AuthTestConfig.FIXED_OTP_FOR_VERIFY);
@@ -65,6 +70,25 @@ public class Verify2faApiTest {
                 .body("message", notNullValue())
                 .body("error", equalTo("Unauthorized"))
                 .body("statusCode", equalTo(401));
+    }
+
+    // TC-VERIFY-004: Verify 2 fa fail when otp less than 6 digits
+    @Test
+    void verify2faShouldFailWhenOtpLessThan6Digits() {
+        // Login and get challenge token
+        String challengeToken = AuthTestConfig.loginAndGetChallengeToken(
+                AuthTestConfig.MANGAKA_EMAIL,
+                AuthTestConfig.MANGAKA_PASSWORD);
+
+        // Generating HTTP Request
+        Response response = verify2fa(challengeToken, "123");
+
+        // Starting to check result
+        response.then()
+                .statusCode(400)
+                .body("message", contains("Mã xác thực gồm 6 chữ số"))
+                .body("error", equalTo("Bad Request"))
+                .body("statusCode", equalTo(400));
     }
 
     // ================================== HELPER METHODS ==================================
