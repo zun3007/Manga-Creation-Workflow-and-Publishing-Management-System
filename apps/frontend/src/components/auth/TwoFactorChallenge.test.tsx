@@ -20,10 +20,7 @@ const challenge: TwoFactorRequired = {
 };
 
 function fill(code: string) {
-  const inputs = screen.getAllByRole('textbox');
-  for (let i = 0; i < code.length; i++) {
-    fireEvent.change(inputs[i], { target: { value: code[i] } });
-  }
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: code } });
 }
 
 describe('TwoFactorChallenge', () => {
@@ -32,12 +29,30 @@ describe('TwoFactorChallenge', () => {
     resendOtp.mockReset().mockResolvedValue({ ok: true, cooldownSeconds: 60 });
   });
 
-  it('shows the masked email and six code inputs', () => {
+  it('shows the masked email and one stable code input', () => {
     render(
       <TwoFactorChallenge challenge={challenge} onVerified={vi.fn()} onBack={vi.fn()} />,
     );
     expect(screen.getByText('d•••@example.com')).toBeInTheDocument();
-    expect(screen.getAllByRole('textbox')).toHaveLength(6);
+    expect(screen.getAllByRole('textbox')).toHaveLength(1);
+    expect(screen.getByLabelText('Mã xác thực 6 chữ số')).toBeInTheDocument();
+    expect(screen.getAllByTestId('otp-digit-box')).toHaveLength(6);
+  });
+
+  it('keeps focus in one OTP input while typing consecutive digits', () => {
+    render(
+      <TwoFactorChallenge challenge={challenge} onVerified={vi.fn()} onBack={vi.fn()} />,
+    );
+    const textboxes = screen.getAllByRole('textbox') as HTMLInputElement[];
+    expect(textboxes).toHaveLength(1);
+    const input = textboxes[0];
+
+    input.focus();
+    fireEvent.change(input, { target: { value: '1' } });
+    fireEvent.change(input, { target: { value: '12' } });
+
+    expect(input.value).toBe('12');
+    expect(document.activeElement).toBe(input);
   });
 
   it('auto-submits when all six digits are entered and calls onVerified', async () => {
@@ -50,6 +65,47 @@ describe('TwoFactorChallenge', () => {
       expect(verifyTwoFactor).toHaveBeenCalledWith('ch.jwt', '123456'),
     );
     await waitFor(() => expect(onVerified).toHaveBeenCalled());
+  });
+
+  it('accepts multi-character OTP input in the same field', () => {
+    render(
+      <TwoFactorChallenge challenge={challenge} onVerified={vi.fn()} onBack={vi.fn()} />,
+    );
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+
+    input.focus();
+    fireEvent.change(input, { target: { value: '12' } });
+
+    expect(input.value).toBe('12');
+    expect(document.activeElement).toBe(input);
+  });
+
+  it('preserves previous digits when typing single characters quickly', () => {
+    render(
+      <TwoFactorChallenge challenge={challenge} onVerified={vi.fn()} onBack={vi.fn()} />,
+    );
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+
+    input.focus();
+    fireEvent.change(input, { target: { value: '1' } });
+    fireEvent.change(input, { target: { value: '12' } });
+    fireEvent.change(input, { target: { value: '123' } });
+
+    expect(input.value).toBe('123');
+    expect(document.activeElement).toBe(input);
+  });
+
+  it('sanitizes non-digits without moving focus', () => {
+    render(
+      <TwoFactorChallenge challenge={challenge} onVerified={vi.fn()} onBack={vi.fn()} />,
+    );
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+
+    input.focus();
+    fireEvent.change(input, { target: { value: '1a2b3c' } });
+
+    expect(input.value).toBe('123');
+    expect(document.activeElement).toBe(input);
   });
 
   it('shows an inline error and clears the inputs on a wrong code', async () => {
@@ -65,10 +121,7 @@ describe('TwoFactorChallenge', () => {
       expect(screen.getByText(/không đúng/i)).toBeInTheDocument(),
     );
     expect(onVerified).not.toHaveBeenCalled();
-    // inputs reset to empty
-    for (const input of screen.getAllByRole('textbox')) {
-      expect((input as HTMLInputElement).value).toBe('');
-    }
+    expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('');
   });
 
   it('disables resend during the initial cooldown', () => {

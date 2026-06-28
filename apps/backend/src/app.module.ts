@@ -25,6 +25,7 @@ import { StudioModule } from './studio/studio.module';
 import { AdminModule } from './admin/admin.module';
 import { RankingsModule } from './rankings/rankings.module';
 import { DecisionsModule } from './decisions/decisions.module';
+import { PublicationScheduleModule } from './publication_schedule/publication-schedule.module';
 import { AnnotationsModule } from './annotations/annotations.module';
 import { EarningsModule } from './earnings/earnings.module';
 import { DisputesModule } from './disputes/disputes.module';
@@ -59,6 +60,7 @@ import { DisputesModule } from './disputes/disputes.module';
     AdminModule,
     RankingsModule,
     DecisionsModule,
+    PublicationScheduleModule,
     AnnotationsModule,
     EarningsModule,
     DisputesModule,

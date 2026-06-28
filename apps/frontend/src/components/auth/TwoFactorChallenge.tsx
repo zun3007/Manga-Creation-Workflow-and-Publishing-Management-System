@@ -39,10 +39,12 @@ export function TwoFactorChallenge({
   const [cooldown, setCooldown] = useState(RESEND_COOLDOWN); // a code was just sent at login
   const [secondsLeft, setSecondsLeft] = useState(challenge.expiresIn);
   const [devCode, setDevCode] = useState(challenge.devCode);
+  const [focused, setFocused] = useState(false);
 
-  const refs = useRef<(HTMLInputElement | null)[]>([]);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const code = useMemo(() => digits.join(""), [digits]);
   const expired = secondsLeft <= 0;
+  const activeIndex = Math.min(code.length, LEN - 1);
 
   // expiry + resend countdowns (single 1s tick)
   useEffect(() => {
@@ -54,12 +56,12 @@ export function TwoFactorChallenge({
   }, []);
 
   useEffect(() => {
-    refs.current[0]?.focus();
+    inputRef.current?.focus();
   }, []);
 
   function reset() {
     setDigits(Array(LEN).fill(""));
-    refs.current[0]?.focus();
+    inputRef.current?.focus();
   }
 
   async function submit(value: string) {
@@ -82,33 +84,11 @@ export function TwoFactorChallenge({
     if (next.every((d) => d !== "") && !busy && !expired) submit(next.join(""));
   }
 
-  function setDigit(i: number, raw: string) {
-    const v = raw.replace(/\D/g, "").slice(-1);
-    const next = [...digits];
-    next[i] = v;
-    setDigits(next);
-    if (v && i < LEN - 1) refs.current[i + 1]?.focus();
-    if (v) maybeAutoSubmit(next);
-  }
-
-  function onKeyDown(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Backspace" && !digits[i] && i > 0) {
-      refs.current[i - 1]?.focus();
-    } else if (e.key === "ArrowLeft" && i > 0) {
-      refs.current[i - 1]?.focus();
-    } else if (e.key === "ArrowRight" && i < LEN - 1) {
-      refs.current[i + 1]?.focus();
-    }
-  }
-
-  function onPaste(e: React.ClipboardEvent<HTMLInputElement>) {
-    e.preventDefault();
-    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, LEN);
-    if (!text) return;
+  function setCode(raw: string) {
+    const nextCode = raw.replace(/\D/g, "").slice(0, LEN);
     const next = Array(LEN).fill("");
-    for (let k = 0; k < text.length; k++) next[k] = text[k];
+    for (let i = 0; i < nextCode.length; i++) next[i] = nextCode[i];
     setDigits(next);
-    refs.current[Math.min(text.length, LEN - 1)]?.focus();
     maybeAutoSubmit(next);
   }
 
@@ -166,28 +146,40 @@ export function TwoFactorChallenge({
       )}
 
       <div
-        role="group"
-        aria-label="Mã xác thực 6 chữ số"
-        className="mt-6 flex gap-2"
-        onPaste={onPaste}
+        className="relative mt-6"
+        onClick={() => inputRef.current?.focus()}
       >
-        {digits.map((d, i) => (
-          <input
-            key={i}
-            ref={(el) => {
-              refs.current[i] = el;
-            }}
-            value={d}
-            onChange={(e) => setDigit(i, e.target.value)}
-            onKeyDown={(e) => onKeyDown(i, e)}
-            disabled={busy || expired}
-            inputMode="numeric"
-            autoComplete={i === 0 ? "one-time-code" : "off"}
-            aria-label={`Chữ số ${i + 1}`}
-            maxLength={1}
-            className="h-14 w-full rounded-[calc(var(--app-radius)*0.6)] border border-line bg-surface text-center font-mono text-2xl text-ink outline-none transition focus:border-accent disabled:opacity-50"
-          />
-        ))}
+        <input
+          ref={inputRef}
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          disabled={busy || expired}
+          inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete="one-time-code"
+          aria-label="Mã xác thực 6 chữ số"
+          maxLength={LEN}
+          className="absolute inset-0 z-10 h-full w-full cursor-text opacity-0"
+        />
+
+        <div
+          aria-hidden="true"
+          className={`grid grid-cols-6 gap-2 ${busy || expired ? "opacity-50" : ""}`}
+        >
+          {digits.map((digit, i) => (
+            <div
+              key={i}
+              data-testid="otp-digit-box"
+              className={`grid h-14 place-items-center rounded-[calc(var(--app-radius)*0.6)] border bg-surface text-center font-mono text-2xl text-ink outline-none transition ${
+                focused && i === activeIndex ? "border-accent" : "border-line"
+              }`}
+            >
+              {digit}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="mt-3 text-xs text-ink-soft">
