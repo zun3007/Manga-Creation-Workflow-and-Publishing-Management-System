@@ -42,6 +42,7 @@ describe('Login — 2FA branch', () => {
       expect(screen.getByText(/nhập mã xác thực/i)).toBeInTheDocument(),
     );
     expect(screen.getByText('d•••@example.com')).toBeInTheDocument();
-    expect(screen.getAllByRole('textbox')).toHaveLength(6);
+    expect(screen.getAllByRole('textbox')).toHaveLength(1);
+    expect(screen.getByLabelText('Mã xác thực 6 chữ số')).toBeInTheDocument();
   });
 });
