@@ -14,6 +14,7 @@ import ReviewQueue from "./pages/mangaka/ReviewQueue";
 import BoardProposals from "./pages/board/Proposals";
 import BoardSeries from "./pages/board/Series";
 import BoardRankings from "./pages/board/Rankings";
+import PublicationSchedule from "./pages/board/PublicationSchedule";
 import AssistantTasks from "./pages/assistant/Tasks";
 import AssistantEarnings from "./pages/assistant/Earnings";
 import StudioPage from "./pages/studio/StudioPage";
@@ -149,6 +150,18 @@ function AppRoutes() {
             <RoleProtected roles={["EDITORIAL_BOARD" as Role]}>
               <AppShell>
                 <BoardRankings />
+              </AppShell>
+            </RoleProtected>
+          </Protected>
+        }
+      />
+      <Route
+        path="/board/publication-schedule"
+        element={
+          <Protected>
+            <RoleProtected roles={["EDITORIAL_BOARD" as Role]}>
+              <AppShell>
+                <PublicationSchedule />
               </AppShell>
             </RoleProtected>
           </Protected>
