@@ -21,7 +21,10 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
       port: Number(this.config.get<string>('DB_PORT', '3308')),
       user: this.config.get<string>('DB_USER', 'root'),
       password: this.config.get<string>('DB_PASSWORD', 'manga_root'),
-      database: this.config.get<string>('DB_NAME'),
+      database: this.config.get<string>(
+        'DB_NAME',
+        'manga_creation_workflow_and_publishing_management_system',
+      ),
       charset: 'utf8mb4',
       waitForConnections: true,
       connectionLimit: 10,
