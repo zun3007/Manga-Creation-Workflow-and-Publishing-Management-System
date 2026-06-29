@@ -25,6 +25,7 @@ import AdminDisputes from "./pages/admin/Disputes";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import PublicationSchedule from "./pages/board/PublicationSchedule";
+import ChapterApproval from "./pages/board/ChapterApproval.tsx";
 import { AppShell } from "./components/app/AppShell";
 import { RoleProtected } from "./components/app/RoleProtected";
 import { ToastProvider } from "./components/ui/Toast";
@@ -257,6 +258,14 @@ function AppRoutes() {
                         <PublicationSchedule />
                     </AppShell>
                 </Protected>
+            }
+        />
+        <Route
+            path="/board/chapter-approval"
+            element={
+                <AppShell>
+                    <ChapterApproval />
+                </AppShell>
             }
         />
     </Routes>
