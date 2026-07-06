@@ -55,7 +55,7 @@ export default function BoardRankings() {
     >
   >({});
 
-  // Vote form state
+  // Editorial Board decision poll form state
   const [voteData, setVoteData] = useState<
     Record<number, { score: number; comment: string }>
   >({});
@@ -179,8 +179,8 @@ export default function BoardRankings() {
       }
       toast.success(
         voteRes.data?.closed
-          ? "Đã ghi nhận phiếu cuối cùng. Hệ thống đã tự chốt kỳ & tính xếp hạng."
-          : "Đã ghi nhận phiếu bình chọn.",
+          ? "Đã ghi nhận phiếu biểu quyết cuối cùng. Hệ thống đã tự chốt kỳ & tính xếp hạng."
+          : "Đã ghi nhận phiếu biểu quyết Hội đồng.",
       );
     } catch (e) {
       const message =
@@ -198,17 +198,19 @@ export default function BoardRankings() {
       !newPeriodForm.startDate ||
       !newPeriodForm.endDate
     ) {
-      setActionError("Vui lòng điền đầy đủ thông tin kỳ bình chọn.");
+      setActionError("Vui lòng điền đầy đủ thông tin kỳ biểu quyết Hội đồng.");
       return;
     }
 
     if (newPeriodForm.startDate < todayDate) {
-      setActionError("Ngày mở bình chọn không thể ở quá khứ.");
+      setActionError("Ngày mở biểu quyết không thể ở quá khứ.");
       return;
     }
 
     if (newPeriodForm.endDate < newPeriodForm.startDate) {
-      setActionError("Ngày đóng bình chọn không thể trước ngày mở bình chọn.");
+      setActionError(
+        "Ngày kết thúc biểu quyết không thể trước ngày mở biểu quyết.",
+      );
       return;
     }
 
@@ -232,7 +234,7 @@ export default function BoardRankings() {
       // Refetch open periods
       const res = await api.get<OpenPeriod[]>("/vote-periods/open");
       setOpenPeriods(res.data || []);
-      toast.success("Đã mở kỳ bình chọn.");
+      toast.success("Đã mở kỳ biểu quyết Hội đồng.");
     } catch (e) {
       const message =
         (e as any)?.response?.data?.message || "Thao tác thất bại.";
@@ -294,7 +296,9 @@ export default function BoardRankings() {
                   <th className="p-4 text-left font-semibold text-ink">
                     Series
                   </th>
-                  <th className="p-4 text-left font-semibold text-ink">Điểm</th>
+                  <th className="p-4 text-left font-semibold text-ink">
+                    Điểm Hội đồng
+                  </th>
                   <th className="p-4 text-left font-semibold text-ink">
                     Rủi ro
                   </th>
@@ -413,15 +417,19 @@ export default function BoardRankings() {
         )}
       </Panel>
 
-      {/* Section 2: Open Voting Periods */}
+      {/* Section 2: Open Editorial Board decision poll periods */}
       <Panel className="mb-8">
         <div className="p-6 border-b border-line">
           <h2 className="text-lg font-semibold text-ink">
-            Kỳ bình chọn đang mở
+            Kỳ biểu quyết Hội đồng đang mở
           </h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Đây là biểu quyết nội bộ của Editorial Board để đánh giá series và
+            ra quyết định xuất bản, không phải dữ liệu bình chọn độc giả.
+          </p>
         </div>
         {openPeriods.length === 0 ? (
-          <EmptyState title="Chưa có kỳ bình chọn nào đang mở." />
+          <EmptyState title="Chưa có kỳ biểu quyết Hội đồng nào đang mở." />
         ) : (
           <div className="space-y-4 p-6">
             {openPeriods.map((period) => {
@@ -450,14 +458,14 @@ export default function BoardRankings() {
                     ) : hasExpired ? (
                       <Stamp status="REJECTED" label="Đã quá hạn" />
                     ) : alreadyVoted ? (
-                      <Stamp status="APPROVED" label="Đã bình chọn" />
+                      <Stamp status="APPROVED" label="Đã biểu quyết" />
                     ) : (
                       <div className="space-y-2">
                         <input
                           type="number"
                           min="1"
                           max="5"
-                          placeholder="Điểm (1-5)"
+                          placeholder="Điểm đánh giá (1-5)"
                           value={vote.score || ""}
                           onChange={(e) =>
                             setVoteData((prev) => ({
@@ -474,7 +482,7 @@ export default function BoardRankings() {
 
                         <input
                           type="text"
-                          placeholder="Bình luận (tuỳ chọn)"
+                          placeholder="Nhận xét Hội đồng (tuỳ chọn)"
                           value={vote.comment}
                           onChange={(e) =>
                             setVoteData((prev) => ({
@@ -495,7 +503,7 @@ export default function BoardRankings() {
                           disabled={busy}
                           className="w-full text-xs"
                         >
-                          Bình chọn
+                          Gửi biểu quyết
                         </Button>
                       </div>
                     )}
@@ -503,7 +511,7 @@ export default function BoardRankings() {
 
                   <div className="mt-3 rounded border border-line bg-surface px-3 py-2 text-xs text-ink-soft">
                     Hệ thống sẽ tự chốt và xếp hạng sau khi toàn bộ Editorial
-                    Board đã bình chọn.
+                    Board đã gửi phiếu biểu quyết.
                   </div>
                 </Panel>
               );
@@ -512,12 +520,16 @@ export default function BoardRankings() {
         )}
       </Panel>
 
-      {/* Section 3: Open New Period */}
+      {/* Section 3: Open New Editorial Board decision poll period */}
       <Panel>
         <div className="p-6 border-b border-line">
           <h2 className="text-lg font-semibold text-ink">
-            Mở kỳ bình chọn mới
+            Mở kỳ biểu quyết Hội đồng mới
           </h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Dùng cho Board bỏ phiếu thông qua series mới, quyết định lịch xuất
+            bản, hoặc xem xét hủy / đổi lịch xuất bản theo tình hình thực tế.
+          </p>
         </div>
         <div className="p-6 space-y-3">
           <select
@@ -593,7 +605,7 @@ export default function BoardRankings() {
             disabled={busy}
             className="w-full"
           >
-            Mở kỳ
+            Mở kỳ biểu quyết
           </Button>
         </div>
       </Panel>

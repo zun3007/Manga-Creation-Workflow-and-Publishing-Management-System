@@ -90,7 +90,7 @@ describe("BoardRankings", () => {
     expect(screen.getAllByText("Series X")).toHaveLength(2); // one in rankings, one in open periods
 
     // Verify open periods section shows the period
-    expect(screen.getByText("Kỳ bình chọn đang mở")).toBeInTheDocument();
+    expect(screen.getByText("Kỳ biểu quyết Hội đồng đang mở")).toBeInTheDocument();
   });
 
   it("allows voting on open periods", async () => {
@@ -103,14 +103,14 @@ describe("BoardRankings", () => {
     );
 
     // Wait for open periods to load
-    await screen.findByText("Kỳ bình chọn đang mở");
+    await screen.findByText("Kỳ biểu quyết Hội đồng đang mở");
 
     // Find and fill the score input
-    const scoreInput = screen.getByPlaceholderText("Điểm (1-5)") as HTMLInputElement;
+    const scoreInput = screen.getByPlaceholderText("Điểm đánh giá (1-5)") as HTMLInputElement;
     fireEvent.change(scoreInput, { target: { value: "5" } });
 
     // Find and click the vote button
-    const voteButton = screen.getByRole("button", { name: "Bình chọn" });
+    const voteButton = screen.getByRole("button", { name: "Gửi biểu quyết" });
     fireEvent.click(voteButton);
 
     // Verify api.post was called with correct data
@@ -156,11 +156,11 @@ describe("BoardRankings", () => {
       </ToastProvider>
     );
 
-    await screen.findByText("Kỳ bình chọn đang mở");
+    await screen.findByText("Kỳ biểu quyết Hội đồng đang mở");
 
-    // Should show "Đã bình chọn" instead of vote inputs
-    expect(screen.getByText("Đã bình chọn")).toBeInTheDocument();
-    expect(screen.queryByPlaceholderText("Điểm (1-5)")).not.toBeInTheDocument();
+    // Should show "Đã biểu quyết" instead of vote inputs
+    expect(screen.getByText("Đã biểu quyết")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Điểm đánh giá (1-5)")).not.toBeInTheDocument();
   });
 
   it("does not expose a manual close action for a single board member", async () => {
@@ -172,14 +172,14 @@ describe("BoardRankings", () => {
       </ToastProvider>
     );
 
-    await screen.findByText("Kỳ bình chọn đang mở");
+    await screen.findByText("Kỳ biểu quyết Hội đồng đang mở");
 
     expect(
       screen.queryByRole("button", { name: "Đóng & tính hạng" })
     ).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        "Hệ thống sẽ tự chốt và xếp hạng sau khi toàn bộ Editorial Board đã bình chọn."
+        "Hệ thống sẽ tự chốt và xếp hạng sau khi toàn bộ Editorial Board đã gửi phiếu biểu quyết."
       )
     ).toBeInTheDocument();
   });
@@ -222,7 +222,7 @@ describe("BoardRankings", () => {
 
     expect(screen.getByText(/Mở từ: 2999-01-10/)).toBeInTheDocument();
     expect(screen.getByText("Chưa đến ngày mở")).toBeInTheDocument();
-    expect(screen.queryByPlaceholderText("Điểm (1-5)")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Điểm đánh giá (1-5)")).not.toBeInTheDocument();
   });
 
   it("limits vote period dates to today-or-future and end date after start date", async () => {
@@ -234,7 +234,7 @@ describe("BoardRankings", () => {
       </ToastProvider>
     );
 
-    await screen.findByText("Mở kỳ bình chọn mới");
+    await screen.findByText("Mở kỳ biểu quyết Hội đồng mới");
 
     const [startDateInput, endDateInput] = Array.from(
       container.querySelectorAll<HTMLInputElement>('input[type="date"]')
@@ -262,7 +262,7 @@ describe("BoardRankings", () => {
 
     expect(await screen.findByText("Chưa có dữ liệu xếp hạng.")).toBeInTheDocument();
     expect(
-      screen.getByText("Chưa có kỳ bình chọn nào đang mở.")
+      screen.getByText("Chưa có kỳ biểu quyết Hội đồng nào đang mở.")
     ).toBeInTheDocument();
   });
 
@@ -282,3 +282,4 @@ describe("BoardRankings", () => {
     ).toBeInTheDocument();
   });
 });
+
