@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { Role } from "@manga/shared";
-import { api } from "../../lib/api";
+import { api, apiErrorMessage } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
 import { useConfirm } from "../../lib/confirm";
 import type { AdminUser } from "../../types";
@@ -8,6 +8,27 @@ import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { roleLabel } from "../../lib/roleLabel";
+
+const creatableRoles = [
+  Role.MANGAKA,
+  Role.ASSISTANT,
+  Role.TANTOU_EDITOR,
+  Role.EDITORIAL_BOARD,
+] as const;
+
+type CreateUserForm = {
+  fullName: string;
+  email: string;
+  password: string;
+  role: (typeof creatableRoles)[number];
+};
+
+const emptyCreateForm: CreateUserForm = {
+  fullName: "",
+  email: "",
+  password: "",
+  role: Role.ASSISTANT,
+};
 
 export default function Console() {
   const toast = useToast();
@@ -18,6 +39,8 @@ export default function Console() {
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const [savingId, setSavingId] = useState<number | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateUserForm>(emptyCreateForm);
 
   useEffect(() => {
     loadData();
@@ -66,6 +89,28 @@ export default function Console() {
       console.error("Failed to save user", e);
     } finally {
       setSavingId(null);
+    }
+  }
+
+  async function createUser(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setCreating(true);
+    setActionError("");
+
+    try {
+      await api.post("/admin/users", {
+        ...createForm,
+        email: createForm.email.trim(),
+        fullName: createForm.fullName.trim(),
+      });
+      setCreateForm(emptyCreateForm);
+      await loadData();
+      toast.success("Đã tạo tài khoản nội bộ.");
+    } catch (e) {
+      setActionError(apiErrorMessage(e, "Không thể tạo tài khoản."));
+      console.error("Failed to create user", e);
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -121,6 +166,83 @@ export default function Console() {
         </Panel>
       )}
 
+      {/* Create Account */}
+      <Panel className="mb-8 p-6">
+        <div className="mb-5">
+          <h2 className="text-xl font-semibold text-ink">Tạo tài khoản nội bộ</h2>
+          <p className="text-sm text-ink-soft mt-1">
+            Chỉ admin được tạo tài khoản. Hệ thống giữ đúng 1 admin nên không cho tạo thêm role ADMIN.
+          </p>
+        </div>
+        <form onSubmit={createUser} className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-end">
+          <label className="block lg:col-span-1">
+            <span className="block text-sm font-semibold text-ink mb-2">Họ tên</span>
+            <input
+              value={createForm.fullName}
+              onChange={(e) =>
+                setCreateForm((prev) => ({ ...prev, fullName: e.target.value }))
+              }
+              required
+              minLength={2}
+              maxLength={100}
+              className="w-full px-3 py-2 rounded border border-line bg-surface text-ink"
+              placeholder="VD: Nguyễn Văn A"
+            />
+          </label>
+          <label className="block lg:col-span-1">
+            <span className="block text-sm font-semibold text-ink mb-2">Email</span>
+            <input
+              type="email"
+              value={createForm.email}
+              onChange={(e) =>
+                setCreateForm((prev) => ({ ...prev, email: e.target.value }))
+              }
+              required
+              maxLength={255}
+              className="w-full px-3 py-2 rounded border border-line bg-surface text-ink"
+              placeholder="name@inkframe.studio"
+            />
+          </label>
+          <label className="block lg:col-span-1">
+            <span className="block text-sm font-semibold text-ink mb-2">Mật khẩu</span>
+            <input
+              type="password"
+              value={createForm.password}
+              onChange={(e) =>
+                setCreateForm((prev) => ({ ...prev, password: e.target.value }))
+              }
+              required
+              minLength={8}
+              maxLength={72}
+              className="w-full px-3 py-2 rounded border border-line bg-surface text-ink"
+              placeholder="Tối thiểu 8 ký tự"
+            />
+          </label>
+          <label className="block lg:col-span-1">
+            <span className="block text-sm font-semibold text-ink mb-2">Vai trò</span>
+            <select
+              value={createForm.role}
+              onChange={(e) =>
+                setCreateForm((prev) => ({
+                  ...prev,
+                  role: e.target.value as CreateUserForm["role"],
+                }))
+              }
+              className="w-full px-3 py-2 rounded border border-line bg-surface text-ink"
+            >
+              {creatableRoles.map((role) => (
+                <option key={role} value={role}>
+                  {roleLabel(role)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button type="submit" loading={creating} className="lg:col-span-1 h-10">
+            Tạo tài khoản
+          </Button>
+        </form>
+      </Panel>
+
       {/* Users Table */}
       {users.length === 0 ? (
         <EmptyState title="Chưa có người dùng." />
@@ -143,6 +265,8 @@ export default function Console() {
               {users.map((user) => {
                 const isActivated = user.isActivated === true || user.isActivated === 1;
                 const isSaving = savingId === user.id;
+                const isAdmin = user.role === Role.ADMIN;
+                const roleOptions = isAdmin ? [Role.ADMIN] : creatableRoles;
                 return (
                   <tr key={user.id} className="border-b border-line hover:bg-bg">
                     <td className="p-4 text-ink">{user.name}</td>
@@ -151,12 +275,12 @@ export default function Console() {
                       <select
                         value={user.role}
                         onChange={(e) =>
-                          save(user.id, { role: e.target.value as any })
+                          save(user.id, { role: e.target.value as AdminUser["role"] })
                         }
-                        disabled={isSaving}
+                        disabled={isSaving || isAdmin}
                         className="px-3 py-1 rounded border border-line bg-surface text-ink text-sm cursor-pointer disabled:opacity-50"
                       >
-                        {Object.values(Role).map((role) => (
+                        {roleOptions.map((role) => (
                           <option key={role} value={role}>
                             {roleLabel(role)}
                           </option>
@@ -169,10 +293,10 @@ export default function Console() {
                         onClick={() =>
                           save(user.id, { isActivated: !isActivated })
                         }
-                        disabled={isSaving}
+                        disabled={isSaving || isAdmin}
                         className="text-xs w-24"
                       >
-                        {isActivated ? "Khoá" : "Mở khoá"}
+                        {isAdmin ? "Admin chính" : isActivated ? "Khoá" : "Mở khoá"}
                       </Button>
                     </td>
                   </tr>

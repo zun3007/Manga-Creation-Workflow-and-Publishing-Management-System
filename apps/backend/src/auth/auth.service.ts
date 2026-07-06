@@ -45,9 +45,14 @@ export class AuthService {
   }
   /** DEV ONLY echo of the OTP in the response — never active in production. */
   private get devEcho(): boolean {
+    const smtpConfigured = Boolean(
+      this.config.get<string>('SMTP_HOST') &&
+        this.config.get<string>('SMTP_USER') &&
+        this.config.get<string>('SMTP_PASS'),
+    );
     return (
-      this.config.get<string>('OTP_DEV_ECHO') === 'true' &&
-      this.config.get<string>('NODE_ENV') !== 'production'
+      this.config.get<string>('NODE_ENV') !== 'production' &&
+      (this.config.get<string>('OTP_DEV_ECHO') === 'true' || !smtpConfigured)
     );
   }
   /** Separate secret so a challenge token can never be used as an access token. */
