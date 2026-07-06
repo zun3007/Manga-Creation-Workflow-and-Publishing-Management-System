@@ -2,15 +2,18 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, apiErrorMessage } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
+import { useConfirm } from "../../lib/confirm";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { Stamp } from "../../components/ui/Stamp";
+import { EmptyState } from "../../components/ui/EmptyState";
 
 type ImportedSeries = {
   seriesId: number;
   readerRankingId: number;
   rankPosition: number;
   seriesTitle: string;
+  status: string;
   publicationYear: number;
   chapterCount: number;
   author: string;
@@ -21,6 +24,9 @@ type ImportedSeries = {
 };
 
 type ImportResult = {
+  importId?: number | null;
+  fileName?: string | null;
+  importedAt?: string | null;
   importedCount: number;
   periodType: "WEEKLY" | "MONTHLY";
   startDate: string;
@@ -30,25 +36,8 @@ type ImportResult = {
 
 const today = new Date().toISOString().slice(0, 10);
 const money = new Intl.NumberFormat("vi-VN");
-const IMPORT_CACHE_KEY = "board.readerVoteImport.lastResult";
-
-type ImportCache = {
-  periodType: "WEEKLY" | "MONTHLY";
-  startDate: string;
-  endDate: string;
-  csvPreview: string;
-  result: ImportResult | null;
-  selectedSeriesId: number | null;
-};
-
-function readImportCache(): ImportCache | null {
-  try {
-    const raw = sessionStorage.getItem(IMPORT_CACHE_KEY);
-    return raw ? (JSON.parse(raw) as ImportCache) : null;
-  } catch {
-    return null;
-  }
-}
+type DecisionType = "CONTINUE" | "CANCEL" | "HIATUS" | "CHANGE_FREQUENCY";
+type FrequencyType = "WEEKLY" | "MONTHLY";
 
 function BoardRankingTabs() {
   return (
@@ -71,42 +60,70 @@ function BoardRankingTabs() {
 
 export default function ReaderVoteImport() {
   const toast = useToast();
-  const cached = readImportCache();
-  const [periodType, setPeriodType] = useState<"WEEKLY" | "MONTHLY">(
-    cached?.periodType ?? "WEEKLY",
-  );
-  const [startDate, setStartDate] = useState(cached?.startDate ?? today);
-  const [endDate, setEndDate] = useState(cached?.endDate ?? today);
+  const { confirm } = useConfirm();
+  const [periodType, setPeriodType] = useState<"WEEKLY" | "MONTHLY">("WEEKLY");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const [file, setFile] = useState<File | null>(null);
-  const [csvPreview, setCsvPreview] = useState(cached?.csvPreview ?? "");
+  const [csvPreview, setCsvPreview] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ImportResult | null>(
-    cached?.result ?? null,
-  );
-  const [selectedSeries, setSelectedSeries] = useState<ImportedSeries | null>(
-    cached?.result?.rankings.find(
-      (ranking) => ranking.seriesId === cached.selectedSeriesId,
-    ) ??
-      cached?.result?.rankings[0] ??
-      null,
-  );
+  const [loadingLatest, setLoadingLatest] = useState(true);
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [selectedSeries, setSelectedSeries] = useState<ImportedSeries | null>(null);
+  const [decisionData, setDecisionData] = useState<
+    Record<number, { type: DecisionType; frequency?: FrequencyType; reason: string }>
+  >({});
+  const [busyDecisionId, setBusyDecisionId] = useState<number | null>(null);
+  const [actionError, setActionError] = useState("");
+
+  function applyResult(next: ImportResult | null) {
+    setResult(next);
+    setSelectedSeries((current) => {
+      if (!next) return null;
+      return (
+        next.rankings.find((ranking) => ranking.seriesId === current?.seriesId) ??
+        next.rankings[0] ??
+        null
+      );
+    });
+  }
+
+  async function loadLatestReaderRankings() {
+    setLoadingLatest(true);
+    try {
+      const response = await api.get<ImportResult | null>(
+        "/reader-vote-rankings/latest",
+      );
+      applyResult(response.data);
+    } catch (err) {
+      const responseStatus =
+        typeof err === "object" && err !== null && "response" in err
+          ? (err as { response?: { status?: number } }).response?.status
+          : undefined;
+      const message = apiErrorMessage(
+        err,
+        "Không tải được bảng xếp hạng độc giả",
+      );
+
+      if (responseStatus === 404 && message.includes("Cannot GET")) {
+        applyResult(null);
+        setActionError("");
+      } else {
+        setActionError(message);
+      }
+    } finally {
+      setLoadingLatest(false);
+    }
+  }
 
   useEffect(() => {
-    const cache: ImportCache = {
-      periodType,
-      startDate,
-      endDate,
-      csvPreview,
-      result,
-      selectedSeriesId: selectedSeries?.seriesId ?? null,
-    };
-    sessionStorage.setItem(IMPORT_CACHE_KEY, JSON.stringify(cache));
-  }, [periodType, startDate, endDate, csvPreview, result, selectedSeries]);
+    // Load once on page open. Keep this effect one-shot so an API error cannot spam toasts.
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+    void loadLatestReaderRankings();
+  }, []);
 
   async function handleFileChange(nextFile?: File) {
     setFile(nextFile ?? null);
-    setResult(null);
-    setSelectedSeries(null);
     if (!nextFile) {
       setCsvPreview("");
       return;
@@ -148,13 +165,58 @@ export default function ReaderVoteImport() {
           csv,
         },
       );
-      setResult(response.data);
-      setSelectedSeries(response.data.rankings[0] ?? null);
+      applyResult(response.data);
       toast.success("Đã import dữ liệu độc giả và cập nhật bảng xếp hạng.");
     } catch (err) {
       toast.error(apiErrorMessage(err, "Không import được file CSV"));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDecision(seriesId: number) {
+    const decision = decisionData[seriesId];
+    if (!decision || !decision.type || !decision.reason.trim()) {
+      setActionError("Vui lòng chọn quyết định và nhập lý do.");
+      return;
+    }
+
+    if (decision.type === "CHANGE_FREQUENCY" && !decision.frequency) {
+      setActionError("Vui lòng chọn tần suất mới.");
+      return;
+    }
+
+    if (
+      (decision.type === "CANCEL" || decision.type === "HIATUS") &&
+      !(await confirm({
+        title: "Xác nhận quyết định cho series?",
+        body: "Hành động sẽ đổi trạng thái series và thông báo cho tác giả/biên tập.",
+        tone: "danger",
+      }))
+    ) {
+      return;
+    }
+
+    setBusyDecisionId(seriesId);
+    setActionError("");
+    try {
+      await api.post("/decisions", {
+        seriesId,
+        decisionType: decision.type,
+        newFrequency: decision.frequency,
+        reason: decision.reason,
+      });
+      setDecisionData((prev) => {
+        const next = { ...prev };
+        delete next[seriesId];
+        return next;
+      });
+      await loadLatestReaderRankings();
+      toast.success("Đã ghi nhận quyết định Hội đồng.");
+    } catch (err) {
+      setActionError(apiErrorMessage(err, "Không thể ra quyết định."));
+    } finally {
+      setBusyDecisionId(null);
     }
   }
 
@@ -170,11 +232,6 @@ export default function ReaderVoteImport() {
             <h1 className="font-display text-3xl font-bold text-ink">
               Nhập dữ liệu vote độc giả
             </h1>
-            <p className="mt-2 max-w-3xl text-sm text-muted">
-              Import CSV sau mỗi kỳ phát hành. Điểm Hội đồng và sao độc giả là 2
-              nguồn dữ liệu riêng. CSV chỉ nhập sao độc giả và doanh số; số
-              chương được lấy trực tiếp từ hệ thống.
-            </p>
           </div>
         </div>
       </div>
@@ -244,12 +301,6 @@ export default function ReaderVoteImport() {
             <pre className="max-h-56 overflow-auto rounded-lg border border-line bg-bg p-3 text-xs text-ink-soft">
               {csvPreview}
             </pre>
-            {!file && result && (
-              <p className="mt-2 text-xs text-muted">
-                Dữ liệu này được giữ lại từ lần import gần nhất trong phiên làm
-                việc để bạn đối chiếu khi chuyển trang.
-              </p>
-            )}
           </div>
         )}
 
@@ -260,7 +311,25 @@ export default function ReaderVoteImport() {
         </div>
       </Panel>
 
-      {result && (
+      {loadingLatest && (
+        <Panel className="p-6 text-sm text-muted">
+          Đang tải bảng xếp hạng độc giả đã import…
+        </Panel>
+      )}
+
+      {!loadingLatest && !result && (
+        <Panel className="p-6">
+          <EmptyState title="Chưa có bảng xếp hạng độc giả đã import." />
+        </Panel>
+      )}
+
+      {actionError && (
+        <Panel className="border-danger/20 bg-danger/10 p-4 text-danger">
+          {actionError}
+        </Panel>
+      )}
+
+      {!loadingLatest && result && (
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-3">
             <SummaryCard
@@ -285,11 +354,13 @@ export default function ReaderVoteImport() {
             <Panel className="overflow-hidden">
               <div className="border-b border-line p-6">
                 <h2 className="text-lg font-semibold text-ink">
-                  Kết quả import: {result.importedCount} series
+                  Bảng xếp hạng độc giả đã import: {result.importedCount} series
                 </h2>
                 <p className="mt-1 text-sm text-muted">
                   {result.periodType === "WEEKLY" ? "Hàng tuần" : "Hàng tháng"}{" "}
                   · {result.startDate} → {result.endDate}
+                  {result.fileName ? ` · File: ${result.fileName}` : ""}
+                  {result.importId ? ` · Import #${result.importId}` : ""}
                 </p>
               </div>
               <table className="min-w-full text-sm">
@@ -303,6 +374,7 @@ export default function ReaderVoteImport() {
                     </th>
                     <th className="px-4 py-4 font-semibold">Sao độc giả</th>
                     <th className="px-4 py-4 font-semibold">Doanh số</th>
+                    <th className="px-4 py-4 font-semibold">Trạng thái</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -340,6 +412,9 @@ export default function ReaderVoteImport() {
                       </td>
                       <td className="px-4 py-5">
                         {money.format(ranking.sales)}
+                      </td>
+                      <td className="px-4 py-5">
+                        <Stamp status={ranking.status} />
                       </td>
                     </tr>
                   ))}
@@ -401,6 +476,140 @@ export default function ReaderVoteImport() {
               )}
             </Panel>
           </div>
+
+          <Panel className="overflow-hidden">
+            <div className="border-b border-line p-6">
+              <h2 className="text-lg font-semibold text-ink">
+                Board ra quyết định từ vote độc giả
+              </h2>
+              <p className="mt-1 text-sm text-muted">
+                Dùng điểm sao độc giả đã import làm căn cứ để tiếp tục, hủy, tạm
+                dừng hoặc đổi tần suất series.
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-bg">
+                  <tr className="border-b border-line text-left">
+                    <th className="px-4 py-4 font-semibold">Hạng</th>
+                    <th className="px-4 py-4 font-semibold">Series</th>
+                    <th className="px-4 py-4 font-semibold">Sao độc giả</th>
+                    <th className="px-4 py-4 font-semibold">Rủi ro</th>
+                    <th className="px-4 py-4 font-semibold">Trạng thái</th>
+                    <th className="px-4 py-4 font-semibold">Quyết định</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.rankings.map((ranking) => {
+                    const decision = decisionData[ranking.seriesId] ?? {
+                      type: "CONTINUE" as DecisionType,
+                      frequency: undefined,
+                      reason: "",
+                    };
+                    const isBusy = busyDecisionId === ranking.seriesId;
+
+                    return (
+                      <tr
+                        key={ranking.readerRankingId}
+                        className="border-b border-line"
+                      >
+                        <td className="px-4 py-5 font-mono">
+                          #{ranking.rankPosition}
+                        </td>
+                        <td className="px-4 py-5 font-semibold text-ink">
+                          {ranking.seriesTitle}
+                        </td>
+                        <td className="px-4 py-5">
+                          {ranking.averageReaderStars.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-5">
+                          <Stamp
+                            status={ranking.riskLevel}
+                            label={`RISK ${ranking.riskLevel}`}
+                          />
+                        </td>
+                        <td className="px-4 py-5">
+                          <Stamp status={ranking.status} />
+                        </td>
+                        <td className="px-4 py-5">
+                          <div className="flex flex-wrap gap-2">
+                            <select
+                              value={decision.type}
+                              onChange={(event) =>
+                                setDecisionData((prev) => ({
+                                  ...prev,
+                                  [ranking.seriesId]: {
+                                    ...decision,
+                                    type: event.target.value as DecisionType,
+                                  },
+                                }))
+                              }
+                              disabled={isBusy}
+                              className="w-40 rounded border border-line bg-surface px-3 py-2 text-sm text-ink disabled:opacity-50"
+                            >
+                              <option value="CONTINUE">Tiếp tục</option>
+                              <option value="CANCEL">Hủy</option>
+                              <option value="HIATUS">Tạm dừng</option>
+                              <option value="CHANGE_FREQUENCY">
+                                Đổi tần suất
+                              </option>
+                            </select>
+
+                            {decision.type === "CHANGE_FREQUENCY" && (
+                              <select
+                                value={decision.frequency ?? ""}
+                                onChange={(event) =>
+                                  setDecisionData((prev) => ({
+                                    ...prev,
+                                    [ranking.seriesId]: {
+                                      ...decision,
+                                      frequency: event.target.value as FrequencyType,
+                                    },
+                                  }))
+                                }
+                                disabled={isBusy}
+                                className="w-36 rounded border border-line bg-surface px-3 py-2 text-sm text-ink disabled:opacity-50"
+                              >
+                                <option value="">— chọn —</option>
+                                <option value="WEEKLY">Hàng tuần</option>
+                                <option value="MONTHLY">Hàng tháng</option>
+                              </select>
+                            )}
+
+                            <input
+                              type="text"
+                              placeholder="Lý do..."
+                              value={decision.reason}
+                              onChange={(event) =>
+                                setDecisionData((prev) => ({
+                                  ...prev,
+                                  [ranking.seriesId]: {
+                                    ...decision,
+                                    reason: event.target.value,
+                                  },
+                                }))
+                              }
+                              disabled={isBusy}
+                              className="w-44 rounded border border-line bg-surface px-3 py-2 text-sm text-ink placeholder-ink-soft disabled:opacity-50"
+                            />
+
+                            <Button
+                              variant="accent"
+                              onClick={() => void handleDecision(ranking.seriesId)}
+                              disabled={isBusy}
+                              className="w-36 text-xs"
+                            >
+                              Ra quyết định
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
         </div>
       )}
     </div>

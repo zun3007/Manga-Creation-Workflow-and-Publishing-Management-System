@@ -180,7 +180,7 @@ export class RankingsService {
     );
   }
 
-  async importReaderVotesCsv(dto: ImportReaderVotesDto) {
+  async importReaderVotesCsv(dto: ImportReaderVotesDto, importedByUserId?: number) {
     this.validateImportPeriodDates(dto.startDate, dto.endDate);
 
     const rows = this.parseReaderVoteCsv(dto.csv);
@@ -202,11 +202,13 @@ export class RankingsService {
     const existingSeries = await this.db.query<{
       series_id: number;
       title: string;
+      series_status: string;
       chapter_count: number | string;
     }>(
       `SELECT
          s.series_id,
          s.title,
+         s.series_status,
          (SELECT COUNT(*) FROM \`Chapter\` c WHERE c.series_id = s.series_id) AS chapter_count
        FROM \`Series\` s
        WHERE ${clauses.join(' OR ')}`,
@@ -237,6 +239,7 @@ export class RankingsService {
         ...row,
         seriesId: Number(series.series_id),
         systemSeriesTitle: series.title,
+        systemSeriesStatus: series.series_status,
         systemChapterCount: Number(series.chapter_count ?? 0),
       };
     });
@@ -261,16 +264,19 @@ export class RankingsService {
       return a.seriesId - b.seriesId;
     });
 
+    await this.ensureReaderVoteImportTable();
     await this.ensureReaderVoteRankingTable();
 
     let previousScore: number | null = null;
     let rankPosition = 0;
+    let importId = 0;
     const imported = await this.db.transaction(async (tx) => {
       const results: Array<{
         seriesId: number;
         readerRankingId: number;
         rankPosition: number;
         seriesTitle: string;
+        status: string;
         publicationYear: number;
         chapterCount: number;
         author: string;
@@ -279,6 +285,21 @@ export class RankingsService {
         sales: number;
         riskLevel: RiskLevel;
       }> = [];
+
+      importId = await tx.insert(
+        `INSERT INTO \`Reader_Vote_Import\`
+          (file_name, csv_content, ranking_period_type, period_start_date, period_end_date, imported_by_user_id, imported_count)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          dto.fileName ?? null,
+          dto.csv,
+          dto.periodType,
+          dto.startDate,
+          dto.endDate,
+          importedByUserId ?? null,
+          rankedRows.length,
+        ],
+      );
 
       for (const [index, row] of rankedRows.entries()) {
         if (previousScore === null || row.averageReaderStars !== previousScore) {
@@ -324,6 +345,7 @@ export class RankingsService {
           readerRankingId,
           rankPosition,
           seriesTitle: row.systemSeriesTitle,
+          status: String(row.systemSeriesStatus),
           publicationYear: row.publicationYear,
           chapterCount: row.systemChapterCount,
           author: row.author,
@@ -344,11 +366,118 @@ export class RankingsService {
     }
 
     return {
+      importId,
+      fileName: dto.fileName ?? null,
       importedCount: imported.length,
       periodType: dto.periodType,
       startDate: dto.startDate,
       endDate: dto.endDate,
       rankings: imported,
+    };
+  }
+
+  async latestReaderVoteRankings() {
+    await this.ensureReaderVoteImportTable();
+    await this.ensureReaderVoteRankingTable();
+
+    const latestImport = await this.db.queryOne<{
+      importId: number;
+      fileName: string | null;
+      periodType: 'WEEKLY' | 'MONTHLY';
+      startDate: string | Date;
+      endDate: string | Date;
+      importedAt: string | Date;
+      importedCount: number | string;
+    }>(
+      `SELECT
+         import_id AS importId,
+         file_name AS fileName,
+         ranking_period_type AS periodType,
+         period_start_date AS startDate,
+         period_end_date AS endDate,
+         imported_at AS importedAt,
+         imported_count AS importedCount
+       FROM \`Reader_Vote_Import\`
+       ORDER BY imported_at DESC, import_id DESC
+       LIMIT 1`,
+    );
+
+    const rows = await this.db.query<{
+      seriesId: number;
+      readerRankingId: number;
+      rankPosition: number;
+      seriesTitle: string;
+      status: string;
+      publicationYear: number | string;
+      chapterCount: number | string;
+      author: string;
+      genres: string;
+      averageReaderStars: number | string;
+      sales: number | string;
+      riskLevel: RiskLevel;
+      periodType: 'WEEKLY' | 'MONTHLY';
+      startDate: string | Date;
+      endDate: string | Date;
+    }>(
+      `SELECT
+         r.series_id AS seriesId,
+         r.reader_ranking_id AS readerRankingId,
+         r.rank_position AS rankPosition,
+         s.title AS seriesTitle,
+         s.series_status AS status,
+         r.publication_year AS publicationYear,
+         (SELECT COUNT(*) FROM \`Chapter\` c WHERE c.series_id = r.series_id) AS chapterCount,
+         r.author_name AS author,
+         r.genres,
+         r.reader_star_avg AS averageReaderStars,
+         r.sales_amount AS sales,
+         r.risk_level AS riskLevel,
+         r.ranking_period_type AS periodType,
+         r.period_start_date AS startDate,
+         r.period_end_date AS endDate
+       FROM \`Reader_Vote_Ranking\` r
+       JOIN \`Series\` s ON s.series_id = r.series_id
+       ${latestImport ? '' : `JOIN (
+         SELECT ranking_period_type, period_start_date
+         FROM \`Reader_Vote_Ranking\`
+         ORDER BY calculated_at DESC, period_end_date DESC, reader_ranking_id DESC
+         LIMIT 1
+       ) latest
+         ON latest.ranking_period_type = r.ranking_period_type
+        AND latest.period_start_date = r.period_start_date`}
+       ${latestImport ? 'WHERE r.ranking_period_type = ? AND r.period_start_date = ?' : ''}
+       ORDER BY r.rank_position ASC, r.reader_star_avg DESC, r.sales_amount DESC, s.title ASC`,
+      latestImport
+        ? [latestImport.periodType, this.dateOnly(latestImport.startDate)]
+        : [],
+    );
+
+    if (rows.length === 0) {
+      return null;
+    }
+
+    return {
+      importId: latestImport ? Number(latestImport.importId) : null,
+      fileName: latestImport?.fileName ?? null,
+      importedAt: latestImport ? this.dateOnly(latestImport.importedAt) : null,
+      importedCount: latestImport ? Number(latestImport.importedCount) : rows.length,
+      periodType: latestImport?.periodType ?? rows[0].periodType,
+      startDate: this.dateOnly(latestImport?.startDate ?? rows[0].startDate),
+      endDate: this.dateOnly(latestImport?.endDate ?? rows[0].endDate),
+      rankings: rows.map((row) => ({
+        seriesId: Number(row.seriesId),
+        readerRankingId: Number(row.readerRankingId),
+        rankPosition: Number(row.rankPosition),
+        seriesTitle: row.seriesTitle,
+        status: row.status,
+        publicationYear: Number(row.publicationYear),
+        chapterCount: Number(row.chapterCount ?? 0),
+        author: row.author,
+        genres: row.genres,
+        averageReaderStars: Number(row.averageReaderStars),
+        sales: Number(row.sales),
+        riskLevel: row.riskLevel,
+      })),
     };
   }
 
@@ -366,6 +495,26 @@ export class RankingsService {
         'Ngày đóng bình chọn không thể trước ngày mở bình chọn',
       );
     }
+  }
+
+  private async ensureReaderVoteImportTable() {
+    await this.db.query(
+      `CREATE TABLE IF NOT EXISTS \`Reader_Vote_Import\` (
+        \`import_id\` BIGINT AUTO_INCREMENT,
+        \`file_name\` VARCHAR(255) NULL,
+        \`csv_content\` MEDIUMTEXT NOT NULL,
+        \`ranking_period_type\` ENUM('WEEKLY','MONTHLY') NOT NULL,
+        \`period_start_date\` DATE NOT NULL,
+        \`period_end_date\` DATE NOT NULL,
+        \`imported_by_user_id\` BIGINT NULL,
+        \`imported_count\` INT NOT NULL DEFAULT 0,
+        \`imported_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`import_id\`),
+        FOREIGN KEY (\`imported_by_user_id\`) REFERENCES \`User\`(\`user_id\`),
+        INDEX \`idx_reader_vote_import_latest\` (\`imported_at\`, \`import_id\`),
+        INDEX \`idx_reader_vote_import_period\` (\`ranking_period_type\`, \`period_start_date\`)
+      )`,
+    );
   }
 
   private async ensureReaderVoteRankingTable() {

@@ -54,7 +54,13 @@ export class RankingsController {
 
   @Post('reader-vote-imports/csv')
   @Roles(Role.EDITORIAL_BOARD, Role.ADMIN)
-  async importReaderVotesCsv(@Body() dto: ImportReaderVotesDto) {
-    return this.service.importReaderVotesCsv(dto);
+  async importReaderVotesCsv(@Body() dto: ImportReaderVotesDto, @Req() req: any) {
+    return this.service.importReaderVotesCsv(dto, req.user.id);
+  }
+
+  @Get('reader-vote-rankings/latest')
+  @Roles(Role.EDITORIAL_BOARD, Role.ADMIN, Role.MANGAKA)
+  async latestReaderVoteRankings() {
+    return this.service.latestReaderVoteRankings();
   }
 }

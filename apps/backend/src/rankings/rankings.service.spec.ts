@@ -237,6 +237,52 @@ describe('RankingsService', () => {
     });
   });
 
+  describe('latestReaderVoteRankings', () => {
+    it('loads the latest persisted reader import ranking from Reader_Vote_Ranking', async () => {
+      const db: any = {
+        query: jest.fn().mockResolvedValue([
+          {
+            seriesId: 3,
+            readerRankingId: 9,
+            rankPosition: 1,
+            seriesTitle: 'The Tenth Panel',
+            publicationYear: 2024,
+            chapterCount: 2,
+            author: 'Nguyen Tien Dung',
+            genres: 'Action, Drama',
+            averageReaderStars: '4.72',
+            sales: '128000000.00',
+            riskLevel: RiskLevel.LOW,
+            periodType: 'WEEKLY',
+            startDate: '2026-07-06',
+            endDate: '2026-07-06',
+          },
+        ]),
+      };
+
+      const service = new RankingsService(db, {} as any);
+      const result = await service.latestReaderVoteRankings();
+
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('Reader_Vote_Ranking'),
+      );
+      expect(result).toEqual({
+        importedCount: 1,
+        periodType: 'WEEKLY',
+        startDate: '2026-07-06',
+        endDate: '2026-07-06',
+        rankings: [
+          expect.objectContaining({
+            seriesId: 3,
+            rankPosition: 1,
+            averageReaderStars: 4.72,
+            sales: 128000000,
+          }),
+        ],
+      });
+    });
+  });
+
   describe('closePeriod', () => {
     it('does not allow a manual close before all active board members have voted', async () => {
       const db: any = {

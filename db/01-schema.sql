@@ -413,6 +413,24 @@ CREATE TABLE `Ranking` (
     UNIQUE KEY `uq_ranking` (`series_id`, `vote_period_id`)
 );
 
+-- Reader_Vote_Import (raw uploaded CSV + import batch metadata)
+CREATE TABLE `Reader_Vote_Import` (
+	`import_id` BIGINT AUTO_INCREMENT,
+    `file_name` VARCHAR(255),
+    `csv_content` MEDIUMTEXT NOT NULL,
+    `ranking_period_type` ENUM('WEEKLY','MONTHLY') NOT NULL,
+    `period_start_date` DATE NOT NULL,
+    `period_end_date` DATE NOT NULL,
+    `imported_by_user_id` BIGINT,
+    `imported_count` INT NOT NULL DEFAULT 0,
+    `imported_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (`import_id`),
+    FOREIGN KEY (`imported_by_user_id`) REFERENCES `User`(`user_id`),
+    INDEX `idx_reader_vote_import_latest` (`imported_at`, `import_id`),
+    INDEX `idx_reader_vote_import_period` (`ranking_period_type`, `period_start_date`)
+);
+
 -- Reader_Vote_Ranking (reader vote import results, separate from Editorial Board ranking)
 CREATE TABLE `Reader_Vote_Ranking` (
 	`reader_ranking_id` BIGINT AUTO_INCREMENT,

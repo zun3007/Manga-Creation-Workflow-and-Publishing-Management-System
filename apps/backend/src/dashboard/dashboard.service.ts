@@ -63,18 +63,22 @@ export class DashboardService {
   series(userId: number) {
     return this.db.query(
       `SELECT s.series_id AS id, s.title, s.series_status AS status, s.publication_frequency AS frequency,
-              r.rank_position AS rankPosition, r.total_score AS score, r.risk_level AS riskLevel,
+              rr.rank_position AS rankPosition, rr.reader_star_avg AS score, rr.risk_level AS riskLevel,
               (SELECT COUNT(*) FROM \`Chapter\` c WHERE c.series_id = s.series_id) AS chapters,
               (SELECT COUNT(*) FROM \`Chapter\` c WHERE c.series_id = s.series_id AND c.chapter_status = 'PUBLISHED') AS published
        FROM \`Series\` s
-       LEFT JOIN \`Ranking\` r
-         ON r.series_id = s.series_id
-        AND r.vote_period_id = (
-              SELECT vp.vote_period_id FROM \`Vote_Period\` vp
-              WHERE vp.series_id = s.series_id
-              ORDER BY vp.period_end_date DESC LIMIT 1)
+       LEFT JOIN (
+         SELECT ranking_period_type, period_start_date
+         FROM \`Reader_Vote_Ranking\`
+         ORDER BY calculated_at DESC, period_end_date DESC, reader_ranking_id DESC
+         LIMIT 1
+       ) latest_reader_batch ON 1 = 1
+       LEFT JOIN \`Reader_Vote_Ranking\` rr
+         ON rr.series_id = s.series_id
+        AND rr.ranking_period_type = latest_reader_batch.ranking_period_type
+        AND rr.period_start_date = latest_reader_batch.period_start_date
        WHERE s.mangaka_user_id = ?
-       ORDER BY (r.rank_position IS NULL), r.rank_position`,
+       ORDER BY (rr.rank_position IS NULL), rr.rank_position, s.title`,
       [userId],
     );
   }
