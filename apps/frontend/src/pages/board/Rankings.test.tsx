@@ -69,7 +69,7 @@ describe("BoardRankings", () => {
       </ToastProvider>
     );
 
-    expect(screen.getByText("Xếp hạng & Quyết định")).toBeInTheDocument();
+    expect(screen.getByText("Biểu quyết & Quyết định Hội đồng")).toBeInTheDocument();
     expect(screen.getByText("Đang tải…")).toBeInTheDocument();
   });
 
@@ -86,7 +86,7 @@ describe("BoardRankings", () => {
     expect(await screen.findByText("4.2")).toBeInTheDocument();
 
     // Verify leaderboard section shows the series
-    expect(screen.getByText("Bảng xếp hạng")).toBeInTheDocument();
+    expect(screen.getByText("Bảng đánh giá series")).toBeInTheDocument();
     expect(screen.getAllByText("Series X")).toHaveLength(2); // one in rankings, one in open periods
 
     // Verify open periods section shows the period
@@ -179,7 +179,7 @@ describe("BoardRankings", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        "Hệ thống sẽ tự chốt và xếp hạng sau khi toàn bộ Editorial Board đã gửi phiếu biểu quyết."
+        "Hệ thống sẽ tự chốt kết quả, cập nhật bảng đánh giá và tính mức rủi ro sau khi toàn bộ Editorial Board đã gửi phiếu biểu quyết."
       )
     ).toBeInTheDocument();
   });
@@ -260,7 +260,7 @@ describe("BoardRankings", () => {
       </ToastProvider>
     );
 
-    expect(await screen.findByText("Chưa có dữ liệu xếp hạng.")).toBeInTheDocument();
+    expect(await screen.findByText("Chưa có dữ liệu đánh giá Hội đồng.")).toBeInTheDocument();
     expect(
       screen.getByText("Chưa có kỳ biểu quyết Hội đồng nào đang mở.")
     ).toBeInTheDocument();
@@ -282,4 +282,5 @@ describe("BoardRankings", () => {
     ).toBeInTheDocument();
   });
 });
+
 
