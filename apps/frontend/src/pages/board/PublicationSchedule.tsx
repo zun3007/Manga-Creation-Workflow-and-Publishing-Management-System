@@ -22,11 +22,15 @@ type Schedule = {
   chapterTitle: string;
   releaseDate: string;
   status: "SCHEDULED" | "PUBLISHED" | "CANCELLED";
+  canCancel?: 0 | 1 | boolean;
+  canPublish?: 0 | 1 | boolean;
 };
 
 export default function PublicationSchedule() {
   const toast = useToast();
-  const [eligibleChapters, setEligibleChapters] = useState<EligibleChapter[]>([]);
+  const [eligibleChapters, setEligibleChapters] = useState<EligibleChapter[]>(
+    [],
+  );
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [seriesId, setSeriesId] = useState<number | undefined>();
   const [chapterId, setChapterId] = useState<number | undefined>();
@@ -34,10 +38,13 @@ export default function PublicationSchedule() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const minReleaseDate = todayDate();
 
   const seriesOptions = useMemo(() => {
     const byId = new Map<number, string>();
-    eligibleChapters.forEach((chapter) => byId.set(chapter.seriesId, chapter.seriesTitle));
+    eligibleChapters.forEach((chapter) =>
+      byId.set(chapter.seriesId, chapter.seriesTitle),
+    );
     return Array.from(byId, ([id, title]) => ({ id, title })).sort((a, b) =>
       a.title.localeCompare(b.title),
     );
@@ -78,6 +85,11 @@ export default function PublicationSchedule() {
       return;
     }
 
+    if (releaseDate < minReleaseDate) {
+      toast.error("Ngày phát hành không thể ở quá khứ.");
+      return;
+    }
+
     setSaving(true);
     try {
       await api.post("/publication-schedules", {
@@ -109,16 +121,25 @@ export default function PublicationSchedule() {
     }
   }
 
+  async function publishSchedule(id: number) {
+    setSaving(true);
+    try {
+      await api.patch(`/publication-schedules/${id}/publish`);
+      toast.success("Đã xuất bản chương theo lịch.");
+      await loadData();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Không xuất bản được chương"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-6 p-8">
       <div>
         <h1 className="font-display text-3xl font-bold text-ink">
           Lịch xuất bản
         </h1>
-        <p className="mt-2 text-sm text-muted">
-          Lên kế hoạch và quản lý lịch phát hành các chương truyện tranh đã được
-          phê duyệt.
-        </p>
       </div>
 
       <Panel className="space-y-6 p-6">
@@ -191,6 +212,7 @@ export default function PublicationSchedule() {
               type="date"
               value={releaseDate}
               onChange={(event) => setReleaseDate(event.target.value)}
+              min={minReleaseDate}
               className="w-full rounded-lg border border-line bg-surface p-3"
             />
           </div>
@@ -200,7 +222,7 @@ export default function PublicationSchedule() {
 
         <div className="flex justify-end">
           <Button onClick={createSchedule} loading={saving}>
-            Create Schedule
+            Tạo lịch phát hành
           </Button>
         </div>
       </Panel>
@@ -239,14 +261,31 @@ export default function PublicationSchedule() {
                   </td>
                   <td className="px-4 py-6">
                     {schedule.status === "SCHEDULED" ? (
-                      <button
-                        type="button"
-                        onClick={() => void cancelSchedule(schedule.id)}
-                        disabled={saving}
-                        className="text-sm font-medium text-danger transition hover:brightness-95 disabled:opacity-50"
-                      >
-                        Huỷ
-                      </button>
+                      <div className="flex flex-wrap gap-3">
+                        {Boolean(schedule.canPublish) && (
+                          <button
+                            type="button"
+                            onClick={() => void publishSchedule(schedule.id)}
+                            disabled={saving}
+                            className="text-sm font-medium text-accent transition hover:brightness-95 disabled:opacity-50"
+                          >
+                            Xuất bản
+                          </button>
+                        )}
+                        {Boolean(schedule.canCancel) && (
+                          <button
+                            type="button"
+                            onClick={() => void cancelSchedule(schedule.id)}
+                            disabled={saving}
+                            className="text-sm font-medium text-danger transition hover:brightness-95 disabled:opacity-50"
+                          >
+                            Huỷ
+                          </button>
+                        )}
+                        {!schedule.canPublish && !schedule.canCancel && (
+                          <span className="text-muted">Chờ ngày phát hành</span>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-muted">—</span>
                     )}
@@ -259,4 +298,12 @@ export default function PublicationSchedule() {
       </Panel>
     </div>
   );
+}
+
+function todayDate(): string {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }

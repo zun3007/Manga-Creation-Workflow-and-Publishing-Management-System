@@ -43,4 +43,10 @@ export class PublicationScheduleController {
   async cancel(@Param('id') id: string) {
     return this.service.cancel(+id);
   }
+
+  @Patch(':id/publish')
+  @Roles(Role.EDITORIAL_BOARD, Role.ADMIN)
+  async publish(@Param('id') id: string) {
+    return this.service.publish(+id);
+  }
 }

@@ -35,6 +35,20 @@ describe("PublicationSchedule", () => {
               seriesTitle: "Dragon Hunter",
               releaseDate: "2026-07-01",
               status: "SCHEDULED",
+              canCancel: 0,
+              canPublish: 1,
+            },
+            {
+              id: 2,
+              chapterId: 12,
+              chapterNumber: 4,
+              chapterTitle: "Next Mission",
+              seriesId: 5,
+              seriesTitle: "Dragon Hunter",
+              releaseDate: "2999-07-01",
+              status: "SCHEDULED",
+              canCancel: 1,
+              canPublish: 0,
             },
           ],
         });
@@ -84,15 +98,60 @@ describe("PublicationSchedule", () => {
     const chapterSelect = screen.getByLabelText(/chapter/i);
     fireEvent.change(chapterSelect, { target: { value: "11" } });
     fireEvent.change(screen.getByLabelText(/release date/i), {
-      target: { value: "2026-07-08" },
+      target: { value: "2999-07-08" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /create schedule/i }));
+    fireEvent.click(screen.getByRole("button", { name: /tạo lịch phát hành/i }));
 
     await waitFor(() =>
       expect(mockPost).toHaveBeenCalledWith("/publication-schedules", {
         chapterId: 11,
-        releaseDate: "2026-07-08",
+        releaseDate: "2999-07-08",
       }),
     );
   });
+
+  it("sets a minimum release date to today", async () => {
+    const { container } = render(
+      <ToastProvider>
+        <PublicationSchedule />
+      </ToastProvider>,
+    );
+
+    await screen.findByLabelText(/release date/i);
+
+    const releaseDateInput = container.querySelector<HTMLInputElement>(
+      'input[type="date"]',
+    );
+
+    expect(releaseDateInput?.getAttribute("min")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("publishes schedules that reached their release day", async () => {
+    render(
+      <ToastProvider>
+        <PublicationSchedule />
+      </ToastProvider>,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Xuất bản" }));
+
+    await waitFor(() =>
+      expect(mockPatch).toHaveBeenCalledWith("/publication-schedules/1/publish"),
+    );
+  });
+
+  it("allows cancelling only future scheduled publications", async () => {
+    render(
+      <ToastProvider>
+        <PublicationSchedule />
+      </ToastProvider>,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Huỷ" }));
+
+    await waitFor(() =>
+      expect(mockPatch).toHaveBeenCalledWith("/publication-schedules/2/cancel"),
+    );
+  });
 });
+
