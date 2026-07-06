@@ -83,6 +83,48 @@ export class DashboardService {
     );
   }
 
+  editorSeries(editorUserId: number) {
+    return this.db.query(
+      `SELECT
+        s.series_id AS id,
+        s.title,
+        s.series_status AS status,
+        s.publication_frequency AS frequency,
+        s.created_at AS createdAt,
+        ste.assigned_at AS assignedAt,
+        u.full_name AS mangaka,
+        u.email AS mangakaEmail,
+        GROUP_CONCAT(DISTINCT g.genre_name ORDER BY g.genre_name SEPARATOR ', ') AS genres,
+        COALESCE(ch.chapterCount, 0) AS chapters,
+        COALESCE(ch.publishedChapters, 0) AS publishedChapters,
+        COALESCE(ch.chaptersToReview, 0) AS chaptersToReview,
+        ch.nextDeadline
+       FROM \`Series_Tantou_Editor\` ste
+       JOIN \`Series\` s ON s.series_id = ste.series_id
+       JOIN \`User\` u ON u.user_id = s.mangaka_user_id
+       LEFT JOIN \`Series_Genre\` sg ON sg.series_id = s.series_id
+       LEFT JOIN \`Genre\` g ON g.genre_id = sg.genre_id
+       LEFT JOIN (
+         SELECT
+           series_id,
+           COUNT(*) AS chapterCount,
+           SUM(CASE WHEN chapter_status = 'PUBLISHED' THEN 1 ELSE 0 END) AS publishedChapters,
+           SUM(CASE WHEN chapter_status = 'READY_FOR_EDITOR_REVIEW' THEN 1 ELSE 0 END) AS chaptersToReview,
+           MIN(CASE WHEN chapter_status <> 'PUBLISHED' THEN deadline ELSE NULL END) AS nextDeadline
+         FROM \`Chapter\`
+         GROUP BY series_id
+       ) ch ON ch.series_id = s.series_id
+       WHERE ste.editor_user_id = ? AND ste.unassigned_at IS NULL
+       GROUP BY s.series_id, ste.assigned_at, u.full_name, u.email, ch.chapterCount, ch.publishedChapters, ch.chaptersToReview, ch.nextDeadline
+       ORDER BY
+         COALESCE(ch.chaptersToReview, 0) DESC,
+         nextDeadline IS NULL,
+         nextDeadline ASC,
+         s.title ASC`,
+      [editorUserId],
+    );
+  }
+
   tasks(userId: number) {
     return this.db.query(
       `SELECT t.task_id AS id, t.task_description AS description, t.task_status AS status,

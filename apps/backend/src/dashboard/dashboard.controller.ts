@@ -22,6 +22,13 @@ export class DashboardController {
     return this.dashboard.series(req.user.id);
   }
 
+  @Get('editor-series')
+  @UseGuards(RolesGuard)
+  @Roles(Role.TANTOU_EDITOR)
+  editorSeries(@Req() req: any) {
+    return this.dashboard.editorSeries(req.user.id);
+  }
+
   @Get('tasks')
   @UseGuards(RolesGuard)
   @Roles(Role.MANGAKA)

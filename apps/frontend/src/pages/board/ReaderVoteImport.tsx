@@ -322,9 +322,10 @@ export default function ReaderVoteImport() {
           <p className="mt-1 text-sm text-muted">
             Cột bắt buộc:{" "}
             <code>
-              seriesTitle,publicationYear,author,genres,averageReaderStars,sales
+              seriesTitle,author,genres,averageReaderStars,sales
             </code>
-            . Có thể thêm <code>seriesId</code> để match chính xác hơn.
+            . Có thể thêm <code>seriesId</code> để match chính xác hơn. Năm bắt
+            đầu series lấy trực tiếp từ hệ thống.
           </p>
         </div>
 
@@ -451,7 +452,7 @@ export default function ReaderVoteImport() {
                     <th className="px-4 py-4 font-semibold">Series</th>
                     <th className="px-4 py-4 font-semibold">Năm bắt đầu</th>
                     <th className="px-4 py-4 font-semibold">
-                      Số lượng chapeter
+                      Số lượng chapter
                     </th>
                     <th className="px-4 py-4 font-semibold">Sao độc giả</th>
                     <th className="px-4 py-4 font-semibold">Doanh số</th>

@@ -20,6 +20,7 @@ import AssistantTasks from "./pages/assistant/Tasks";
 import AssistantEarnings from "./pages/assistant/Earnings";
 import StudioPage from "./pages/studio/StudioPage";
 import StudioRegionPage from "./pages/studio/StudioRegionPage";
+import ManagedSeriesPage from "./pages/editor/ManagedSeries";
 import EditorReviewQueue from "./pages/editor/ReviewQueue";
 import EditorChapterReview from "./pages/editor/ChapterReview";
 import AdminConsole from "./pages/admin/Console";
@@ -206,6 +207,18 @@ function AppRoutes() {
       />
       <Route path="/studio/page/:pageId" element={<Protected><StudioPage /></Protected>} />
       <Route path="/studio/region/:taskId" element={<Protected><StudioRegionPage /></Protected>} />
+      <Route
+        path="/editor/series"
+        element={
+          <Protected>
+            <RoleProtected roles={["TANTOU_EDITOR" as Role]}>
+              <AppShell>
+                <ManagedSeriesPage />
+              </AppShell>
+            </RoleProtected>
+          </Protected>
+        }
+      />
       <Route
         path="/editor/review"
         element={

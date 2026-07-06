@@ -18,7 +18,12 @@ function StatCard({ label, value }: { label: string; value: number | string }) {
 
 const CFG: Record<
   string,
-  { title: string; cards: [string, string][]; cta?: { to: string; label: string } }
+  {
+    title: string;
+    cards: [string, string][];
+    cta?: { to: string; label: string };
+    extraCta?: { to: string; label: string };
+  }
 > = {
   ASSISTANT: {
     title: 'Tổng quan trợ lý',
@@ -37,6 +42,7 @@ const CFG: Record<
       ['Series phụ trách', 'managedSeries'],
     ],
     cta: { to: '/editor/review', label: 'Duyệt chương' },
+    extraCta: { to: '/editor/series', label: 'Xem series quản lý' },
   },
   EDITORIAL_BOARD: {
     title: 'Tổng quan hội đồng',
@@ -102,14 +108,24 @@ function RoleDashboard({ role }: { role: string }) {
               <StatCard key={key} label={label} value={s?.[key] ?? 0} />
             ))}
           </div>
-          {c.cta && (
-            <Link
-              to={c.cta.to}
-              className="mt-6 inline-block rounded bg-accent px-4 py-2 text-white"
-            >
-              {c.cta.label} →
-            </Link>
-          )}
+          <div className="mt-6 flex flex-wrap gap-3">
+            {c.cta && (
+              <Link
+                to={c.cta.to}
+                className="inline-block rounded bg-accent px-4 py-2 text-white"
+              >
+                {c.cta.label} →
+              </Link>
+            )}
+            {c.extraCta && (
+              <Link
+                to={c.extraCta.to}
+                className="inline-block rounded border border-line bg-surface px-4 py-2 text-ink hover:bg-bg"
+              >
+                {c.extraCta.label} →
+              </Link>
+            )}
+          </div>
         </>
       )}
     </div>

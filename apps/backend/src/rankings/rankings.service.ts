@@ -203,12 +203,14 @@ export class RankingsService {
       series_id: number;
       title: string;
       series_status: string;
+      publication_year: number | string;
       chapter_count: number | string;
     }>(
       `SELECT
          s.series_id,
          s.title,
          s.series_status,
+         YEAR(s.created_at) AS publication_year,
          (SELECT COUNT(*) FROM \`Chapter\` c WHERE c.series_id = s.series_id) AS chapter_count
        FROM \`Series\` s
        WHERE ${clauses.join(' OR ')}`,
@@ -240,6 +242,7 @@ export class RankingsService {
         seriesId: Number(series.series_id),
         systemSeriesTitle: series.title,
         systemSeriesStatus: series.series_status,
+        systemPublicationYear: Number(series.publication_year),
         systemChapterCount: Number(series.chapter_count ?? 0),
       };
     });
@@ -333,7 +336,7 @@ export class RankingsService {
             rankPosition,
             row.averageReaderStars,
             row.sales,
-            row.publicationYear,
+            row.systemPublicationYear,
             row.author,
             row.genres,
             riskLevel,
@@ -346,7 +349,7 @@ export class RankingsService {
           rankPosition,
           seriesTitle: row.systemSeriesTitle,
           status: String(row.systemSeriesStatus),
-          publicationYear: row.publicationYear,
+          publicationYear: row.systemPublicationYear,
           chapterCount: row.systemChapterCount,
           author: row.author,
           genres: row.genres,
@@ -402,6 +405,15 @@ export class RankingsService {
        LIMIT 1`,
     );
 
+    await this.syncReaderVotePublicationYears(
+      latestImport
+        ? {
+            periodType: latestImport.periodType,
+            startDate: this.dateOnly(latestImport.startDate),
+          }
+        : null,
+    );
+
     const rows = await this.db.query<{
       seriesId: number;
       readerRankingId: number;
@@ -425,7 +437,7 @@ export class RankingsService {
          r.rank_position AS rankPosition,
          s.title AS seriesTitle,
          s.series_status AS status,
-         r.publication_year AS publicationYear,
+         YEAR(s.created_at) AS publicationYear,
          (SELECT COUNT(*) FROM \`Chapter\` c WHERE c.series_id = r.series_id) AS chapterCount,
          r.author_name AS author,
          r.genres,
@@ -479,6 +491,27 @@ export class RankingsService {
         riskLevel: row.riskLevel,
       })),
     };
+  }
+
+  private async syncReaderVotePublicationYears(
+    latestImport: { periodType: 'WEEKLY' | 'MONTHLY'; startDate: string } | null,
+  ) {
+    if (latestImport) {
+      await this.db.query(
+        `UPDATE \`Reader_Vote_Ranking\` r
+         JOIN \`Series\` s ON s.series_id = r.series_id
+         SET r.publication_year = YEAR(s.created_at)
+         WHERE r.ranking_period_type = ? AND r.period_start_date = ?`,
+        [latestImport.periodType, latestImport.startDate],
+      );
+      return;
+    }
+
+    await this.db.query(
+      `UPDATE \`Reader_Vote_Ranking\` r
+       JOIN \`Series\` s ON s.series_id = r.series_id
+       SET r.publication_year = YEAR(s.created_at)`,
+    );
   }
 
   private validateVotePeriodDates(startDate: string, endDate: string) {
@@ -565,13 +598,6 @@ export class RankingsService {
       'series',
       'tenseries',
     ]);
-    const publicationDateIndex = this.headerIndex(headers, [
-      'publicationdate',
-      'publicationyear',
-      'startyear',
-      'releasedate',
-      'ngayphathanh',
-    ]);
     const authorIndex = this.headerIndex(headers, ['author', 'tacgia']);
     const genresIndex = this.headerIndex(headers, ['genres', 'genre', 'theloai']);
     const averageReaderStarsIndex = this.headerIndex(headers, [
@@ -585,14 +611,13 @@ export class RankingsService {
 
     if (
       seriesTitleIndex < 0 ||
-      publicationDateIndex < 0 ||
       authorIndex < 0 ||
       genresIndex < 0 ||
       averageReaderStarsIndex < 0 ||
       salesIndex < 0
     ) {
       throw new BadRequestException(
-        'CSV cần các cột: seriesTitle,publicationYear,author,genres,averageReaderStars,sales',
+        'CSV cần các cột: seriesTitle,author,genres,averageReaderStars,sales',
       );
     }
 
@@ -604,7 +629,6 @@ export class RankingsService {
           ? Number(columns[seriesIdIndex])
           : undefined;
       const seriesTitle = columns[seriesTitleIndex]?.trim();
-      const publicationYear = this.publicationYear(columns[publicationDateIndex] ?? '');
       const author = columns[authorIndex]?.trim();
       const genres = columns[genresIndex]?.trim();
       const averageReaderStars = Number(columns[averageReaderStarsIndex]);
@@ -615,11 +639,6 @@ export class RankingsService {
       }
       if (!seriesTitle) {
         throw new BadRequestException(`Dòng ${rowNumber}: tên series không hợp lệ`);
-      }
-      if (!publicationYear) {
-        throw new BadRequestException(
-          `Dòng ${rowNumber}: thời gian bắt đầu series phải là năm hoặc ngày hợp lệ`,
-        );
       }
       if (!author) {
         throw new BadRequestException(`Dòng ${rowNumber}: tác giả không hợp lệ`);
@@ -649,7 +668,6 @@ export class RankingsService {
       return {
         seriesId,
         seriesTitle,
-        publicationYear,
         author,
         genres,
         averageReaderStars: Number(averageReaderStars.toFixed(2)),
@@ -705,16 +723,6 @@ export class RankingsService {
 
   private normalizeHeader(header: string) {
     return header.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-  }
-
-  private publicationYear(value: string) {
-    const raw = String(value ?? '').trim();
-    const year = raw.match(/^\d{4}/)?.[0];
-    if (!year) {
-      return null;
-    }
-    const numericYear = Number(year);
-    return numericYear >= 1900 && numericYear <= 9999 ? numericYear : null;
   }
 
   private headerIndex(headers: string[], candidates: string[]) {
