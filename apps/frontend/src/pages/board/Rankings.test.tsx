@@ -43,7 +43,7 @@ describe("BoardRankings", () => {
               seriesId: 1,
               series: "Series X",
               periodType: "WEEKLY",
-              endDate: "2026-06-01",
+              endDate: "2999-01-17",
               hasVoted: 0,
             },
           ],
@@ -136,7 +136,7 @@ describe("BoardRankings", () => {
               seriesId: 1,
               series: "Series X",
               periodType: "WEEKLY",
-              endDate: "2026-06-01",
+              endDate: "2999-01-17",
               hasVoted: 1,
             },
           ],
@@ -161,6 +161,92 @@ describe("BoardRankings", () => {
     // Should show "Đã bình chọn" instead of vote inputs
     expect(screen.getByText("Đã bình chọn")).toBeInTheDocument();
     expect(screen.queryByPlaceholderText("Điểm (1-5)")).not.toBeInTheDocument();
+  });
+
+  it("does not expose a manual close action for a single board member", async () => {
+    render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <BoardRankings />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
+
+    await screen.findByText("Kỳ bình chọn đang mở");
+
+    expect(
+      screen.queryByRole("button", { name: "Đóng & tính hạng" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Hệ thống sẽ tự chốt và xếp hạng sau khi toàn bộ Editorial Board đã bình chọn."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("shows scheduled future vote periods but disables voting until the start date", async () => {
+    mockGet.mockImplementation((url: string) => {
+      if (url === "/rankings") {
+        return Promise.resolve({ data: [] });
+      }
+      if (url === "/vote-periods/open") {
+        return Promise.resolve({
+          data: [
+            {
+              id: 9,
+              seriesId: 1,
+              series: "Series Future",
+              periodType: "WEEKLY",
+              startDate: "2999-01-10",
+              endDate: "2999-01-17",
+              hasVoted: 0,
+            },
+          ],
+        });
+      }
+      if (url === "/series/all") {
+        return Promise.resolve({ data: [] });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
+    render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <BoardRankings />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
+
+    await screen.findByText("Series Future");
+
+    expect(screen.getByText(/Mở từ: 2999-01-10/)).toBeInTheDocument();
+    expect(screen.getByText("Chưa đến ngày mở")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Điểm (1-5)")).not.toBeInTheDocument();
+  });
+
+  it("limits vote period dates to today-or-future and end date after start date", async () => {
+    const { container } = render(
+      <ToastProvider>
+        <ConfirmProvider>
+          <BoardRankings />
+        </ConfirmProvider>
+      </ToastProvider>
+    );
+
+    await screen.findByText("Mở kỳ bình chọn mới");
+
+    const [startDateInput, endDateInput] = Array.from(
+      container.querySelectorAll<HTMLInputElement>('input[type="date"]')
+    );
+    const today = new Date().toISOString().slice(0, 10);
+
+    expect(startDateInput).toHaveAttribute("min", today);
+    expect(endDateInput).toHaveAttribute("min", today);
+
+    fireEvent.change(startDateInput, { target: { value: "2999-01-10" } });
+
+    expect(endDateInput).toHaveAttribute("min", "2999-01-10");
   });
 
   it("renders empty states when no data", async () => {

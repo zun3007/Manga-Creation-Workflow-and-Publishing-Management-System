@@ -2,151 +2,81 @@ import { RankingsService } from './rankings.service';
 import { RiskLevel } from '@manga/shared';
 
 describe('RankingsService', () => {
-  describe('closePeriod', () => {
-    it('closes period, computes HIGH risk, updates series status, and sends notification', async () => {
-      const db: any = {
-        queryOne: jest
-          .fn()
-          .mockResolvedValueOnce({
-            vote_period_id: 1,
-            series_id: 7,
-          })
-          .mockResolvedValueOnce({
-            avg: 2.0,
-            n: 3,
-          })
-          .mockResolvedValueOnce({
-            c: 0,
-          })
-          .mockResolvedValueOnce({
-            mangaka_user_id: 42,
-          }),
-        query: jest.fn().mockResolvedValue([]),
-      };
-
-      const notifications: any = {
-        notify: jest.fn().mockResolvedValue(undefined),
-      };
-
-      const service = new RankingsService(db, notifications);
-      const result = await service.closePeriod(1);
-
-      // Verify period loaded
-      expect(db.queryOne).toHaveBeenNthCalledWith(
-        1,
-        expect.stringContaining('Vote_Period'),
-        [1],
-      );
-
-      // Verify average computed
-      expect(db.queryOne).toHaveBeenNthCalledWith(
-        2,
-        expect.stringContaining('AVG(score)'),
-        [1],
-      );
-
-      // Verify rank position computed (c=0 means rank 1)
-      expect(db.queryOne).toHaveBeenNthCalledWith(
-        3,
-        expect.stringContaining('Ranking'),
-        [2.0],
-      );
-
-      // Verify mangaka fetched
-      expect(db.queryOne).toHaveBeenNthCalledWith(
-        4,
-        expect.stringContaining('mangaka_user_id'),
-        [7],
-      );
-
-      // Verify period closed
-      expect(db.query).toHaveBeenCalledWith(
-        expect.stringContaining('CLOSED'),
-        [1],
-      );
-
-      // Verify ranking upserted
-      expect(db.query).toHaveBeenCalledWith(
-        expect.stringContaining('Ranking'),
-        expect.arrayContaining([7, 1, 1, 2.0, RiskLevel.HIGH]),
-      );
-
-      // Verify series marked AT_RISK
-      expect(db.query).toHaveBeenCalledWith(
-        expect.stringContaining('AT_RISK'),
-        [7],
-      );
-
-      // Verify notification sent
-      expect(notifications.notify).toHaveBeenCalledWith(
-        42,
-        'RISK_ALERT',
-        'Series của bạn đang ở mức rủi ro cao',
-        expect.stringContaining('2.00'),
-        'Series',
-        7,
-      );
-
-      expect(result).toEqual({
-        seriesId: 7,
-        total: 2.0,
-        risk: RiskLevel.HIGH,
-        rankPosition: 1,
-      });
-    });
-
-    it('computes MEDIUM risk when avg is between 2.5 and 3.5', async () => {
-      const db: any = {
-        queryOne: jest
-          .fn()
-          .mockResolvedValueOnce({
-            vote_period_id: 2,
-            series_id: 8,
-          })
-          .mockResolvedValueOnce({
-            avg: 3.0,
-            n: 5,
-          })
-          .mockResolvedValueOnce({
-            c: 2,
-          }),
-        query: jest.fn().mockResolvedValue([]),
-      };
-
-      const notifications: any = {
-        notify: jest.fn(),
-      };
-
-      const service = new RankingsService(db, notifications);
-      const result = await service.closePeriod(2);
-
-      expect(result.risk).toBe(RiskLevel.MEDIUM);
-      expect(result.rankPosition).toBe(3);
-      // No notification for MEDIUM risk
-      expect(notifications.notify).not.toHaveBeenCalled();
-    });
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('openPeriod', () => {
-    it('creates a vote period', async () => {
+    beforeEach(() => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-06T00:00:00.000Z'));
+    });
+
+    it('rejects a vote period that starts before today', async () => {
+      const service = new RankingsService({ insert: jest.fn() } as any, {} as any);
+
+      await expect(
+        service.openPeriod({
+          seriesId: 5,
+          periodType: 'WEEKLY',
+          startDate: '2026-07-05',
+          endDate: '2026-07-12',
+        }),
+      ).rejects.toThrow('Ngày mở bình chọn không thể ở quá khứ');
+    });
+
+    it('rejects a vote period whose end date is before its start date', async () => {
+      const service = new RankingsService({ insert: jest.fn() } as any, {} as any);
+
+      await expect(
+        service.openPeriod({
+          seriesId: 5,
+          periodType: 'WEEKLY',
+          startDate: '2026-07-10',
+          endDate: '2026-07-09',
+        }),
+      ).rejects.toThrow('Ngày đóng bình chọn không thể trước ngày mở bình chọn');
+    });
+
+    it('creates a vote period when date range is valid', async () => {
       const db: any = {
+        queryOne: jest.fn().mockResolvedValue(null),
         insert: jest.fn().mockResolvedValue(99),
       };
-      const notifications: any = {};
 
-      const service = new RankingsService(db, notifications);
+      const service = new RankingsService(db, {} as any);
       const result = await service.openPeriod({
         seriesId: 5,
         periodType: 'WEEKLY',
-        startDate: '2026-06-01',
-        endDate: '2026-06-08',
+        startDate: '2026-07-06',
+        endDate: '2026-07-13',
       });
 
       expect(db.insert).toHaveBeenCalledWith(
         expect.stringContaining('Vote_Period'),
-        [5, 'WEEKLY', '2026-06-01', '2026-06-08'],
+        [5, 'WEEKLY', '2026-07-06', '2026-07-13'],
       );
       expect(result).toEqual({ id: 99 });
+    });
+
+    it('rejects a duplicate series/type/start-date vote period with a friendly message', async () => {
+      const db: any = {
+        queryOne: jest.fn().mockResolvedValue({ vote_period_id: 11 }),
+        insert: jest.fn(),
+      };
+
+      const service = new RankingsService(db, {} as any);
+
+      await expect(
+        service.openPeriod({
+          seriesId: 2,
+          periodType: 'WEEKLY',
+          startDate: '2026-07-06',
+          endDate: '2026-07-28',
+        }),
+      ).rejects.toThrow(
+        'Kỳ bình chọn cho series này, loại kỳ này và ngày mở này đã tồn tại',
+      );
+      expect(db.insert).not.toHaveBeenCalled();
     });
   });
 
@@ -155,9 +85,8 @@ describe('RankingsService', () => {
       const db: any = {
         queryOne: jest.fn().mockResolvedValue(null),
       };
-      const notifications: any = {};
 
-      const service = new RankingsService(db, notifications);
+      const service = new RankingsService(db, {} as any);
       await expect(
         service.castVote(10, {
           votePeriodId: 5,
@@ -167,27 +96,163 @@ describe('RankingsService', () => {
       ).rejects.toThrow('Kỳ bình chọn đã đóng hoặc không tồn tại');
     });
 
-    it('upserts vote when period is open', async () => {
+    it('keeps the period open when not every active board member has voted', async () => {
       const db: any = {
         queryOne: jest
           .fn()
-          .mockResolvedValue({ vote_period_id: 5, status: 'OPEN' }),
+          .mockResolvedValueOnce({ vote_period_id: 5, status: 'OPEN' })
+          .mockResolvedValueOnce({ required: 3, received: 2 }),
         query: jest.fn().mockResolvedValue([]),
       };
-      const notifications: any = {};
 
-      const service = new RankingsService(db, notifications);
+      const service = new RankingsService(db, {} as any);
       const result = await service.castVote(10, {
         votePeriodId: 5,
         score: 4,
         comment: 'Good',
       });
 
-      expect(db.query).toHaveBeenCalledWith(
-        expect.stringContaining('Vote'),
-        [5, 10, 4, 'Good'],
+      expect(db.query).toHaveBeenCalledWith(expect.stringContaining('Vote'), [
+        5,
+        10,
+        4,
+        'Good',
+      ]);
+      expect(db.query).not.toHaveBeenCalledWith(
+        expect.stringContaining("SET status='CLOSED'"),
+        expect.anything(),
       );
-      expect(result).toEqual({ ok: true });
+      expect(result).toEqual({
+        ok: true,
+        closed: false,
+        votesReceived: 2,
+        votesRequired: 3,
+      });
+    });
+
+    it('auto-closes and recomputes same-cycle ranks after the last active board vote', async () => {
+      const db: any = {
+        queryOne: jest
+          .fn()
+          .mockResolvedValueOnce({ vote_period_id: 5, status: 'OPEN' })
+          .mockResolvedValueOnce({ required: 2, received: 2 })
+          .mockResolvedValueOnce({
+            vote_period_id: 5,
+            series_id: 7,
+            ranking_period_type: 'WEEKLY',
+            period_start_date: '2026-07-06',
+            period_end_date: '2026-07-13',
+            status: 'OPEN',
+          }),
+        query: jest.fn((sql: string) => {
+          if (sql.includes('AVG(v.score)')) {
+            return Promise.resolve([
+              { votePeriodId: 5, seriesId: 7, total: 4 },
+              { votePeriodId: 6, seriesId: 8, total: 3 },
+            ]);
+          }
+          return Promise.resolve([]);
+        }),
+      };
+
+      const service = new RankingsService(db, {} as any);
+      const result = await service.castVote(11, {
+        votePeriodId: 5,
+        score: 5,
+        comment: 'Excellent',
+      });
+
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining("SET status='CLOSED'"),
+        [5],
+      );
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO `Ranking`'),
+        [7, 5, 1, 4, RiskLevel.LOW],
+      );
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO `Ranking`'),
+        [8, 6, 2, 3, RiskLevel.MEDIUM],
+      );
+      expect(result).toEqual({
+        ok: true,
+        closed: true,
+        votesReceived: 2,
+        votesRequired: 2,
+        ranking: {
+          seriesId: 7,
+          total: 4,
+          risk: RiskLevel.LOW,
+          rankPosition: 1,
+        },
+      });
+    });
+  });
+
+  describe('openPeriods', () => {
+    it('returns OPEN periods even when they are scheduled for a future start date', async () => {
+      const db: any = {
+        query: jest.fn().mockResolvedValue([
+          {
+            id: 9,
+            seriesId: 1,
+            series: 'Series X',
+            periodType: 'WEEKLY',
+            startDate: '2999-01-10',
+            endDate: '2999-01-17',
+            hasVoted: 0,
+          },
+        ]),
+      };
+
+      const service = new RankingsService(db, {} as any);
+      const result = await service.openPeriods(10);
+
+      expect(db.query).toHaveBeenCalledWith(
+        expect.not.stringContaining('DATE(vp.period_start_date) <= CURRENT_DATE()'),
+        [10],
+      );
+      expect(result).toEqual([
+        expect.objectContaining({
+          id: 9,
+          startDate: '2999-01-10',
+        }),
+      ]);
+    });
+  });
+
+  describe('leaderboard', () => {
+    it('computes displayed rank from each series latest score instead of stored rank_position', async () => {
+      const db: any = {
+        query: jest.fn().mockResolvedValue([]),
+      };
+
+      const service = new RankingsService(db, {} as any);
+      await service.leaderboard();
+
+      const sql = db.query.mock.calls[0][0] as string;
+      expect(sql).toContain('RANK() OVER');
+      expect(sql).toContain('latest.score DESC');
+      expect(sql).not.toContain('r.rank_position AS rankPosition');
+    });
+  });
+
+  describe('closePeriod', () => {
+    it('does not allow a manual close before all active board members have voted', async () => {
+      const db: any = {
+        queryOne: jest.fn().mockResolvedValueOnce({ required: 3, received: 1 }),
+        query: jest.fn(),
+      };
+
+      const service = new RankingsService(db, {} as any);
+
+      await expect(service.closePeriod(1)).rejects.toThrow(
+        'Chưa đủ phiếu bình chọn',
+      );
+      expect(db.query).not.toHaveBeenCalledWith(
+        expect.stringContaining("SET status='CLOSED'"),
+        expect.anything(),
+      );
     });
   });
 });

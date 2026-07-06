@@ -40,7 +40,7 @@ export class RankingsController {
   }
 
   @Post('vote-periods/:id/close')
-  @Roles(Role.EDITORIAL_BOARD, Role.ADMIN)
+  @Roles(Role.ADMIN)
   async closePeriod(@Param('id') id: string) {
     return this.service.closePeriod(+id);
   }

@@ -21,6 +21,7 @@ interface OpenPeriod {
   seriesId: number;
   series: string;
   periodType: "WEEKLY" | "MONTHLY";
+  startDate?: string;
   endDate: string;
   hasVoted: 0 | 1;
 }
@@ -48,11 +49,16 @@ export default function BoardRankings() {
 
   // Decision form state
   const [decisionData, setDecisionData] = useState<
-    Record<number, { type: DecisionType; frequency?: FrequencyType; reason: string }>
+    Record<
+      number,
+      { type: DecisionType; frequency?: FrequencyType; reason: string }
+    >
   >({});
 
   // Vote form state
-  const [voteData, setVoteData] = useState<Record<number, { score: number; comment: string }>>({});
+  const [voteData, setVoteData] = useState<
+    Record<number, { score: number; comment: string }>
+  >({});
 
   // New period form state
   const [newPeriodForm, setNewPeriodForm] = useState({
@@ -61,6 +67,9 @@ export default function BoardRankings() {
     startDate: "",
     endDate: "",
   });
+  const todayDate = new Date().toISOString().slice(0, 10);
+  const endDateMin = newPeriodForm.startDate || todayDate;
+  const dateOnly = (value?: string) => (value ? value.slice(0, 10) : "");
 
   const loadData = async () => {
     setLoading(true);
@@ -95,7 +104,13 @@ export default function BoardRankings() {
     }
 
     if (decision.type === "CANCEL" || decision.type === "HIATUS") {
-      if (!(await confirm({ title: 'Xác nhận quyết định cho series?', body: 'Hành động sẽ đổi trạng thái series.', tone: 'danger' }))) {
+      if (
+        !(await confirm({
+          title: "Xác nhận quyết định cho series?",
+          body: "Hành động sẽ đổi trạng thái series.",
+          tone: "danger",
+        }))
+      ) {
         return;
       }
     }
@@ -119,9 +134,10 @@ export default function BoardRankings() {
       // Refetch rankings
       const res = await api.get<RankingRow[]>("/rankings");
       setRankings(res.data || []);
-      toast.success('Đã ghi nhận quyết định.');
+      toast.success("Đã ghi nhận quyết định.");
     } catch (e) {
-      const message = (e as any)?.response?.data?.message || "Thao tác thất bại.";
+      const message =
+        (e as any)?.response?.data?.message || "Thao tác thất bại.";
       setActionError(String(message));
       console.error("Failed to post decision", e);
     } finally {
@@ -139,7 +155,7 @@ export default function BoardRankings() {
     setBusy(true);
     setActionError("");
     try {
-      await api.post("/votes", {
+      const voteRes = await api.post("/votes", {
         votePeriodId: periodId,
         score: vote.score,
         comment: vote.comment || undefined,
@@ -151,12 +167,24 @@ export default function BoardRankings() {
         return next;
       });
 
-      // Refetch open periods
-      const res = await api.get<OpenPeriod[]>("/vote-periods/open");
-      setOpenPeriods(res.data || []);
-      toast.success('Đã ghi nhận phiếu bình chọn.');
+      const [periodsRes, rankingsRes] = await Promise.all([
+        api.get<OpenPeriod[]>("/vote-periods/open"),
+        voteRes.data?.closed
+          ? api.get<RankingRow[]>("/rankings")
+          : Promise.resolve(null),
+      ]);
+      setOpenPeriods(periodsRes.data || []);
+      if (rankingsRes) {
+        setRankings(rankingsRes.data || []);
+      }
+      toast.success(
+        voteRes.data?.closed
+          ? "Đã ghi nhận phiếu cuối cùng. Hệ thống đã tự chốt kỳ & tính xếp hạng."
+          : "Đã ghi nhận phiếu bình chọn.",
+      );
     } catch (e) {
-      const message = (e as any)?.response?.data?.message || "Thao tác thất bại.";
+      const message =
+        (e as any)?.response?.data?.message || "Thao tác thất bại.";
       setActionError(String(message));
       console.error("Failed to post vote", e);
     } finally {
@@ -164,32 +192,23 @@ export default function BoardRankings() {
     }
   };
 
-  const handleClosePeriod = async (periodId: number) => {
-    setBusy(true);
-    setActionError("");
-    try {
-      await api.post(`/vote-periods/${periodId}/close`, {});
-
-      // Refetch all
-      const [rankingsRes, periodsRes] = await Promise.all([
-        api.get<RankingRow[]>("/rankings"),
-        api.get<OpenPeriod[]>("/vote-periods/open"),
-      ]);
-      setRankings(rankingsRes.data || []);
-      setOpenPeriods(periodsRes.data || []);
-      toast.success('Đã chốt kỳ & tính xếp hạng.');
-    } catch (e) {
-      const message = (e as any)?.response?.data?.message || "Thao tác thất bại.";
-      setActionError(String(message));
-      console.error("Failed to close period", e);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const handleOpenNewPeriod = async () => {
-    if (!newPeriodForm.seriesId || !newPeriodForm.startDate || !newPeriodForm.endDate) {
+    if (
+      !newPeriodForm.seriesId ||
+      !newPeriodForm.startDate ||
+      !newPeriodForm.endDate
+    ) {
       setActionError("Vui lòng điền đầy đủ thông tin kỳ bình chọn.");
+      return;
+    }
+
+    if (newPeriodForm.startDate < todayDate) {
+      setActionError("Ngày mở bình chọn không thể ở quá khứ.");
+      return;
+    }
+
+    if (newPeriodForm.endDate < newPeriodForm.startDate) {
+      setActionError("Ngày đóng bình chọn không thể trước ngày mở bình chọn.");
       return;
     }
 
@@ -213,9 +232,10 @@ export default function BoardRankings() {
       // Refetch open periods
       const res = await api.get<OpenPeriod[]>("/vote-periods/open");
       setOpenPeriods(res.data || []);
-      toast.success('Đã mở kỳ bình chọn.');
+      toast.success("Đã mở kỳ bình chọn.");
     } catch (e) {
-      const message = (e as any)?.response?.data?.message || "Thao tác thất bại.";
+      const message =
+        (e as any)?.response?.data?.message || "Thao tác thất bại.";
       setActionError(String(message));
       console.error("Failed to open new period", e);
     } finally {
@@ -268,113 +288,126 @@ export default function BoardRankings() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line bg-bg">
-                <th className="p-4 text-left font-semibold text-ink">Hạng</th>
-                <th className="p-4 text-left font-semibold text-ink">Series</th>
-                <th className="p-4 text-left font-semibold text-ink">Điểm</th>
-                <th className="p-4 text-left font-semibold text-ink">Rủi ro</th>
-                <th className="p-4 text-left font-semibold text-ink">Trạng thái</th>
-                <th className="p-4 text-left font-semibold text-ink">Quyết định</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rankings.map((row) => {
-                const decision = decisionData[row.id] || {
-                  type: "CONTINUE" as DecisionType,
-                  frequency: undefined,
-                  reason: "",
-                };
-                return (
-                  <tr key={row.id} className="border-b border-line hover:bg-bg">
-                    <td className="p-4 text-ink font-mono">
-                      #{row.rankPosition ?? "—"}
-                    </td>
-                    <td className="p-4 text-ink font-medium">{row.title}</td>
-                    <td className="p-4 text-ink">{row.score ?? "—"}</td>
-                    <td className="p-4">
-                      <Stamp
-                        status={row.riskLevel ?? "LOW"}
-                        label={`RISK ${row.riskLevel ?? "—"}`}
-                      />
-                    </td>
-                    <td className="p-4">
-                      <Stamp status={row.status} />
-                    </td>
-                    <td className="p-4">
-                      <div className="space-y-2">
-                        <select
-                          value={decision.type}
-                          onChange={(e) =>
-                            setDecisionData((prev) => ({
-                              ...prev,
-                              [row.id]: {
-                                ...decision,
-                                type: e.target.value as DecisionType,
-                              },
-                            }))
-                          }
-                          disabled={busy}
-                          className="px-3 py-1 rounded border border-line bg-surface text-ink text-sm cursor-pointer disabled:opacity-50 w-40"
-                        >
-                          <option value="CONTINUE">Tiếp tục</option>
-                          <option value="CANCEL">Hủy</option>
-                          <option value="HIATUS">Tạm dừng</option>
-                          <option value="CHANGE_FREQUENCY">Đổi tần suất</option>
-                        </select>
-
-                        {decision.type === "CHANGE_FREQUENCY" && (
+              <thead>
+                <tr className="border-b border-line bg-bg">
+                  <th className="p-4 text-left font-semibold text-ink">Hạng</th>
+                  <th className="p-4 text-left font-semibold text-ink">
+                    Series
+                  </th>
+                  <th className="p-4 text-left font-semibold text-ink">Điểm</th>
+                  <th className="p-4 text-left font-semibold text-ink">
+                    Rủi ro
+                  </th>
+                  <th className="p-4 text-left font-semibold text-ink">
+                    Trạng thái
+                  </th>
+                  <th className="p-4 text-left font-semibold text-ink">
+                    Quyết định
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rankings.map((row) => {
+                  const decision = decisionData[row.id] || {
+                    type: "CONTINUE" as DecisionType,
+                    frequency: undefined,
+                    reason: "",
+                  };
+                  return (
+                    <tr
+                      key={row.id}
+                      className="border-b border-line hover:bg-bg"
+                    >
+                      <td className="p-4 text-ink font-mono">
+                        #{row.rankPosition ?? "—"}
+                      </td>
+                      <td className="p-4 text-ink font-medium">{row.title}</td>
+                      <td className="p-4 text-ink">{row.score ?? "—"}</td>
+                      <td className="p-4">
+                        <Stamp
+                          status={row.riskLevel ?? "LOW"}
+                          label={`RISK ${row.riskLevel ?? "—"}`}
+                        />
+                      </td>
+                      <td className="p-4">
+                        <Stamp status={row.status} />
+                      </td>
+                      <td className="p-4">
+                        <div className="space-y-2">
                           <select
-                            value={decision.frequency || ""}
+                            value={decision.type}
                             onChange={(e) =>
                               setDecisionData((prev) => ({
                                 ...prev,
                                 [row.id]: {
                                   ...decision,
-                                  frequency: e.target.value as FrequencyType,
+                                  type: e.target.value as DecisionType,
                                 },
                               }))
                             }
                             disabled={busy}
                             className="px-3 py-1 rounded border border-line bg-surface text-ink text-sm cursor-pointer disabled:opacity-50 w-40"
                           >
-                            <option value="">— chọn —</option>
-                            <option value="WEEKLY">Hàng tuần</option>
-                            <option value="MONTHLY">Hàng tháng</option>
+                            <option value="CONTINUE">Tiếp tục</option>
+                            <option value="CANCEL">Hủy</option>
+                            <option value="HIATUS">Tạm dừng</option>
+                            <option value="CHANGE_FREQUENCY">
+                              Đổi tần suất
+                            </option>
                           </select>
-                        )}
 
-                        <input
-                          type="text"
-                          placeholder="Lý do..."
-                          value={decision.reason}
-                          onChange={(e) =>
-                            setDecisionData((prev) => ({
-                              ...prev,
-                              [row.id]: {
-                                ...decision,
-                                reason: e.target.value,
-                              },
-                            }))
-                          }
-                          disabled={busy}
-                          className="px-3 py-1 rounded border border-line bg-surface text-ink text-sm placeholder-ink-soft w-40 disabled:opacity-50"
-                        />
+                          {decision.type === "CHANGE_FREQUENCY" && (
+                            <select
+                              value={decision.frequency || ""}
+                              onChange={(e) =>
+                                setDecisionData((prev) => ({
+                                  ...prev,
+                                  [row.id]: {
+                                    ...decision,
+                                    frequency: e.target.value as FrequencyType,
+                                  },
+                                }))
+                              }
+                              disabled={busy}
+                              className="px-3 py-1 rounded border border-line bg-surface text-ink text-sm cursor-pointer disabled:opacity-50 w-40"
+                            >
+                              <option value="">— chọn —</option>
+                              <option value="WEEKLY">Hàng tuần</option>
+                              <option value="MONTHLY">Hàng tháng</option>
+                            </select>
+                          )}
 
-                        <Button
-                          variant="accent"
-                          onClick={() => handleDecision(row.id)}
-                          disabled={busy}
-                          className="w-40 text-xs"
-                        >
-                          Ra quyết định
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
+                          <input
+                            type="text"
+                            placeholder="Lý do..."
+                            value={decision.reason}
+                            onChange={(e) =>
+                              setDecisionData((prev) => ({
+                                ...prev,
+                                [row.id]: {
+                                  ...decision,
+                                  reason: e.target.value,
+                                },
+                              }))
+                            }
+                            disabled={busy}
+                            className="px-3 py-1 rounded border border-line bg-surface text-ink text-sm placeholder-ink-soft w-40 disabled:opacity-50"
+                          />
+
+                          <Button
+                            variant="accent"
+                            onClick={() => handleDecision(row.id)}
+                            disabled={busy}
+                            className="w-40 text-xs"
+                          >
+                            Ra quyết định
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
             </table>
           </div>
         )}
@@ -383,7 +416,9 @@ export default function BoardRankings() {
       {/* Section 2: Open Voting Periods */}
       <Panel className="mb-8">
         <div className="p-6 border-b border-line">
-          <h2 className="text-lg font-semibold text-ink">Kỳ bình chọn đang mở</h2>
+          <h2 className="text-lg font-semibold text-ink">
+            Kỳ bình chọn đang mở
+          </h2>
         </div>
         {openPeriods.length === 0 ? (
           <EmptyState title="Chưa có kỳ bình chọn nào đang mở." />
@@ -392,18 +427,29 @@ export default function BoardRankings() {
             {openPeriods.map((period) => {
               const vote = voteData[period.id] || { score: 0, comment: "" };
               const alreadyVoted = period.hasVoted === 1;
+              const startDate = dateOnly(period.startDate);
+              const endDate = dateOnly(period.endDate);
+              const hasStarted = !startDate || startDate <= todayDate;
+              const hasExpired = !!endDate && endDate < todayDate;
               return (
                 <Panel key={period.id} className="p-4 bg-bg">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <p className="font-semibold text-ink">{period.series}</p>
                       <p className="text-sm text-ink-soft">
-                        {period.periodType === "WEEKLY" ? "Hàng tuần" : "Hàng tháng"} •
-                        Hết hạn: {period.endDate}
+                        {period.periodType === "WEEKLY"
+                          ? "Hàng tuần"
+                          : "Hàng tháng"}{" "}
+                        {startDate ? `• Mở từ: ${startDate} ` : ""}
+                        • Hết hạn: {endDate || period.endDate}
                       </p>
                     </div>
 
-                    {alreadyVoted ? (
+                    {!hasStarted ? (
+                      <Stamp status="PENDING" label="Chưa đến ngày mở" />
+                    ) : hasExpired ? (
+                      <Stamp status="REJECTED" label="Đã quá hạn" />
+                    ) : alreadyVoted ? (
                       <Stamp status="APPROVED" label="Đã bình chọn" />
                     ) : (
                       <div className="space-y-2">
@@ -455,15 +501,9 @@ export default function BoardRankings() {
                     )}
                   </div>
 
-                  <div className="mt-3 flex gap-2">
-                    <Button
-                      variant="soft"
-                      onClick={() => handleClosePeriod(period.id)}
-                      disabled={busy}
-                      className="text-xs"
-                    >
-                      Đóng & tính hạng
-                    </Button>
+                  <div className="mt-3 rounded border border-line bg-surface px-3 py-2 text-xs text-ink-soft">
+                    Hệ thống sẽ tự chốt và xếp hạng sau khi toàn bộ Editorial
+                    Board đã bình chọn.
                   </div>
                 </Panel>
               );
@@ -475,7 +515,9 @@ export default function BoardRankings() {
       {/* Section 3: Open New Period */}
       <Panel>
         <div className="p-6 border-b border-line">
-          <h2 className="text-lg font-semibold text-ink">Mở kỳ bình chọn mới</h2>
+          <h2 className="text-lg font-semibold text-ink">
+            Mở kỳ bình chọn mới
+          </h2>
         </div>
         <div className="p-6 space-y-3">
           <select
@@ -520,8 +562,13 @@ export default function BoardRankings() {
                 setNewPeriodForm((prev) => ({
                   ...prev,
                   startDate: e.target.value,
+                  endDate:
+                    prev.endDate && prev.endDate < e.target.value
+                      ? ""
+                      : prev.endDate,
                 }))
               }
+              min={todayDate}
               disabled={busy}
               className="px-3 py-2 rounded border border-line bg-surface text-ink text-sm disabled:opacity-50 flex-1"
             />
@@ -534,6 +581,7 @@ export default function BoardRankings() {
                   endDate: e.target.value,
                 }))
               }
+              min={endDateMin}
               disabled={busy}
               className="px-3 py-2 rounded border border-line bg-surface text-ink text-sm disabled:opacity-50 flex-1"
             />
