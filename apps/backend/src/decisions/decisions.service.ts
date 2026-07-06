@@ -90,12 +90,18 @@ export class DecisionsService {
       );
     }
 
+    const notificationTitle = this.decisionNotificationTitle(
+      series.title,
+      dto.decisionType,
+    );
+    const notificationContent = this.decisionNotificationContent(dto);
+
     // Step 6: Notify mangaka
     await this.notifications.notify(
       series.mangaka_user_id,
       NotificationType.DECISION,
-      `Quyết định cho "${series.title}": ${dto.decisionType}`,
-      dto.reason,
+      notificationTitle,
+      notificationContent,
       'Series',
       dto.seriesId,
     );
@@ -110,8 +116,8 @@ export class DecisionsService {
       await this.notifications.notify(
         editor.editor_user_id,
         NotificationType.DECISION,
-        `Quyết định cho "${series.title}": ${dto.decisionType}`,
-        dto.reason,
+        notificationTitle,
+        notificationContent,
         'Series',
         dto.seriesId,
       );
@@ -128,5 +134,44 @@ export class DecisionsService {
        ORDER BY decided_at DESC`,
       [seriesId],
     );
+  }
+
+  private decisionNotificationTitle(
+    title: string,
+    decisionType: DecisionType,
+  ) {
+    return `Hội đồng đã ${this.decisionLabel(decisionType)} series "${title}"`;
+  }
+
+  private decisionNotificationContent(dto: CreateDecisionDto) {
+    const reason = dto.reason.trim();
+
+    if (dto.decisionType === DecisionType.CANCEL) {
+      return `Series đã bị hủy. Lý do series dừng lại: ${reason}`;
+    }
+
+    if (dto.decisionType === DecisionType.HIATUS) {
+      return `Series đã tạm dừng. Lý do series dừng lại: ${reason}`;
+    }
+
+    if (dto.decisionType === DecisionType.CHANGE_FREQUENCY) {
+      return `Series được đổi tần suất sang ${dto.newFrequency}. Lý do: ${reason}`;
+    }
+
+    return `Series được tiếp tục. Lý do: ${reason}`;
+  }
+
+  private decisionLabel(decisionType: DecisionType) {
+    switch (decisionType) {
+      case DecisionType.CANCEL:
+        return 'hủy';
+      case DecisionType.HIATUS:
+        return 'tạm dừng';
+      case DecisionType.CHANGE_FREQUENCY:
+        return 'đổi tần suất cho';
+      case DecisionType.CONTINUE:
+      default:
+        return 'cho tiếp tục';
+    }
   }
 }

@@ -220,6 +220,86 @@ export default function ReaderVoteImport() {
     }
   }
 
+  function renderDecisionControls(ranking: ImportedSeries) {
+    const decision = decisionData[ranking.seriesId] ?? {
+      type: "CONTINUE" as DecisionType,
+      frequency: undefined,
+      reason: "",
+    };
+    const isBusy = busyDecisionId === ranking.seriesId;
+
+    return (
+      <div className="flex flex-wrap gap-2">
+        <select
+          value={decision.type}
+          onChange={(event) =>
+            setDecisionData((prev) => ({
+              ...prev,
+              [ranking.seriesId]: {
+                ...decision,
+                type: event.target.value as DecisionType,
+              },
+            }))
+          }
+          disabled={isBusy}
+          className="w-36 rounded border border-line bg-surface px-3 py-2 text-sm text-ink disabled:opacity-50"
+        >
+          <option value="CONTINUE">Tiếp tục</option>
+          <option value="CANCEL">Hủy</option>
+          <option value="HIATUS">Tạm dừng</option>
+          <option value="CHANGE_FREQUENCY">Đổi tần suất</option>
+        </select>
+
+        {decision.type === "CHANGE_FREQUENCY" && (
+          <select
+            value={decision.frequency ?? ""}
+            onChange={(event) =>
+              setDecisionData((prev) => ({
+                ...prev,
+                [ranking.seriesId]: {
+                  ...decision,
+                  frequency: event.target.value as FrequencyType,
+                },
+              }))
+            }
+            disabled={isBusy}
+            className="w-32 rounded border border-line bg-surface px-3 py-2 text-sm text-ink disabled:opacity-50"
+          >
+            <option value="">— chọn —</option>
+            <option value="WEEKLY">Hàng tuần</option>
+            <option value="MONTHLY">Hàng tháng</option>
+          </select>
+        )}
+
+        <input
+          type="text"
+          placeholder="Lý do..."
+          value={decision.reason}
+          onChange={(event) =>
+            setDecisionData((prev) => ({
+              ...prev,
+              [ranking.seriesId]: {
+                ...decision,
+                reason: event.target.value,
+              },
+            }))
+          }
+          disabled={isBusy}
+          className="w-40 rounded border border-line bg-surface px-3 py-2 text-sm text-ink placeholder-ink-soft disabled:opacity-50"
+        />
+
+        <Button
+          variant="accent"
+          onClick={() => void handleDecision(ranking.seriesId)}
+          disabled={isBusy}
+          className="w-32 text-xs"
+        >
+          Ra quyết định
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-8">
       <div className="space-y-4">
@@ -363,6 +443,7 @@ export default function ReaderVoteImport() {
                   {result.importId ? ` · Import #${result.importId}` : ""}
                 </p>
               </div>
+              <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead className="bg-bg">
                   <tr className="border-b border-line text-left">
@@ -374,7 +455,9 @@ export default function ReaderVoteImport() {
                     </th>
                     <th className="px-4 py-4 font-semibold">Sao độc giả</th>
                     <th className="px-4 py-4 font-semibold">Doanh số</th>
+                    <th className="px-4 py-4 font-semibold">Rủi ro</th>
                     <th className="px-4 py-4 font-semibold">Trạng thái</th>
+                    <th className="px-4 py-4 font-semibold">Quyết định</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -414,12 +497,22 @@ export default function ReaderVoteImport() {
                         {money.format(ranking.sales)}
                       </td>
                       <td className="px-4 py-5">
+                        <Stamp
+                          status={ranking.riskLevel}
+                          label={`RISK ${ranking.riskLevel}`}
+                        />
+                      </td>
+                      <td className="px-4 py-5">
                         <Stamp status={ranking.status} />
+                      </td>
+                      <td className="px-4 py-5">
+                        {renderDecisionControls(ranking)}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
             </Panel>
 
             <Panel className="p-6">
@@ -476,140 +569,6 @@ export default function ReaderVoteImport() {
               )}
             </Panel>
           </div>
-
-          <Panel className="overflow-hidden">
-            <div className="border-b border-line p-6">
-              <h2 className="text-lg font-semibold text-ink">
-                Board ra quyết định từ vote độc giả
-              </h2>
-              <p className="mt-1 text-sm text-muted">
-                Dùng điểm sao độc giả đã import làm căn cứ để tiếp tục, hủy, tạm
-                dừng hoặc đổi tần suất series.
-              </p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-bg">
-                  <tr className="border-b border-line text-left">
-                    <th className="px-4 py-4 font-semibold">Hạng</th>
-                    <th className="px-4 py-4 font-semibold">Series</th>
-                    <th className="px-4 py-4 font-semibold">Sao độc giả</th>
-                    <th className="px-4 py-4 font-semibold">Rủi ro</th>
-                    <th className="px-4 py-4 font-semibold">Trạng thái</th>
-                    <th className="px-4 py-4 font-semibold">Quyết định</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.rankings.map((ranking) => {
-                    const decision = decisionData[ranking.seriesId] ?? {
-                      type: "CONTINUE" as DecisionType,
-                      frequency: undefined,
-                      reason: "",
-                    };
-                    const isBusy = busyDecisionId === ranking.seriesId;
-
-                    return (
-                      <tr
-                        key={ranking.readerRankingId}
-                        className="border-b border-line"
-                      >
-                        <td className="px-4 py-5 font-mono">
-                          #{ranking.rankPosition}
-                        </td>
-                        <td className="px-4 py-5 font-semibold text-ink">
-                          {ranking.seriesTitle}
-                        </td>
-                        <td className="px-4 py-5">
-                          {ranking.averageReaderStars.toFixed(2)}
-                        </td>
-                        <td className="px-4 py-5">
-                          <Stamp
-                            status={ranking.riskLevel}
-                            label={`RISK ${ranking.riskLevel}`}
-                          />
-                        </td>
-                        <td className="px-4 py-5">
-                          <Stamp status={ranking.status} />
-                        </td>
-                        <td className="px-4 py-5">
-                          <div className="flex flex-wrap gap-2">
-                            <select
-                              value={decision.type}
-                              onChange={(event) =>
-                                setDecisionData((prev) => ({
-                                  ...prev,
-                                  [ranking.seriesId]: {
-                                    ...decision,
-                                    type: event.target.value as DecisionType,
-                                  },
-                                }))
-                              }
-                              disabled={isBusy}
-                              className="w-40 rounded border border-line bg-surface px-3 py-2 text-sm text-ink disabled:opacity-50"
-                            >
-                              <option value="CONTINUE">Tiếp tục</option>
-                              <option value="CANCEL">Hủy</option>
-                              <option value="HIATUS">Tạm dừng</option>
-                              <option value="CHANGE_FREQUENCY">
-                                Đổi tần suất
-                              </option>
-                            </select>
-
-                            {decision.type === "CHANGE_FREQUENCY" && (
-                              <select
-                                value={decision.frequency ?? ""}
-                                onChange={(event) =>
-                                  setDecisionData((prev) => ({
-                                    ...prev,
-                                    [ranking.seriesId]: {
-                                      ...decision,
-                                      frequency: event.target.value as FrequencyType,
-                                    },
-                                  }))
-                                }
-                                disabled={isBusy}
-                                className="w-36 rounded border border-line bg-surface px-3 py-2 text-sm text-ink disabled:opacity-50"
-                              >
-                                <option value="">— chọn —</option>
-                                <option value="WEEKLY">Hàng tuần</option>
-                                <option value="MONTHLY">Hàng tháng</option>
-                              </select>
-                            )}
-
-                            <input
-                              type="text"
-                              placeholder="Lý do..."
-                              value={decision.reason}
-                              onChange={(event) =>
-                                setDecisionData((prev) => ({
-                                  ...prev,
-                                  [ranking.seriesId]: {
-                                    ...decision,
-                                    reason: event.target.value,
-                                  },
-                                }))
-                              }
-                              disabled={isBusy}
-                              className="w-44 rounded border border-line bg-surface px-3 py-2 text-sm text-ink placeholder-ink-soft disabled:opacity-50"
-                            />
-
-                            <Button
-                              variant="accent"
-                              onClick={() => void handleDecision(ranking.seriesId)}
-                              disabled={isBusy}
-                              className="w-36 text-xs"
-                            >
-                              Ra quyết định
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
         </div>
       )}
     </div>

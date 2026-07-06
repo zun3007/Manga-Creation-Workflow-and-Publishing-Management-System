@@ -55,7 +55,7 @@ describe('DecisionsService.decide', () => {
       42,
       NotificationType.DECISION,
       expect.stringContaining('Test Series'),
-      'low sales',
+      expect.stringContaining('Lý do series dừng lại: low sales'),
       'Series',
       7,
     );
