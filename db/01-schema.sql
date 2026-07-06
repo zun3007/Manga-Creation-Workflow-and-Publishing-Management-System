@@ -413,7 +413,28 @@ CREATE TABLE `Ranking` (
     UNIQUE KEY `uq_ranking` (`series_id`, `vote_period_id`)
 );
 
--- Decision 
+-- Reader_Vote_Ranking (reader vote import results, separate from Editorial Board ranking)
+CREATE TABLE `Reader_Vote_Ranking` (
+	`reader_ranking_id` BIGINT AUTO_INCREMENT,
+    `series_id` BIGINT NOT NULL,
+    `ranking_period_type` ENUM('WEEKLY','MONTHLY') NOT NULL,
+    `period_start_date` DATE NOT NULL,
+    `period_end_date` DATE NOT NULL,
+    `rank_position` INT NOT NULL,
+    `reader_star_avg` DECIMAL(5, 2) NOT NULL,
+    `sales_amount` DECIMAL(15, 2) NOT NULL DEFAULT 0,
+    `publication_year` INT NOT NULL,
+    `author_name` VARCHAR(200) NOT NULL,
+    `genres` VARCHAR(500) NOT NULL,
+    `risk_level` ENUM('LOW','MEDIUM','HIGH') NOT NULL,
+    `calculated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (`reader_ranking_id`),
+    FOREIGN KEY (`series_id`) REFERENCES `Series`(`series_id`),
+    UNIQUE KEY `uq_reader_ranking_period` (`series_id`, `ranking_period_type`, `period_start_date`)
+);
+
+-- Decision
 CREATE TABLE `Decision` (
 	`decision_id` BIGINT AUTO_INCREMENT,
     `series_id` BIGINT,

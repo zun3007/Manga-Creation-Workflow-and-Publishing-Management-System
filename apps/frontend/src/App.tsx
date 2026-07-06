@@ -15,6 +15,7 @@ import BoardProposals from "./pages/board/Proposals";
 import BoardSeries from "./pages/board/Series";
 import BoardRankings from "./pages/board/Rankings";
 import PublicationSchedule from "./pages/board/PublicationSchedule";
+import ReaderVoteImport from "./pages/board/ReaderVoteImport";
 import AssistantTasks from "./pages/assistant/Tasks";
 import AssistantEarnings from "./pages/assistant/Earnings";
 import StudioPage from "./pages/studio/StudioPage";
@@ -150,6 +151,18 @@ function AppRoutes() {
             <RoleProtected roles={["EDITORIAL_BOARD" as Role]}>
               <AppShell>
                 <BoardRankings />
+              </AppShell>
+            </RoleProtected>
+          </Protected>
+        }
+      />
+      <Route
+        path="/board/reader-votes/import"
+        element={
+          <Protected>
+            <RoleProtected roles={["EDITORIAL_BOARD" as Role]}>
+              <AppShell>
+                <ReaderVoteImport />
               </AppShell>
             </RoleProtected>
           </Protected>

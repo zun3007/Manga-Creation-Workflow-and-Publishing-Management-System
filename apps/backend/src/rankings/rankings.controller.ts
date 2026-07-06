@@ -14,6 +14,7 @@ import { Role } from '@manga/shared';
 import { RankingsService } from './rankings.service';
 import { CreateVotePeriodDto } from './dto/create-vote-period.dto';
 import { CreateVoteDto } from './dto/create-vote.dto';
+import { ImportReaderVotesDto } from './dto/import-reader-votes.dto';
 
 // No class-level prefix: routes are /vote-periods, /votes, /rankings (matches the web client + documented contract).
 @Controller()
@@ -49,5 +50,11 @@ export class RankingsController {
   @Roles(Role.EDITORIAL_BOARD, Role.ADMIN, Role.MANGAKA)
   async leaderboard() {
     return this.service.leaderboard();
+  }
+
+  @Post('reader-vote-imports/csv')
+  @Roles(Role.EDITORIAL_BOARD, Role.ADMIN)
+  async importReaderVotesCsv(@Body() dto: ImportReaderVotesDto) {
+    return this.service.importReaderVotesCsv(dto);
   }
 }

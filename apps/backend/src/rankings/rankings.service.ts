@@ -8,6 +8,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType, RiskLevel } from '@manga/shared';
 import { CreateVotePeriodDto } from './dto/create-vote-period.dto';
 import { CreateVoteDto } from './dto/create-vote.dto';
+import { ImportReaderVotesDto } from './dto/import-reader-votes.dto';
 
 @Injectable()
 export class RankingsService {
@@ -179,6 +180,178 @@ export class RankingsService {
     );
   }
 
+  async importReaderVotesCsv(dto: ImportReaderVotesDto) {
+    this.validateImportPeriodDates(dto.startDate, dto.endDate);
+
+    const rows = this.parseReaderVoteCsv(dto.csv);
+    const explicitIds = rows
+      .map((row) => row.seriesId)
+      .filter((id): id is number => Number.isInteger(id));
+    const titles = rows.map((row) => row.seriesTitle);
+    const clauses: string[] = [];
+    const params: Array<number | string> = [];
+
+    if (explicitIds.length > 0) {
+      clauses.push(`series_id IN (${explicitIds.map(() => '?').join(',')})`);
+      params.push(...explicitIds);
+    }
+
+    clauses.push(`title IN (${titles.map(() => '?').join(',')})`);
+    params.push(...titles);
+
+    const existingSeries = await this.db.query<{
+      series_id: number;
+      title: string;
+      chapter_count: number | string;
+    }>(
+      `SELECT
+         s.series_id,
+         s.title,
+         (SELECT COUNT(*) FROM \`Chapter\` c WHERE c.series_id = s.series_id) AS chapter_count
+       FROM \`Series\` s
+       WHERE ${clauses.join(' OR ')}`,
+      params,
+    );
+    const seriesById = new Map(
+      existingSeries.map((series) => [Number(series.series_id), series]),
+    );
+    const seriesByTitle = new Map(
+      existingSeries.map((series) => [
+        series.title.trim().toLowerCase(),
+        series,
+      ]),
+    );
+
+    const resolvedRows = rows.map((row) => {
+      const series =
+        (row.seriesId ? seriesById.get(row.seriesId) : undefined) ??
+        seriesByTitle.get(row.seriesTitle.trim().toLowerCase());
+
+      if (!series) {
+        throw new BadRequestException(
+          `Không tìm thấy series trong hệ thống: ${row.seriesTitle}`,
+        );
+      }
+
+      return {
+        ...row,
+        seriesId: Number(series.series_id),
+        systemSeriesTitle: series.title,
+        systemChapterCount: Number(series.chapter_count ?? 0),
+      };
+    });
+
+    const duplicatedResolvedIds = resolvedRows
+      .map((row) => row.seriesId)
+      .filter((id, index, all) => all.indexOf(id) !== index);
+
+    if (duplicatedResolvedIds.length > 0) {
+      throw new BadRequestException(
+        `CSV có series trùng sau khi match DB: ${[...new Set(duplicatedResolvedIds)].join(', ')}`,
+      );
+    }
+
+    const rankedRows = [...resolvedRows].sort((a, b) => {
+      if (b.averageReaderStars !== a.averageReaderStars) {
+        return b.averageReaderStars - a.averageReaderStars;
+      }
+      if (b.sales !== a.sales) {
+        return b.sales - a.sales;
+      }
+      return a.seriesId - b.seriesId;
+    });
+
+    await this.ensureReaderVoteRankingTable();
+
+    let previousScore: number | null = null;
+    let rankPosition = 0;
+    const imported = await this.db.transaction(async (tx) => {
+      const results: Array<{
+        seriesId: number;
+        readerRankingId: number;
+        rankPosition: number;
+        seriesTitle: string;
+        publicationYear: number;
+        chapterCount: number;
+        author: string;
+        genres: string;
+        averageReaderStars: number;
+        sales: number;
+        riskLevel: RiskLevel;
+      }> = [];
+
+      for (const [index, row] of rankedRows.entries()) {
+        if (previousScore === null || row.averageReaderStars !== previousScore) {
+          rankPosition = index + 1;
+        }
+        previousScore = row.averageReaderStars;
+
+        const riskLevel = this.riskLevelForScore(row.averageReaderStars);
+        const readerRankingId = await tx.insert(
+          `INSERT INTO \`Reader_Vote_Ranking\`
+            (series_id, ranking_period_type, period_start_date, period_end_date,
+             rank_position, reader_star_avg, sales_amount, publication_year,
+             author_name, genres, risk_level)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE
+             reader_ranking_id = LAST_INSERT_ID(reader_ranking_id),
+             period_end_date = VALUES(period_end_date),
+             rank_position = VALUES(rank_position),
+             reader_star_avg = VALUES(reader_star_avg),
+             sales_amount = VALUES(sales_amount),
+             publication_year = VALUES(publication_year),
+             author_name = VALUES(author_name),
+             genres = VALUES(genres),
+             risk_level = VALUES(risk_level),
+             calculated_at = CURRENT_TIMESTAMP`,
+          [
+            row.seriesId,
+            dto.periodType,
+            dto.startDate,
+            dto.endDate,
+            rankPosition,
+            row.averageReaderStars,
+            row.sales,
+            row.publicationYear,
+            row.author,
+            row.genres,
+            riskLevel,
+          ],
+        );
+
+        results.push({
+          seriesId: row.seriesId,
+          readerRankingId,
+          rankPosition,
+          seriesTitle: row.systemSeriesTitle,
+          publicationYear: row.publicationYear,
+          chapterCount: row.systemChapterCount,
+          author: row.author,
+          genres: row.genres,
+          averageReaderStars: row.averageReaderStars,
+          sales: row.sales,
+          riskLevel,
+        });
+      }
+
+      return results;
+    });
+
+    for (const row of imported) {
+      if (row.riskLevel === RiskLevel.HIGH) {
+        await this.markSeriesAtRiskAndNotify(row.seriesId, row.averageReaderStars);
+      }
+    }
+
+    return {
+      importedCount: imported.length,
+      periodType: dto.periodType,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      rankings: imported,
+    };
+  }
+
   private validateVotePeriodDates(startDate: string, endDate: string) {
     const start = this.dateOnly(startDate);
     const end = this.dateOnly(endDate);
@@ -193,6 +366,210 @@ export class RankingsService {
         'Ngày đóng bình chọn không thể trước ngày mở bình chọn',
       );
     }
+  }
+
+  private async ensureReaderVoteRankingTable() {
+    await this.db.query(
+      `CREATE TABLE IF NOT EXISTS \`Reader_Vote_Ranking\` (
+        \`reader_ranking_id\` BIGINT AUTO_INCREMENT,
+        \`series_id\` BIGINT NOT NULL,
+        \`ranking_period_type\` ENUM('WEEKLY','MONTHLY') NOT NULL,
+        \`period_start_date\` DATE NOT NULL,
+        \`period_end_date\` DATE NOT NULL,
+        \`rank_position\` INT NOT NULL,
+        \`reader_star_avg\` DECIMAL(5,2) NOT NULL,
+        \`sales_amount\` DECIMAL(15,2) NOT NULL DEFAULT 0,
+        \`publication_year\` INT NOT NULL,
+        \`author_name\` VARCHAR(200) NOT NULL,
+        \`genres\` VARCHAR(500) NOT NULL,
+        \`risk_level\` ENUM('LOW','MEDIUM','HIGH') NOT NULL,
+        \`calculated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`reader_ranking_id\`),
+        FOREIGN KEY (\`series_id\`) REFERENCES \`Series\`(\`series_id\`),
+        UNIQUE KEY \`uq_reader_ranking_period\` (\`series_id\`, \`ranking_period_type\`, \`period_start_date\`)
+      )`,
+    );
+  }
+
+  private validateImportPeriodDates(startDate: string, endDate: string) {
+    const start = this.dateOnly(startDate);
+    const end = this.dateOnly(endDate);
+
+    if (end < start) {
+      throw new BadRequestException(
+        'Ngày kết thúc kỳ phát hành không thể trước ngày bắt đầu',
+      );
+    }
+  }
+
+  private parseReaderVoteCsv(csv: string) {
+    const parsedRows = this.parseCsv(csv);
+    if (parsedRows.length < 2) {
+      throw new BadRequestException('CSV phải có header và ít nhất 1 dòng dữ liệu');
+    }
+
+    const headers = parsedRows[0].map((header) => this.normalizeHeader(header));
+    const seriesIdIndex = headers.indexOf('seriesid');
+    const seriesTitleIndex = this.headerIndex(headers, [
+      'seriestitle',
+      'seriesname',
+      'series',
+      'tenseries',
+    ]);
+    const publicationDateIndex = this.headerIndex(headers, [
+      'publicationdate',
+      'publicationyear',
+      'startyear',
+      'releasedate',
+      'ngayphathanh',
+    ]);
+    const authorIndex = this.headerIndex(headers, ['author', 'tacgia']);
+    const genresIndex = this.headerIndex(headers, ['genres', 'genre', 'theloai']);
+    const averageReaderStarsIndex = this.headerIndex(headers, [
+      'averagereaderstars',
+      'readerstars',
+      'averagestars',
+      'stars',
+      'sosao',
+    ]);
+    const salesIndex = this.headerIndex(headers, ['sales', 'doanhso']);
+
+    if (
+      seriesTitleIndex < 0 ||
+      publicationDateIndex < 0 ||
+      authorIndex < 0 ||
+      genresIndex < 0 ||
+      averageReaderStarsIndex < 0 ||
+      salesIndex < 0
+    ) {
+      throw new BadRequestException(
+        'CSV cần các cột: seriesTitle,publicationYear,author,genres,averageReaderStars,sales',
+      );
+    }
+
+    const seenSeries = new Set<string>();
+    return parsedRows.slice(1).map((columns, index) => {
+      const rowNumber = index + 2;
+      const seriesId =
+        seriesIdIndex >= 0 && columns[seriesIdIndex]
+          ? Number(columns[seriesIdIndex])
+          : undefined;
+      const seriesTitle = columns[seriesTitleIndex]?.trim();
+      const publicationYear = this.publicationYear(columns[publicationDateIndex] ?? '');
+      const author = columns[authorIndex]?.trim();
+      const genres = columns[genresIndex]?.trim();
+      const averageReaderStars = Number(columns[averageReaderStarsIndex]);
+      const sales = Number(columns[salesIndex]);
+
+      if (seriesId !== undefined && (!Number.isInteger(seriesId) || seriesId <= 0)) {
+        throw new BadRequestException(`Dòng ${rowNumber}: seriesId không hợp lệ`);
+      }
+      if (!seriesTitle) {
+        throw new BadRequestException(`Dòng ${rowNumber}: tên series không hợp lệ`);
+      }
+      if (!publicationYear) {
+        throw new BadRequestException(
+          `Dòng ${rowNumber}: thời gian bắt đầu series phải là năm hoặc ngày hợp lệ`,
+        );
+      }
+      if (!author) {
+        throw new BadRequestException(`Dòng ${rowNumber}: tác giả không hợp lệ`);
+      }
+      if (!genres) {
+        throw new BadRequestException(`Dòng ${rowNumber}: thể loại không hợp lệ`);
+      }
+      if (
+        !Number.isFinite(averageReaderStars) ||
+        averageReaderStars < 0 ||
+        averageReaderStars > 5
+      ) {
+        throw new BadRequestException(
+          `Dòng ${rowNumber}: số sao trung bình phải trong khoảng 0-5`,
+        );
+      }
+      if (!Number.isFinite(sales) || sales < 0) {
+        throw new BadRequestException(`Dòng ${rowNumber}: doanh số không hợp lệ`);
+      }
+
+      const duplicateKey = seriesId ? String(seriesId) : seriesTitle.toLowerCase();
+      if (seenSeries.has(duplicateKey)) {
+        throw new BadRequestException(`Dòng ${rowNumber}: series bị trùng`);
+      }
+      seenSeries.add(duplicateKey);
+
+      return {
+        seriesId,
+        seriesTitle,
+        publicationYear,
+        author,
+        genres,
+        averageReaderStars: Number(averageReaderStars.toFixed(2)),
+        sales: Number(sales.toFixed(2)),
+      };
+    });
+  }
+
+  private parseCsv(csv: string): string[][] {
+    const rows: string[][] = [];
+    let current = '';
+    let row: string[] = [];
+    let inQuotes = false;
+
+    for (let i = 0; i < csv.length; i += 1) {
+      const char = csv[i];
+      const next = csv[i + 1];
+
+      if (char === '"' && inQuotes && next === '"') {
+        current += '"';
+        i += 1;
+      } else if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        row.push(current.trim());
+        current = '';
+      } else if ((char === '\n' || char === '\r') && !inQuotes) {
+        if (char === '\r' && next === '\n') {
+          i += 1;
+        }
+        row.push(current.trim());
+        current = '';
+        if (row.some((value) => value.length > 0)) {
+          rows.push(row);
+        }
+        row = [];
+      } else {
+        current += char;
+      }
+    }
+
+    row.push(current.trim());
+    if (row.some((value) => value.length > 0)) {
+      rows.push(row);
+    }
+
+    if (inQuotes) {
+      throw new BadRequestException('CSV có dấu nháy không hợp lệ');
+    }
+
+    return rows;
+  }
+
+  private normalizeHeader(header: string) {
+    return header.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  private publicationYear(value: string) {
+    const raw = String(value ?? '').trim();
+    const year = raw.match(/^\d{4}/)?.[0];
+    if (!year) {
+      return null;
+    }
+    const numericYear = Number(year);
+    return numericYear >= 1900 && numericYear <= 9999 ? numericYear : null;
+  }
+
+  private headerIndex(headers: string[], candidates: string[]) {
+    return headers.findIndex((header) => candidates.includes(header));
   }
 
   private async getBoardVoteProgress(periodId: number) {

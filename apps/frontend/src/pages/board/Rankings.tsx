@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
 import { useConfirm } from "../../lib/confirm";
@@ -24,6 +25,25 @@ interface OpenPeriod {
   startDate?: string;
   endDate: string;
   hasVoted: 0 | 1;
+}
+
+function BoardRankingTabs() {
+  return (
+    <div className="flex flex-wrap gap-2 rounded-xl border border-line bg-surface p-2">
+      <Link
+        to="/board/rankings"
+        className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
+      >
+        Biểu quyết Hội đồng
+      </Link>
+      <Link
+        to="/board/reader-votes/import"
+        className="rounded-lg px-4 py-2 text-sm font-medium text-ink-soft transition hover:bg-bg hover:text-ink"
+      >
+        Nhập vote độc giả
+      </Link>
+    </div>
+  );
 }
 
 interface SeriesOption {
@@ -275,7 +295,8 @@ export default function BoardRankings() {
 
   return (
     <div className="p-8">
-      <div className="mb-6">
+      <div className="mb-6 space-y-4">
+        <BoardRankingTabs />
         <h1 className="text-3xl text-ink">Biểu quyết & Quyết định Hội đồng</h1>
       </div>
 
