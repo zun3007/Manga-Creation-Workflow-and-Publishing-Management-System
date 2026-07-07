@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Coins, MousePointerClick } from "lucide-react";
 import { api } from "../../lib/api";
 import type { PageDetail, RegionItem } from "../../types";
 import { RegionType } from "@manga/shared";
@@ -18,6 +19,13 @@ interface Region extends RegionItem {
   isNew?: boolean;
 }
 
+interface PriceRule {
+  id: number;
+  name: string;
+  regionType: RegionType;
+  basePrice: string | number;
+}
+
 interface PageCanvasProps {
   pageId: number;
   onRegionClick?: (region: RegionItem) => void;
@@ -30,6 +38,7 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
 
   const [page, setPage] = useState<PageDetail | null>(null);
   const [regions, setRegions] = useState<Region[]>([]);
+  const [priceByType, setPriceByType] = useState<Partial<Record<RegionType, number>>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -63,8 +72,27 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
     }
   }
 
+  async function loadPriceRules() {
+    try {
+      const res = await api.get<PriceRule[]>("/tasks/price-rules");
+      const next: Partial<Record<RegionType, number>> = {};
+      for (const rule of res.data || []) {
+        if (next[rule.regionType] !== undefined) continue;
+        const value = Number(rule.basePrice);
+        next[rule.regionType] = Number.isFinite(value) ? value : 0;
+      }
+      setPriceByType(next);
+    } catch (e) {
+      console.error("Failed to load task price rules", e);
+      setPriceByType({});
+    }
+  }
+
   useEffect(() => {
-    if (pageId) loadPage();
+    if (pageId) {
+      loadPage();
+      loadPriceRules();
+    }
   }, [pageId]);
 
   // Measure box size on img load and window resize
@@ -158,6 +186,24 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
       console.error("Failed to create region", e);
     }
   }
+
+  function formatMoney(value?: number) {
+    if (value === undefined) return "Chưa có giá";
+    return `${value.toLocaleString("vi-VN")} ₫`;
+  }
+
+  function regionLabel(type: RegionType) {
+    const labels: Record<RegionType, string> = {
+      [RegionType.PANEL]: "Khung truyện",
+      [RegionType.BACKGROUND]: "Nền",
+      [RegionType.CHARACTER]: "Nhân vật",
+      [RegionType.DIALOGUE_BUBBLE]: "Bong bóng thoại",
+      [RegionType.EFFECT]: "Hiệu ứng",
+    };
+    return labels[type] ?? type;
+  }
+
+  const selectedPrice = priceByType[newRegionType];
 
   if (loading) {
     return (
@@ -254,10 +300,16 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
                 cursor: "pointer",
                 transition: "all 0.2s",
               }}
-              className="bg-accent/10 hover:brightness-110"
+              className="group bg-accent/10 hover:bg-accent/20 hover:brightness-110"
             >
-              <div className="absolute bottom-0.5 left-0.5 bg-accent text-white px-1 py-0.5 font-mono text-[0.5rem] uppercase rounded-[2px]">
-                {region.type}
+              <div className="absolute bottom-1 left-1 overflow-hidden rounded-lg border border-accent/25 bg-surface/95 text-left shadow-md backdrop-blur">
+                <div className="bg-accent px-2 py-0.5 font-mono text-[0.52rem] uppercase tracking-wider text-white">
+                  {region.type}
+                </div>
+                <div className="flex items-center gap-1 px-2 py-1 text-[0.68rem] font-semibold text-ink">
+                  <Coins size={11} className="text-accent" aria-hidden="true" />
+                  {formatMoney(priceByType[region.type])}
+                </div>
               </div>
             </button>
           ))}
@@ -267,36 +319,76 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
           <div
             style={{
               position: "absolute",
-              left: `${newRegionRect.left + newRegionRect.width / 2 - 100}px`,
-              top: `${newRegionRect.top - 120}px`,
+              left: `${newRegionRect.left + newRegionRect.width / 2 - 140}px`,
+              top: `${Math.max(8, newRegionRect.top - 190)}px`,
             }}
           >
-            <Panel className="p-4 w-[200px] shadow-lg">
+            <Panel className="w-[280px] !border-line !bg-surface p-5 text-ink shadow-xl shadow-accent/10">
+              <div className="mb-4 border-b border-line pb-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-accent/10 text-accent">
+                    <MousePointerClick size={16} aria-hidden="true" />
+                  </span>
+                  <div>
+                    <p className="font-mono text-[0.58rem] uppercase tracking-[0.22em] text-ink-soft">
+                      Vùng giao việc
+                    </p>
+                    <h3 className="font-[var(--font-display)] text-xl leading-tight text-ink">
+                      Chọn loại vùng
+                    </h3>
+                  </div>
+                </div>
+              </div>
+
               <label className="block mb-3">
-                <span className="mb-1 block font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft">
+                <span className="mb-2 block text-sm font-semibold text-ink">
                   Loại vùng
                 </span>
                 <select
                   value={newRegionType}
                   onChange={(e) => setNewRegionType(e.target.value as RegionType)}
-                  className="w-full rounded-[calc(var(--app-radius)*0.6)] border border-line bg-surface px-3 py-2 text-ink outline-none transition focus:border-accent"
+                  className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm font-semibold text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                 >
                   {REGION_TYPES.map((t) => (
                     <option key={t} value={t}>
-                      {t}
+                      {regionLabel(t)} - {formatMoney(priceByType[t])}
                     </option>
                   ))}
                 </select>
               </label>
-              <div className="flex gap-2">
+
+              <div className="mb-4 rounded-2xl border border-accent/20 bg-accent/10 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-mono text-[0.58rem] uppercase tracking-wider text-ink-soft">
+                      Task sẽ tạo
+                    </p>
+                    <p className="mt-1 font-semibold text-ink">
+                      {regionLabel(newRegionType)}
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-accent/25 bg-surface px-2 py-1 font-mono text-[0.6rem] text-accent">
+                    {newRegionType}
+                  </span>
+                </div>
+                <div className="mt-3 flex items-center justify-between rounded-xl border border-line bg-surface px-3 py-2">
+                  <span className="flex items-center gap-2 text-sm font-medium text-ink">
+                    <Coins size={16} className="text-accent" aria-hidden="true" />
+                    Tiền task
+                  </span>
+                  <strong className="text-lg text-accent">{formatMoney(selectedPrice)}</strong>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
                 <Button
                   variant="soft"
-                  className="flex-1"
+                  className="flex-1 !border-line !bg-surface !text-ink hover:!bg-bg"
                   onClick={() => setNewRegionRect(null)}
                 >
                   Hủy
                 </Button>
-                <Button className="flex-1" onClick={handleSaveRegion}>
+                <Button className="flex-1 !bg-accent text-white hover:brightness-105" onClick={handleSaveRegion}>
                   Lưu vùng
                 </Button>
               </div>

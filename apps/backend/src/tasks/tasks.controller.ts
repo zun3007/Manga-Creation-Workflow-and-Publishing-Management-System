@@ -33,6 +33,12 @@ export class TasksController {
     return this.service.listMine(req.user.id);
   }
 
+  @Get('price-rules')
+  @Roles(Role.MANGAKA)
+  async priceRules() {
+    return this.service.listActivePriceRules();
+  }
+
   @Get()
   @Roles(Role.MANGAKA)
   async listByPage(@Query('pageId') pageId: string, @Req() req: any) {

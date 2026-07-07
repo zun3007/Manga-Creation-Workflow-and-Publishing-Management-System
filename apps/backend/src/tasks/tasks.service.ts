@@ -143,6 +143,20 @@ export class TasksService {
     return result;
   }
 
+  listActivePriceRules() {
+    return this.db.query(
+      `SELECT
+        rule_id AS id,
+        rule_name AS name,
+        region_type AS regionType,
+        base_price AS basePrice
+       FROM \`Task_Price_Rule\`
+       WHERE is_active = 1
+         AND (effective_to IS NULL OR effective_to >= CURDATE())
+       ORDER BY region_type ASC, effective_from DESC`,
+    );
+  }
+
   async listMine(assistantUserId: number) {
     return this.db.query(
       `SELECT

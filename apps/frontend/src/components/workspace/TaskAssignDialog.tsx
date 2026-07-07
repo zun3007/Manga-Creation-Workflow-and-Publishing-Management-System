@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, UserRound } from "lucide-react";
+import { CalendarDays, Coins, UserRound } from "lucide-react";
 import { api, apiErrorMessage } from "../../lib/api";
 import type { RegionItem } from "../../types";
 import { Modal } from "../ui/Modal";
@@ -10,6 +10,11 @@ interface Assistant {
   id: number;
   name: string;
   avatar: string | null;
+}
+
+interface PriceRule {
+  regionType: string;
+  basePrice: string | number;
 }
 
 interface TaskAssignDialogProps {
@@ -29,9 +34,11 @@ export function TaskAssignDialog({ region, onClose, onAssigned }: TaskAssignDial
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [payment, setPayment] = useState<number | null>(null);
+  const [estimatedPayment, setEstimatedPayment] = useState<number | null>(null);
 
   useEffect(() => {
     loadAssistants();
+    loadEstimatedPayment();
     // Reset payment state when dialog opens
     setPayment(null);
   }, []);
@@ -65,6 +72,18 @@ export function TaskAssignDialog({ region, onClose, onAssigned }: TaskAssignDial
       setError(msg);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadEstimatedPayment() {
+    try {
+      const res = await api.get<PriceRule[]>("/tasks/price-rules");
+      const rule = (res.data || []).find((item) => item.regionType === region.type);
+      const value = Number(rule?.basePrice ?? 0);
+      setEstimatedPayment(Number.isFinite(value) ? value : 0);
+    } catch (e) {
+      console.error("Failed to load estimated task payment", e);
+      setEstimatedPayment(null);
     }
   }
 
@@ -121,6 +140,8 @@ export function TaskAssignDialog({ region, onClose, onAssigned }: TaskAssignDial
     "w-full rounded-xl border border-[#4a3430] bg-[#211817] px-4 py-3 text-sm text-[#fff8f1] outline-none transition placeholder:text-[#9d8178] focus:border-accent focus:ring-2 focus:ring-accent/25 disabled:opacity-50";
   const labelClass = "mb-2 block text-sm font-semibold text-[#ead7d0]";
   const selectedAssistant = assistants.find((a) => String(a.id) === selectedAssistantId);
+  const money = (value: number | null) =>
+    value === null ? "Chưa có giá" : `${value.toLocaleString("vi-VN")} ₫`;
 
   return (
     <Modal
@@ -149,6 +170,16 @@ export function TaskAssignDialog({ region, onClose, onAssigned }: TaskAssignDial
                 <h2 className="font-[var(--font-display)] text-3xl text-[#fff8f1]">
                   Giao việc - {region.type}
                 </h2>
+              </div>
+
+              <div className="rounded-2xl border border-accent/25 bg-accent/10 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 text-sm font-semibold text-[#ead7d0]">
+                    <Coins size={17} className="text-accent" aria-hidden="true" />
+                    Tiền task dự kiến
+                  </span>
+                  <strong className="text-xl text-accent">{money(estimatedPayment)}</strong>
+                </div>
               </div>
 
               <label className="block">
