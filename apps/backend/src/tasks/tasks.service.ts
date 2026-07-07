@@ -32,8 +32,9 @@ export class TasksService {
       region_id: number;
       page_id: number;
       region_type: string;
+      chapter_deadline: string | Date | null;
     }>(
-      `SELECT r.region_id, r.page_id, r.region_type
+      `SELECT r.region_id, r.page_id, r.region_type, c.deadline AS chapter_deadline
        FROM \`Region\` r
        JOIN \`Page\` p ON p.page_id = r.page_id
        JOIN \`Chapter\` c ON c.chapter_id = p.chapter_id
@@ -43,25 +44,40 @@ export class TasksService {
     );
 
     if (!region) {
-      throw new ForbiddenException('You do not own this region');
+      throw new ForbiddenException('Bạn không có quyền giao việc cho vùng này');
     }
 
-    // Verify assignee is an ASSISTANT
+    // Verify assignee is an active ASSISTANT
     const assignee = await this.db.queryOne<{
       user_id: number;
       full_name: string;
       role: string;
+      is_activated: number;
     }>(
-      `SELECT user_id, full_name, role FROM \`User\` WHERE user_id = ?`,
+      `SELECT user_id, full_name, role, is_activated FROM \`User\` WHERE user_id = ?`,
       [dto.assigneeUserId],
     );
 
     if (!assignee) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Không tìm thấy người phụ trách');
     }
 
     if (assignee.role !== Role.ASSISTANT) {
-      throw new BadRequestException('Assignee must be an assistant');
+      throw new BadRequestException('Người phụ trách phải là Assistant');
+    }
+
+    if (Number(assignee.is_activated) !== 1) {
+      throw new BadRequestException('Assistant này chưa được kích hoạt');
+    }
+
+    if (dto.deadline && region.chapter_deadline) {
+      const taskDeadline = this.toDateOnly(dto.deadline);
+      const chapterDeadline = this.toDateOnly(region.chapter_deadline);
+      if (taskDeadline > chapterDeadline) {
+        throw new BadRequestException(
+          `Deadline task không được muộn hơn deadline chapter (${chapterDeadline})`,
+        );
+      }
     }
 
     // Fetch the active price rule for this region type
@@ -217,6 +233,15 @@ export class TasksService {
     return this.findOne(taskId);
   }
 
+  private toDateOnly(value: string | Date) {
+    if (value instanceof Date) return value.toISOString().slice(0, 10);
+    const raw = String(value);
+    if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) return raw.slice(0, 10);
+    return date.toISOString().slice(0, 10);
+  }
+
   private async findOne(taskId: number) {
     return this.db.queryOne<{
       task_id: number;
@@ -228,6 +253,7 @@ export class TasksService {
       instruction: string | null;
       deadline: string | null;
       status: string;
+      payment: number;
       payment_amount: number;
       task_price_rule_id: number | null;
       created_at: string;
@@ -243,6 +269,7 @@ export class TasksService {
         t.instruction,
         t.deadline,
         t.task_status AS status,
+        t.payment_amount AS payment,
         t.payment_amount,
         t.task_price_rule_id,
         t.created_at,
