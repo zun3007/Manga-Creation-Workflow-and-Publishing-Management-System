@@ -1,9 +1,14 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
+import { Role } from "@manga/shared";
 import { api } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
 import type { AppNotification } from "../../types";
 
 export function NotificationsBell() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -49,13 +54,22 @@ export function NotificationsBell() {
     }
   }
 
-  async function markAsRead(id: number) {
+  async function markAsRead(notification: AppNotification) {
     const previousNotifications = notifications;
     try {
       setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: 1 } : n))
+        prev.map((n) => (n.id === notification.id ? { ...n, isRead: 1 } : n))
       );
-      await api.patch(`/notifications/${id}/read`);
+      await api.patch(`/notifications/${notification.id}/read`);
+      if (
+        user?.role === Role.EDITORIAL_BOARD &&
+        notification.relatedEntityType === "Series" &&
+        notification.relatedEntityId &&
+        notification.title.toLowerCase().includes("báo cáo bảo vệ")
+      ) {
+        setIsOpen(false);
+        navigate(`/board/series/${notification.relatedEntityId}/dossier`);
+      }
     } catch (err) {
       console.error("Failed to mark notification as read", err);
       setNotifications(previousNotifications);
@@ -111,7 +125,7 @@ export function NotificationsBell() {
               notifications.map((notif) => (
                 <button
                   key={notif.id}
-                  onClick={() => markAsRead(notif.id)}
+                  onClick={() => markAsRead(notif)}
                   className={`w-full text-left p-4 border-b border-line hover:bg-bg/50 transition-colors flex gap-3 ${
                     notif.isRead === 0 ? "bg-bg/30" : ""
                   }`}

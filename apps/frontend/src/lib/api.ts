@@ -31,6 +31,9 @@ api.interceptors.response.use(
     }
     // Surface every other failure (validation 400, 403, 404, 5xx, network) as a toast
     // so no action ever fails silently.
+    if (error?.response?.data?.code === "READER_VOTE_IMPORT_PERIOD_CONFLICT") {
+      return Promise.reject(error);
+    }
     let msg = error?.response?.data?.message;
     if (Array.isArray(msg)) msg = msg.join("; ");
     emitToast(

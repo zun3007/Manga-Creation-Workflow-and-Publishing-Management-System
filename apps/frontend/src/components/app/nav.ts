@@ -19,7 +19,6 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   [Role.TANTOU_EDITOR]: [
     { label: "Tổng quan", to: "/", icon: LayoutDashboard },
     { label: "Series quản lý", to: "/editor/series", icon: BookOpen },
-    { label: "Đề xuất", to: "/board/proposals", icon: FileText },
     { label: "Duyệt chương", to: "/editor/review", icon: ListChecks },
     { label: "Hồ sơ", to: "/profile", icon: User },
   ],

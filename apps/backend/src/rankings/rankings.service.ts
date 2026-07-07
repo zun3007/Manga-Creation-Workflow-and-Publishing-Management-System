@@ -5,10 +5,11 @@ import {
 } from '@nestjs/common';
 import { DbService } from '../db/db.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { NotificationType, RiskLevel } from '@manga/shared';
+import { NotificationType, RiskLevel, Role } from '@manga/shared';
 import { CreateVotePeriodDto } from './dto/create-vote-period.dto';
 import { CreateVoteDto } from './dto/create-vote.dto';
 import { ImportReaderVotesDto } from './dto/import-reader-votes.dto';
+import { DeleteReaderVoteImportDto } from './dto/delete-reader-vote-import.dto';
 
 @Injectable()
 export class RankingsService {
@@ -181,7 +182,48 @@ export class RankingsService {
   }
 
   async importReaderVotesCsv(dto: ImportReaderVotesDto, importedByUserId?: number) {
-    this.validateImportPeriodDates(dto.startDate, dto.endDate);
+    this.validateWeeklyReaderVotePeriod(dto.periodType, dto.startDate, dto.endDate);
+    await this.ensureReaderVoteImportTable();
+    await this.ensureReaderVoteRankingTable();
+    await this.ensureReaderVoteImportDeleteTables();
+
+    const duplicatedImport = await this.db.queryOne<{
+      importId: number;
+      fileName: string | null;
+      startDate: string | Date;
+      endDate: string | Date;
+    }>(
+      `SELECT
+         import_id AS importId,
+         file_name AS fileName,
+         period_start_date AS startDate,
+         period_end_date AS endDate
+       FROM \`Reader_Vote_Import\`
+       WHERE ranking_period_type = ?
+         AND deleted_at IS NULL
+         AND period_start_date < ?
+         AND period_end_date > ?
+       ORDER BY imported_at DESC, import_id DESC
+       LIMIT 1`,
+      [dto.periodType, dto.endDate, dto.startDate],
+    );
+
+    if (duplicatedImport) {
+      const existingStart = this.dateOnly(duplicatedImport.startDate);
+      const existingEnd = this.dateOnly(duplicatedImport.endDate);
+      const fileLabel =
+        duplicatedImport.fileName ?? `#${duplicatedImport.importId}`;
+      throw new BadRequestException({
+        code: 'READER_VOTE_IMPORT_PERIOD_CONFLICT',
+        message: `Kỳ ${dto.startDate} → ${dto.endDate} bị trùng với kỳ đã import ${existingStart} → ${existingEnd} (${fileLabel}). Muốn import lại phải gửi yêu cầu xóa và được toàn bộ Board duyệt.`,
+        conflictImport: {
+          importId: Number(duplicatedImport.importId),
+          fileName: duplicatedImport.fileName,
+          startDate: existingStart,
+          endDate: existingEnd,
+        },
+      });
+    }
 
     const rows = this.parseReaderVoteCsv(dto.csv);
     const explicitIds = rows
@@ -267,9 +309,6 @@ export class RankingsService {
       return a.seriesId - b.seriesId;
     });
 
-    await this.ensureReaderVoteImportTable();
-    await this.ensureReaderVoteRankingTable();
-
     let previousScore: number | null = null;
     let rankPosition = 0;
     let importId = 0;
@@ -313,12 +352,13 @@ export class RankingsService {
         const riskLevel = this.riskLevelForScore(row.averageReaderStars);
         const readerRankingId = await tx.insert(
           `INSERT INTO \`Reader_Vote_Ranking\`
-            (series_id, ranking_period_type, period_start_date, period_end_date,
+            (import_id, series_id, ranking_period_type, period_start_date, period_end_date,
              rank_position, reader_star_avg, sales_amount, publication_year,
              author_name, genres, risk_level)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON DUPLICATE KEY UPDATE
              reader_ranking_id = LAST_INSERT_ID(reader_ranking_id),
+             import_id = VALUES(import_id),
              period_end_date = VALUES(period_end_date),
              rank_position = VALUES(rank_position),
              reader_star_avg = VALUES(reader_star_avg),
@@ -329,6 +369,7 @@ export class RankingsService {
              risk_level = VALUES(risk_level),
              calculated_at = CURRENT_TIMESTAMP`,
           [
+            importId,
             row.seriesId,
             dto.periodType,
             dto.startDate,
@@ -379,9 +420,10 @@ export class RankingsService {
     };
   }
 
-  async latestReaderVoteRankings() {
+  async latestReaderVoteRankings(currentUserId?: number) {
     await this.ensureReaderVoteImportTable();
     await this.ensureReaderVoteRankingTable();
+    await this.ensureReaderVoteImportDeleteTables();
 
     const latestImport = await this.db.queryOne<{
       importId: number;
@@ -401,15 +443,18 @@ export class RankingsService {
          imported_at AS importedAt,
          imported_count AS importedCount
        FROM \`Reader_Vote_Import\`
-       ORDER BY imported_at DESC, import_id DESC
+       WHERE deleted_at IS NULL
+       ORDER BY period_start_date DESC, period_end_date DESC, import_id DESC
        LIMIT 1`,
     );
 
     await this.syncReaderVotePublicationYears(
       latestImport
         ? {
+            importId: Number(latestImport.importId),
             periodType: latestImport.periodType,
             startDate: this.dateOnly(latestImport.startDate),
+            endDate: this.dateOnly(latestImport.endDate),
           }
         : null,
     );
@@ -452,15 +497,30 @@ export class RankingsService {
        ${latestImport ? '' : `JOIN (
          SELECT ranking_period_type, period_start_date
          FROM \`Reader_Vote_Ranking\`
-         ORDER BY calculated_at DESC, period_end_date DESC, reader_ranking_id DESC
+         ORDER BY period_start_date DESC, period_end_date DESC, reader_ranking_id DESC
          LIMIT 1
        ) latest
          ON latest.ranking_period_type = r.ranking_period_type
         AND latest.period_start_date = r.period_start_date`}
-       ${latestImport ? 'WHERE r.ranking_period_type = ? AND r.period_start_date = ?' : ''}
+       ${
+         latestImport
+           ? `WHERE r.import_id = ?
+              OR (
+                r.import_id IS NULL
+                AND r.ranking_period_type = ?
+                AND r.period_start_date = ?
+                AND r.period_end_date = ?
+              )`
+           : ''
+       }
        ORDER BY r.rank_position ASC, r.reader_star_avg DESC, r.sales_amount DESC, s.title ASC`,
       latestImport
-        ? [latestImport.periodType, this.dateOnly(latestImport.startDate)]
+        ? [
+            Number(latestImport.importId),
+            latestImport.periodType,
+            this.dateOnly(latestImport.startDate),
+            this.dateOnly(latestImport.endDate),
+          ]
         : [],
     );
 
@@ -476,6 +536,12 @@ export class RankingsService {
       periodType: latestImport?.periodType ?? rows[0].periodType,
       startDate: this.dateOnly(latestImport?.startDate ?? rows[0].startDate),
       endDate: this.dateOnly(latestImport?.endDate ?? rows[0].endDate),
+      deleteRequest: latestImport
+        ? await this.getDeleteRequestSummary(
+            Number(latestImport.importId),
+            currentUserId,
+          )
+        : null,
       rankings: rows.map((row) => ({
         seriesId: Number(row.seriesId),
         readerRankingId: Number(row.readerRankingId),
@@ -494,15 +560,21 @@ export class RankingsService {
   }
 
   private async syncReaderVotePublicationYears(
-    latestImport: { periodType: 'WEEKLY' | 'MONTHLY'; startDate: string } | null,
+    latestImport: {
+      importId: number;
+      periodType: 'WEEKLY' | 'MONTHLY';
+      startDate: string;
+      endDate: string;
+    } | null,
   ) {
     if (latestImport) {
+      await this.attachLegacyReaderRankingsToImport(latestImport);
       await this.db.query(
         `UPDATE \`Reader_Vote_Ranking\` r
          JOIN \`Series\` s ON s.series_id = r.series_id
          SET r.publication_year = YEAR(s.created_at)
-         WHERE r.ranking_period_type = ? AND r.period_start_date = ?`,
-        [latestImport.periodType, latestImport.startDate],
+         WHERE r.import_id = ?`,
+        [latestImport.importId],
       );
       return;
     }
@@ -512,6 +584,327 @@ export class RankingsService {
        JOIN \`Series\` s ON s.series_id = r.series_id
        SET r.publication_year = YEAR(s.created_at)`,
     );
+  }
+
+  private async attachLegacyReaderRankingsToImport(latestImport: {
+    importId: number;
+    periodType: 'WEEKLY' | 'MONTHLY';
+    startDate: string;
+    endDate: string;
+  }) {
+    await this.db.query(
+      `UPDATE \`Reader_Vote_Ranking\`
+       SET import_id = ?
+       WHERE import_id IS NULL
+         AND ranking_period_type = ?
+         AND period_start_date = ?
+         AND period_end_date = ?`,
+      [
+        latestImport.importId,
+        latestImport.periodType,
+        latestImport.startDate,
+        latestImport.endDate,
+      ],
+    );
+  }
+
+  async requestDeleteReaderVoteImport(
+    importId: number,
+    requestedByUserId: number,
+    dto: DeleteReaderVoteImportDto,
+  ) {
+    await this.ensureReaderVoteImportTable();
+    await this.ensureReaderVoteRankingTable();
+    await this.ensureReaderVoteImportDeleteTables();
+
+    const importRow = await this.findActiveReaderVoteImport(importId);
+    const existing = await this.db.queryOne<{ status: string }>(
+      `SELECT status
+       FROM \`Reader_Vote_Import_Delete_Request\`
+       WHERE import_id = ? AND status = 'PENDING'`,
+      [importId],
+    );
+
+    if (existing) {
+      throw new BadRequestException('Import này đã có yêu cầu xóa đang chờ Board duyệt');
+    }
+
+    const reason = dto.reason?.trim() || 'Board request delete imported reader vote data';
+    await this.db.query(
+      `INSERT INTO \`Reader_Vote_Import_Delete_Request\`
+        (import_id, requested_by_user_id, reason, status)
+       VALUES (?, ?, ?, 'PENDING')
+       ON DUPLICATE KEY UPDATE
+        requested_by_user_id = VALUES(requested_by_user_id),
+        reason = VALUES(reason),
+        status = 'PENDING',
+        requested_at = CURRENT_TIMESTAMP,
+        approved_at = NULL`,
+      [importId, requestedByUserId, reason],
+    );
+
+    const boardUsers = await this.activeBoardUsersExcept(requestedByUserId);
+    for (const board of boardUsers) {
+      await this.notifications.notify(
+        board.user_id,
+        NotificationType.GENERAL,
+        `Yêu cầu xóa dữ liệu vote độc giả Import #${importId}`,
+        `Kỳ ${this.dateOnly(importRow.startDate)} → ${this.dateOnly(importRow.endDate)}. Lý do: ${reason}`,
+        'Reader_Vote_Import',
+        importId,
+      );
+    }
+
+    if (boardUsers.length === 0) {
+      await this.finalizeReaderVoteImportDeletion(importId);
+    }
+
+    return {
+      ok: true,
+      deleteRequest: await this.getDeleteRequestSummary(importId, requestedByUserId),
+    };
+  }
+
+  async approveDeleteReaderVoteImport(importId: number, boardUserId: number) {
+    await this.ensureReaderVoteImportTable();
+    await this.ensureReaderVoteRankingTable();
+    await this.ensureReaderVoteImportDeleteTables();
+    await this.findActiveReaderVoteImport(importId);
+
+    const request = await this.db.queryOne<{
+      requestedByUserId: number;
+      status: string;
+    }>(
+      `SELECT requested_by_user_id AS requestedByUserId, status
+       FROM \`Reader_Vote_Import_Delete_Request\`
+       WHERE import_id = ?`,
+      [importId],
+    );
+
+    if (!request || request.status !== 'PENDING') {
+      throw new BadRequestException('Không có yêu cầu xóa đang chờ duyệt');
+    }
+    if (Number(request.requestedByUserId) === boardUserId) {
+      throw new BadRequestException('Tài khoản gửi yêu cầu xóa không cần duyệt yêu cầu này');
+    }
+
+    await this.db.query(
+      `INSERT IGNORE INTO \`Reader_Vote_Import_Delete_Approval\`
+        (import_id, board_user_id)
+       VALUES (?, ?)`,
+      [importId, boardUserId],
+    );
+
+    const summary = await this.getDeleteRequestSummary(importId, boardUserId);
+    if (
+      summary &&
+      summary.status === 'PENDING' &&
+      summary.approvalCount >= summary.requiredApprovals
+    ) {
+      await this.finalizeReaderVoteImportDeletion(importId);
+    }
+
+    return {
+      ok: true,
+      deleteRequest: await this.getDeleteRequestSummary(importId, boardUserId),
+    };
+  }
+
+  async pendingReaderVoteImportDeleteRequests(currentUserId: number) {
+    await this.ensureReaderVoteImportTable();
+    await this.ensureReaderVoteImportDeleteTables();
+
+    const requests = await this.db.query<{
+      importId: number;
+      fileName: string | null;
+      periodType: 'WEEKLY' | 'MONTHLY';
+      startDate: string | Date;
+      endDate: string | Date;
+      importedAt: string | Date;
+    }>(
+      `SELECT
+        i.import_id AS importId,
+        i.file_name AS fileName,
+        i.ranking_period_type AS periodType,
+        i.period_start_date AS startDate,
+        i.period_end_date AS endDate,
+        i.imported_at AS importedAt
+       FROM \`Reader_Vote_Import_Delete_Request\` r
+       JOIN \`Reader_Vote_Import\` i ON i.import_id = r.import_id
+       WHERE r.status = 'PENDING'
+         AND i.deleted_at IS NULL
+       ORDER BY r.requested_at DESC, i.period_start_date DESC, i.import_id DESC`,
+    );
+
+    const result: Array<{
+      importId: number;
+      requestedByUserId: number;
+      requestedByName: string | null;
+      reason: string | null;
+      status: string;
+      requestedAt: string | Date;
+      approvedAt: string | Date | null;
+      requiredApprovals: number;
+      approvalCount: number;
+      approvedByCurrentUser: boolean;
+      canCurrentUserApprove: boolean;
+      fileName: string | null;
+      periodType: 'WEEKLY' | 'MONTHLY';
+      startDate: string;
+      endDate: string;
+      importedAt: string;
+    }> = [];
+    for (const request of requests) {
+      const summary = await this.getDeleteRequestSummary(
+        Number(request.importId),
+        currentUserId,
+      );
+      if (!summary) continue;
+      result.push({
+        ...summary,
+        fileName: request.fileName,
+        periodType: request.periodType,
+        startDate: this.dateOnly(request.startDate),
+        endDate: this.dateOnly(request.endDate),
+        importedAt: this.dateOnly(request.importedAt),
+      });
+    }
+    return result;
+  }
+
+  private async findActiveReaderVoteImport(importId: number) {
+    const importRow = await this.db.queryOne<{
+      importId: number;
+      fileName: string | null;
+      periodType: 'WEEKLY' | 'MONTHLY';
+      startDate: string | Date;
+      endDate: string | Date;
+    }>(
+      `SELECT
+        import_id AS importId,
+        file_name AS fileName,
+        ranking_period_type AS periodType,
+        period_start_date AS startDate,
+        period_end_date AS endDate
+       FROM \`Reader_Vote_Import\`
+       WHERE import_id = ? AND deleted_at IS NULL`,
+      [importId],
+    );
+
+    if (!importRow) {
+      throw new NotFoundException('Không tìm thấy import đang hoạt động');
+    }
+    return importRow;
+  }
+
+  private async getDeleteRequestSummary(importId: number, currentUserId?: number) {
+    const request = await this.db.queryOne<{
+      importId: number;
+      requestedByUserId: number;
+      requestedByName: string | null;
+      reason: string | null;
+      status: string;
+      requestedAt: string | Date;
+      approvedAt: string | Date | null;
+    }>(
+      `SELECT
+        r.import_id AS importId,
+        r.requested_by_user_id AS requestedByUserId,
+        u.full_name AS requestedByName,
+        r.reason,
+        r.status,
+        r.requested_at AS requestedAt,
+        r.approved_at AS approvedAt
+       FROM \`Reader_Vote_Import_Delete_Request\` r
+       LEFT JOIN \`User\` u ON u.user_id = r.requested_by_user_id
+       WHERE r.import_id = ?`,
+      [importId],
+    );
+
+    if (!request) return null;
+
+    const counts = await this.db.queryOne<{
+      requiredApprovals: number | string;
+      approvalCount: number | string;
+      approvedByCurrentUser: number | string;
+    }>(
+      `SELECT
+        (SELECT COUNT(*) FROM \`User\` b
+         WHERE b.role = ? AND b.is_activated = 1 AND b.user_id <> r.requested_by_user_id) AS requiredApprovals,
+        (SELECT COUNT(*) FROM \`Reader_Vote_Import_Delete_Approval\` a
+         JOIN \`User\` b ON b.user_id = a.board_user_id
+         WHERE a.import_id = r.import_id AND b.role = ? AND b.is_activated = 1) AS approvalCount,
+        (SELECT COUNT(*) FROM \`Reader_Vote_Import_Delete_Approval\` a
+         WHERE a.import_id = r.import_id AND a.board_user_id = ?) AS approvedByCurrentUser
+       FROM \`Reader_Vote_Import_Delete_Request\` r
+       WHERE r.import_id = ?`,
+      [
+        Role.EDITORIAL_BOARD,
+        Role.EDITORIAL_BOARD,
+        currentUserId ?? 0,
+        importId,
+      ],
+    );
+
+    return {
+      importId: Number(request.importId),
+      requestedByUserId: Number(request.requestedByUserId),
+      requestedByName: request.requestedByName,
+      reason: request.reason,
+      status: request.status,
+      requestedAt: request.requestedAt,
+      approvedAt: request.approvedAt,
+      requiredApprovals: Number(counts?.requiredApprovals ?? 0),
+      approvalCount: Number(counts?.approvalCount ?? 0),
+      approvedByCurrentUser: Number(counts?.approvedByCurrentUser ?? 0) > 0,
+      canCurrentUserApprove:
+        currentUserId !== undefined &&
+        Number(request.requestedByUserId) !== currentUserId &&
+        request.status === 'PENDING' &&
+        Number(counts?.approvedByCurrentUser ?? 0) === 0,
+    };
+  }
+
+  private async activeBoardUsersExcept(excludedUserId: number) {
+    return this.db.query<{ user_id: number }>(
+      `SELECT user_id FROM \`User\`
+       WHERE role = ? AND is_activated = 1 AND user_id <> ?`,
+      [Role.EDITORIAL_BOARD, excludedUserId],
+    );
+  }
+
+  private async finalizeReaderVoteImportDeletion(importId: number) {
+    const importRow = await this.findActiveReaderVoteImport(importId);
+    await this.db.transaction(async (tx) => {
+      await tx.query(
+        `DELETE FROM \`Reader_Vote_Ranking\`
+         WHERE import_id = ?
+            OR (
+              import_id IS NULL
+              AND ranking_period_type = ?
+              AND period_start_date = ?
+              AND period_end_date = ?
+            )`,
+        [
+          importId,
+          importRow.periodType,
+          this.dateOnly(importRow.startDate),
+          this.dateOnly(importRow.endDate),
+        ],
+      );
+      await tx.query(
+        `UPDATE \`Reader_Vote_Import\`
+         SET deleted_at = CURRENT_TIMESTAMP
+         WHERE import_id = ?`,
+        [importId],
+      );
+      await tx.query(
+        `UPDATE \`Reader_Vote_Import_Delete_Request\`
+         SET status = 'APPROVED', approved_at = CURRENT_TIMESTAMP
+         WHERE import_id = ?`,
+        [importId],
+      );
+    });
   }
 
   private validateVotePeriodDates(startDate: string, endDate: string) {
@@ -542,10 +935,55 @@ export class RankingsService {
         \`imported_by_user_id\` BIGINT NULL,
         \`imported_count\` INT NOT NULL DEFAULT 0,
         \`imported_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \`deleted_at\` DATETIME NULL,
         PRIMARY KEY (\`import_id\`),
         FOREIGN KEY (\`imported_by_user_id\`) REFERENCES \`User\`(\`user_id\`),
         INDEX \`idx_reader_vote_import_latest\` (\`imported_at\`, \`import_id\`),
         INDEX \`idx_reader_vote_import_period\` (\`ranking_period_type\`, \`period_start_date\`)
+      )`,
+    );
+    await this.ensureReaderVoteImportDeleteColumn();
+  }
+
+  private async ensureReaderVoteImportDeleteColumn() {
+    const column = await this.db.queryOne<{ count: number | string }>(
+      `SELECT COUNT(*) AS count
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'Reader_Vote_Import'
+         AND COLUMN_NAME = 'deleted_at'`,
+    );
+
+    if (Number(column?.count ?? 0) === 0) {
+      await this.db.query(
+        `ALTER TABLE \`Reader_Vote_Import\`
+         ADD COLUMN \`deleted_at\` DATETIME NULL AFTER \`imported_at\``,
+      );
+    }
+  }
+
+  private async ensureReaderVoteImportDeleteTables() {
+    await this.db.query(
+      `CREATE TABLE IF NOT EXISTS \`Reader_Vote_Import_Delete_Request\` (
+        \`import_id\` BIGINT NOT NULL,
+        \`requested_by_user_id\` BIGINT NOT NULL,
+        \`reason\` VARCHAR(1000) NULL,
+        \`status\` ENUM('PENDING','APPROVED') NOT NULL DEFAULT 'PENDING',
+        \`requested_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \`approved_at\` DATETIME NULL,
+        PRIMARY KEY (\`import_id\`),
+        FOREIGN KEY (\`import_id\`) REFERENCES \`Reader_Vote_Import\`(\`import_id\`),
+        FOREIGN KEY (\`requested_by_user_id\`) REFERENCES \`User\`(\`user_id\`)
+      )`,
+    );
+    await this.db.query(
+      `CREATE TABLE IF NOT EXISTS \`Reader_Vote_Import_Delete_Approval\` (
+        \`import_id\` BIGINT NOT NULL,
+        \`board_user_id\` BIGINT NOT NULL,
+        \`approved_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`import_id\`, \`board_user_id\`),
+        FOREIGN KEY (\`import_id\`) REFERENCES \`Reader_Vote_Import_Delete_Request\`(\`import_id\`),
+        FOREIGN KEY (\`board_user_id\`) REFERENCES \`User\`(\`user_id\`)
       )`,
     );
   }
@@ -554,6 +992,7 @@ export class RankingsService {
     await this.db.query(
       `CREATE TABLE IF NOT EXISTS \`Reader_Vote_Ranking\` (
         \`reader_ranking_id\` BIGINT AUTO_INCREMENT,
+        \`import_id\` BIGINT NULL,
         \`series_id\` BIGINT NOT NULL,
         \`ranking_period_type\` ENUM('WEEKLY','MONTHLY') NOT NULL,
         \`period_start_date\` DATE NOT NULL,
@@ -567,19 +1006,69 @@ export class RankingsService {
         \`risk_level\` ENUM('LOW','MEDIUM','HIGH') NOT NULL,
         \`calculated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (\`reader_ranking_id\`),
+        FOREIGN KEY (\`import_id\`) REFERENCES \`Reader_Vote_Import\`(\`import_id\`),
         FOREIGN KEY (\`series_id\`) REFERENCES \`Series\`(\`series_id\`),
+        INDEX \`idx_reader_ranking_import\` (\`import_id\`),
         UNIQUE KEY \`uq_reader_ranking_period\` (\`series_id\`, \`ranking_period_type\`, \`period_start_date\`)
       )`,
     );
+    await this.ensureReaderVoteRankingImportColumn();
   }
 
-  private validateImportPeriodDates(startDate: string, endDate: string) {
+  private async ensureReaderVoteRankingImportColumn() {
+    const column = await this.db.queryOne<{ count: number | string }>(
+      `SELECT COUNT(*) AS count
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'Reader_Vote_Ranking'
+         AND COLUMN_NAME = 'import_id'`,
+    );
+
+    if (Number(column?.count ?? 0) === 0) {
+      await this.db.query(
+        `ALTER TABLE \`Reader_Vote_Ranking\`
+         ADD COLUMN \`import_id\` BIGINT NULL AFTER \`reader_ranking_id\``,
+      );
+    }
+
+    const index = await this.db.queryOne<{ count: number | string }>(
+      `SELECT COUNT(*) AS count
+       FROM INFORMATION_SCHEMA.STATISTICS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'Reader_Vote_Ranking'
+         AND INDEX_NAME = 'idx_reader_ranking_import'`,
+    );
+
+    if (Number(index?.count ?? 0) === 0) {
+      await this.db.query(
+        `ALTER TABLE \`Reader_Vote_Ranking\`
+         ADD INDEX \`idx_reader_ranking_import\` (\`import_id\`)`,
+      );
+    }
+  }
+
+  private validateWeeklyReaderVotePeriod(
+    periodType: 'WEEKLY' | 'MONTHLY',
+    startDate: string,
+    endDate: string,
+  ) {
+    if (periodType !== 'WEEKLY') {
+      throw new BadRequestException('Loại kỳ vote độc giả hiện chỉ hỗ trợ hàng tuần');
+    }
+
     const start = this.dateOnly(startDate);
     const end = this.dateOnly(endDate);
+    const expectedEnd = this.addDays(start, 7);
 
     if (end < start) {
       throw new BadRequestException(
         'Ngày kết thúc kỳ phát hành không thể trước ngày bắt đầu',
+      );
+    }
+
+    if (end !== expectedEnd) {
+      throw new BadRequestException(
+        `Kỳ hàng tuần phải kết thúc đúng 1 tuần sau ngày bắt đầu (${expectedEnd})`,
       );
     }
   }
@@ -912,12 +1401,21 @@ export class RankingsService {
 
   private dateOnly(value: string | Date) {
     if (value instanceof Date) {
-      return value.toISOString().slice(0, 10);
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, '0');
+      const day = String(value.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     }
     return String(value).slice(0, 10);
   }
 
   private todayDateOnly() {
     return new Date().toISOString().slice(0, 10);
+  }
+
+  private addDays(date: string, days: number) {
+    const parsed = new Date(`${date}T00:00:00.000Z`);
+    parsed.setUTCDate(parsed.getUTCDate() + days);
+    return parsed.toISOString().slice(0, 10);
   }
 }

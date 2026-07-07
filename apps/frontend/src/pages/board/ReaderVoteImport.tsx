@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, apiErrorMessage } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
 import { useToast } from "../../components/ui/Toast";
 import { useConfirm } from "../../lib/confirm";
 import { Panel } from "../../components/ui/Panel";
@@ -31,13 +32,92 @@ type ImportResult = {
   periodType: "WEEKLY" | "MONTHLY";
   startDate: string;
   endDate: string;
+  deleteRequest?: {
+    importId: number;
+    requestedByUserId: number;
+    requestedByName: string | null;
+    reason: string | null;
+    status: string;
+    requiredApprovals: number;
+    approvalCount: number;
+    approvedByCurrentUser: boolean;
+    canCurrentUserApprove: boolean;
+  } | null;
   rankings: ImportedSeries[];
+};
+
+type DeleteRequestSummary = NonNullable<ImportResult["deleteRequest"]>;
+
+type PendingDeleteRequest = DeleteRequestSummary & {
+  fileName?: string | null;
+  periodType: "WEEKLY" | "MONTHLY";
+  startDate: string;
+  endDate: string;
+  importedAt?: string | null;
+};
+
+type ConflictImport = {
+  importId: number;
+  fileName?: string | null;
+  startDate: string;
+  endDate: string;
+};
+
+type ImportConflictError = {
+  message: string;
+  conflictImport: ConflictImport;
 };
 
 const today = new Date().toISOString().slice(0, 10);
 const money = new Intl.NumberFormat("vi-VN");
 type DecisionType = "CONTINUE" | "CANCEL" | "HIATUS" | "CHANGE_FREQUENCY";
 type FrequencyType = "WEEKLY" | "MONTHLY";
+const addDays = (value: string, days: number) => {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+
+function importConflictFromError(err: unknown): ImportConflictError | null {
+  const responseData =
+    typeof err === "object" && err !== null && "response" in err
+      ? (
+          err as {
+            response?: {
+              data?: {
+                code?: string;
+                message?: string | string[];
+                conflictImport?: Partial<ConflictImport>;
+              };
+            };
+          }
+        ).response?.data
+      : undefined;
+  const conflictImport = responseData?.conflictImport;
+
+  if (
+    responseData?.code !== "READER_VOTE_IMPORT_PERIOD_CONFLICT" ||
+    typeof conflictImport?.importId !== "number" ||
+    typeof conflictImport.startDate !== "string" ||
+    typeof conflictImport.endDate !== "string"
+  ) {
+    return null;
+  }
+
+  const message = Array.isArray(responseData.message)
+    ? responseData.message.join("; ")
+    : responseData.message || "Kỳ này đã có file import.";
+
+  return {
+    message,
+    conflictImport: {
+      importId: conflictImport.importId,
+      fileName: conflictImport.fileName ?? null,
+      startDate: conflictImport.startDate,
+      endDate: conflictImport.endDate,
+    },
+  };
+}
 
 function BoardRankingTabs() {
   return (
@@ -61,17 +141,27 @@ function BoardRankingTabs() {
 export default function ReaderVoteImport() {
   const toast = useToast();
   const { confirm } = useConfirm();
-  const [periodType, setPeriodType] = useState<"WEEKLY" | "MONTHLY">("WEEKLY");
+  const { user } = useAuth();
+  const periodType: "WEEKLY" = "WEEKLY";
   const [startDate, setStartDate] = useState(today);
-  const [endDate, setEndDate] = useState(today);
+  const [endDate, setEndDate] = useState(addDays(today, 7));
   const [file, setFile] = useState<File | null>(null);
   const [csvPreview, setCsvPreview] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [loadingLatest, setLoadingLatest] = useState(true);
   const [result, setResult] = useState<ImportResult | null>(null);
-  const [selectedSeries, setSelectedSeries] = useState<ImportedSeries | null>(null);
+  const [pendingDeleteRequests, setPendingDeleteRequests] = useState<
+    PendingDeleteRequest[]
+  >([]);
+  const [selectedSeries, setSelectedSeries] = useState<ImportedSeries | null>(
+    null,
+  );
   const [decisionData, setDecisionData] = useState<
-    Record<number, { type: DecisionType; frequency?: FrequencyType; reason: string }>
+    Record<
+      number,
+      { type: DecisionType; frequency?: FrequencyType; reason: string }
+    >
   >({});
   const [busyDecisionId, setBusyDecisionId] = useState<number | null>(null);
   const [actionError, setActionError] = useState("");
@@ -81,7 +171,9 @@ export default function ReaderVoteImport() {
     setSelectedSeries((current) => {
       if (!next) return null;
       return (
-        next.rankings.find((ranking) => ranking.seriesId === current?.seriesId) ??
+        next.rankings.find(
+          (ranking) => ranking.seriesId === current?.seriesId,
+        ) ??
         next.rankings[0] ??
         null
       );
@@ -116,10 +208,24 @@ export default function ReaderVoteImport() {
     }
   }
 
+  async function loadPendingDeleteRequests() {
+    try {
+      const response = await api.get<PendingDeleteRequest[]>(
+        "/reader-vote-imports/delete-requests/pending",
+      );
+      setPendingDeleteRequests(response.data);
+    } catch (err) {
+      setActionError(
+        apiErrorMessage(err, "Không tải được danh sách yêu cầu xóa import."),
+      );
+    }
+  }
+
   useEffect(() => {
     // Load once on page open. Keep this effect one-shot so an API error cannot spam toasts.
     // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
     void loadLatestReaderRankings();
+    void loadPendingDeleteRequests();
   }, []);
 
   async function handleFileChange(nextFile?: File) {
@@ -143,12 +249,15 @@ export default function ReaderVoteImport() {
       toast.error("Vui lòng chọn file CSV.");
       return;
     }
+    const expectedEndDate = addDays(startDate, 7);
     if (!startDate || !endDate) {
       toast.error("Vui lòng chọn ngày bắt đầu và kết thúc kỳ phát hành.");
       return;
     }
-    if (endDate < startDate) {
-      toast.error("Ngày kết thúc không thể trước ngày bắt đầu.");
+    if (endDate !== expectedEndDate) {
+      toast.error(
+        `Kỳ hàng tuần phải kết thúc đúng 1 tuần sau ngày bắt đầu (${expectedEndDate}).`,
+      );
       return;
     }
 
@@ -168,9 +277,64 @@ export default function ReaderVoteImport() {
       applyResult(response.data);
       toast.success("Đã import dữ liệu độc giả và cập nhật bảng xếp hạng.");
     } catch (err) {
-      toast.error(apiErrorMessage(err, "Không import được file CSV"));
+      const conflict = importConflictFromError(err);
+      if (conflict) {
+        const fileLabel = conflict.conflictImport.fileName
+          ? `File: ${conflict.conflictImport.fileName}`
+          : `Import #${conflict.conflictImport.importId}`;
+        const shouldRequestDelete = await confirm({
+          title: "Kỳ này đã có file import",
+          body: `${conflict.message}\n\n${fileLabel}. Bạn có muốn gửi yêu cầu xóa file đã import ở kỳ bị trùng không? Yêu cầu chỉ hoàn tất khi toàn bộ Board còn lại đồng ý.`,
+          confirmText: "Gửi yêu cầu xóa",
+          cancelText: "Giữ nguyên",
+          tone: "danger",
+        });
+
+        if (shouldRequestDelete) {
+          await sendDeleteRequest(
+            conflict.conflictImport.importId,
+            `Import file mới bị trùng kỳ ${startDate} → ${endDate}`,
+          );
+        }
+      } else {
+        toast.error(apiErrorMessage(err, "Không import được file CSV"));
+      }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function sendDeleteRequest(importId: number, reason: string) {
+    setDeleteBusy(true);
+    setActionError("");
+    try {
+      await api.post(`/reader-vote-imports/${importId}/delete-request`, {
+        reason,
+      });
+      await loadLatestReaderRankings();
+      await loadPendingDeleteRequests();
+      toast.success("Đã gửi yêu cầu xóa tới các tài khoản Board còn lại.");
+    } catch (err) {
+      setActionError(apiErrorMessage(err, "Không thể gửi yêu cầu xóa import."));
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
+  async function approveDeleteImport(importId: number) {
+    setDeleteBusy(true);
+    setActionError("");
+    try {
+      await api.post(`/reader-vote-imports/${importId}/delete-approval`);
+      await loadLatestReaderRankings();
+      await loadPendingDeleteRequests();
+      toast.success("Đã duyệt yêu cầu xóa import.");
+    } catch (err) {
+      setActionError(
+        apiErrorMessage(err, "Không thể duyệt yêu cầu xóa import."),
+      );
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -321,27 +485,21 @@ export default function ReaderVoteImport() {
           <h2 className="text-lg font-semibold text-ink">Import CSV</h2>
           <p className="mt-1 text-sm text-muted">
             Cột bắt buộc:{" "}
-            <code>
-              seriesTitle,author,genres,averageReaderStars,sales
-            </code>
-            . Có thể thêm <code>seriesId</code> để match chính xác hơn. Năm bắt
-            đầu series lấy trực tiếp từ hệ thống.
+            <code>seriesTitle,author,genres,averageReaderStars,sales</code>. Có
+            thể thêm <code>seriesId</code> để match chính xác hơn. Loại kỳ chỉ
+            hỗ trợ hàng tuần, ngày kết thúc tự động là 1 tuần sau ngày bắt đầu.
           </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           <label className="block text-sm font-medium text-ink">
             Loại kỳ
-            <select
-              value={periodType}
-              onChange={(event) =>
-                setPeriodType(event.target.value as "WEEKLY" | "MONTHLY")
-              }
+            <input
+              readOnly
+              value="Hàng tuần"
+              aria-label="Loại kỳ hàng tuần"
               className="mt-2 w-full rounded-lg border border-line bg-surface p-3 text-sm"
-            >
-              <option value="WEEKLY">Hàng tuần</option>
-              <option value="MONTHLY">Hàng tháng</option>
-            </select>
+            />
           </label>
 
           <label className="block text-sm font-medium text-ink">
@@ -349,7 +507,10 @@ export default function ReaderVoteImport() {
             <input
               type="date"
               value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
+              onChange={(event) => {
+                setStartDate(event.target.value);
+                setEndDate(addDays(event.target.value, 7));
+              }}
               className="mt-2 w-full rounded-lg border border-line bg-surface p-3 text-sm"
             />
           </label>
@@ -359,9 +520,8 @@ export default function ReaderVoteImport() {
             <input
               type="date"
               value={endDate}
-              min={startDate}
-              onChange={(event) => setEndDate(event.target.value)}
-              className="mt-2 w-full rounded-lg border border-line bg-surface p-3 text-sm"
+              readOnly
+              className="mt-2 w-full rounded-lg border border-line bg-surface p-3 text-sm text-muted"
             />
           </label>
         </div>
@@ -410,6 +570,72 @@ export default function ReaderVoteImport() {
         </Panel>
       )}
 
+      {pendingDeleteRequests.length > 0 && (
+        <Panel className="space-y-3 border-accent/20 bg-accent/5 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="font-semibold text-ink">
+                Yêu cầu xóa dữ liệu import đang chờ Board duyệt
+              </h3>
+              <p className="mt-1 text-sm text-muted">
+                File chỉ bị xóa khi toàn bộ tài khoản Board còn lại đồng ý.
+              </p>
+            </div>
+            <Stamp
+              status="PENDING"
+              label={`${pendingDeleteRequests.length} yêu cầu đang chờ`}
+            />
+          </div>
+
+          <div className="space-y-3">
+            {pendingDeleteRequests.map((request) => (
+              <div
+                key={request.importId}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface p-3 text-sm"
+              >
+                <div className="space-y-1">
+                  <div className="font-medium text-ink">
+                    Import #{request.importId}
+                    {request.fileName ? ` · ${request.fileName}` : ""} ·{" "}
+                    {request.startDate} → {request.endDate}
+                  </div>
+                  <div className="text-muted">
+                    Người yêu cầu:{" "}
+                    {request.requestedByName ||
+                      `User #${request.requestedByUserId}`}
+                  </div>
+                  <div className="text-muted">
+                    Lý do: {request.reason || "Không có lý do"}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Stamp
+                    status={request.status}
+                    label={`${request.approvalCount}/${request.requiredApprovals} Board đã duyệt`}
+                  />
+                  {request.canCurrentUserApprove ? (
+                    <Button
+                      onClick={() => approveDeleteImport(request.importId)}
+                      loading={deleteBusy}
+                    >
+                      Duyệt xóa
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted">
+                      {request.requestedByUserId === user?.id
+                        ? "Bạn là người gửi yêu cầu, không cần duyệt."
+                        : request.approvedByCurrentUser
+                          ? "Bạn đã duyệt yêu cầu này."
+                          : "Đang chờ Board khác duyệt."}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+
       {!loadingLatest && result && (
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-3">
@@ -445,74 +671,78 @@ export default function ReaderVoteImport() {
                 </p>
               </div>
               <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-bg">
-                  <tr className="border-b border-line text-left">
-                    <th className="px-4 py-4 font-semibold">Hạng</th>
-                    <th className="px-4 py-4 font-semibold">Series</th>
-                    <th className="px-4 py-4 font-semibold">Năm bắt đầu</th>
-                    <th className="px-4 py-4 font-semibold">
-                      Số lượng chapter
-                    </th>
-                    <th className="px-4 py-4 font-semibold">Sao độc giả</th>
-                    <th className="px-4 py-4 font-semibold">Doanh số</th>
-                    <th className="px-4 py-4 font-semibold">Rủi ro</th>
-                    <th className="px-4 py-4 font-semibold">Trạng thái</th>
-                    <th className="px-4 py-4 font-semibold">Quyết định</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.rankings.map((ranking) => (
-                    <tr key={ranking.seriesId} className="border-b border-line">
-                      <td className="px-4 py-5 font-mono">
-                        #{ranking.rankPosition}
-                      </td>
-                      <td className="relative px-4 py-5">
-                        <button
-                          type="button"
-                          title={`${ranking.seriesTitle} · ${ranking.author} · ${ranking.genres} · ${ranking.averageReaderStars.toFixed(2)} sao · ${money.format(ranking.sales)} doanh số`}
-                          onClick={() => setSelectedSeries(ranking)}
-                          className="group text-left font-semibold text-accent hover:underline"
-                        >
-                          {ranking.seriesTitle}
-                          <span className="pointer-events-none absolute left-4 top-11 z-10 hidden w-72 rounded-lg border border-line bg-surface p-3 text-xs text-ink-soft shadow-lg group-hover:block">
-                            <strong className="block text-ink">
-                              {ranking.seriesTitle}
-                            </strong>
-                            Tác giả: {ranking.author}
-                            <br />
-                            Thể loại: {ranking.genres}
-                            <br />
-                            Sao độc giả: {ranking.averageReaderStars.toFixed(2)}
-                            <br />
-                            Doanh số: {money.format(ranking.sales)}
-                          </span>
-                        </button>
-                      </td>
-                      <td className="px-4 py-5">{ranking.publicationYear}</td>
-                      <td className="px-4 py-5">{ranking.chapterCount}</td>
-                      <td className="px-4 py-5">
-                        {ranking.averageReaderStars.toFixed(2)}
-                      </td>
-                      <td className="px-4 py-5">
-                        {money.format(ranking.sales)}
-                      </td>
-                      <td className="px-4 py-5">
-                        <Stamp
-                          status={ranking.riskLevel}
-                          label={`RISK ${ranking.riskLevel}`}
-                        />
-                      </td>
-                      <td className="px-4 py-5">
-                        <Stamp status={ranking.status} />
-                      </td>
-                      <td className="px-4 py-5">
-                        {renderDecisionControls(ranking)}
-                      </td>
+                <table className="min-w-full text-sm">
+                  <thead className="bg-bg">
+                    <tr className="border-b border-line text-left">
+                      <th className="px-4 py-4 font-semibold">Hạng</th>
+                      <th className="px-4 py-4 font-semibold">Series</th>
+                      <th className="px-4 py-4 font-semibold">Năm bắt đầu</th>
+                      <th className="px-4 py-4 font-semibold">
+                        Số lượng chapter
+                      </th>
+                      <th className="px-4 py-4 font-semibold">Sao độc giả</th>
+                      <th className="px-4 py-4 font-semibold">Doanh số</th>
+                      <th className="px-4 py-4 font-semibold">Rủi ro</th>
+                      <th className="px-4 py-4 font-semibold">Trạng thái</th>
+                      <th className="px-4 py-4 font-semibold">Quyết định</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {result.rankings.map((ranking) => (
+                      <tr
+                        key={ranking.seriesId}
+                        className="border-b border-line"
+                      >
+                        <td className="px-4 py-5 font-mono">
+                          #{ranking.rankPosition}
+                        </td>
+                        <td className="relative px-4 py-5">
+                          <button
+                            type="button"
+                            title={`${ranking.seriesTitle} · ${ranking.author} · ${ranking.genres} · ${ranking.averageReaderStars.toFixed(2)} sao · ${money.format(ranking.sales)} doanh số`}
+                            onClick={() => setSelectedSeries(ranking)}
+                            className="group text-left font-semibold text-accent hover:underline"
+                          >
+                            {ranking.seriesTitle}
+                            <span className="pointer-events-none absolute left-4 top-11 z-10 hidden w-72 rounded-lg border border-line bg-surface p-3 text-xs text-ink-soft shadow-lg group-hover:block">
+                              <strong className="block text-ink">
+                                {ranking.seriesTitle}
+                              </strong>
+                              Tác giả: {ranking.author}
+                              <br />
+                              Thể loại: {ranking.genres}
+                              <br />
+                              Sao độc giả:{" "}
+                              {ranking.averageReaderStars.toFixed(2)}
+                              <br />
+                              Doanh số: {money.format(ranking.sales)}
+                            </span>
+                          </button>
+                        </td>
+                        <td className="px-4 py-5">{ranking.publicationYear}</td>
+                        <td className="px-4 py-5">{ranking.chapterCount}</td>
+                        <td className="px-4 py-5">
+                          {ranking.averageReaderStars.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-5">
+                          {money.format(ranking.sales)}
+                        </td>
+                        <td className="px-4 py-5">
+                          <Stamp
+                            status={ranking.riskLevel}
+                            label={`RISK ${ranking.riskLevel}`}
+                          />
+                        </td>
+                        <td className="px-4 py-5">
+                          <Stamp status={ranking.status} />
+                        </td>
+                        <td className="px-4 py-5">
+                          {renderDecisionControls(ranking)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </Panel>
 
@@ -561,6 +791,16 @@ export default function ReaderVoteImport() {
                       />
                     </dd>
                   </div>
+                  {selectedSeries.status === "CANCELLED" && (
+                    <div className="pt-2">
+                      <Link
+                        to={`/board/series/${selectedSeries.seriesId}/dossier`}
+                        className="inline-flex rounded-lg border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink transition hover:bg-bg"
+                      >
+                        Xem báo cáo bảo vệ
+                      </Link>
+                    </div>
+                  )}
                 </dl>
               ) : (
                 <p className="mt-4 text-sm text-muted">

@@ -65,10 +65,10 @@ export class DecisionsService {
 
     // Step 5: Apply decision to Series
     if (dto.decisionType === DecisionType.CHANGE_FREQUENCY) {
-      // Keep status ACTIVE, just change frequency
+      // Revive the series with the new cadence after Board review.
       await this.db.query(
-        `UPDATE \`Series\` SET publication_frequency = ? WHERE series_id = ?`,
-        [dto.newFrequency, dto.seriesId],
+        `UPDATE \`Series\` SET publication_frequency = ?, series_status = ? WHERE series_id = ?`,
+        [dto.newFrequency, SeriesStatus.ACTIVE, dto.seriesId],
       );
     } else if (dto.decisionType === DecisionType.CONTINUE) {
       // Set status to ACTIVE

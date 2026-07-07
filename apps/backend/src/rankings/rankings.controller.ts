@@ -15,6 +15,7 @@ import { RankingsService } from './rankings.service';
 import { CreateVotePeriodDto } from './dto/create-vote-period.dto';
 import { CreateVoteDto } from './dto/create-vote.dto';
 import { ImportReaderVotesDto } from './dto/import-reader-votes.dto';
+import { DeleteReaderVoteImportDto } from './dto/delete-reader-vote-import.dto';
 
 // No class-level prefix: routes are /vote-periods, /votes, /rankings (matches the web client + documented contract).
 @Controller()
@@ -60,7 +61,29 @@ export class RankingsController {
 
   @Get('reader-vote-rankings/latest')
   @Roles(Role.EDITORIAL_BOARD, Role.ADMIN, Role.MANGAKA)
-  async latestReaderVoteRankings() {
-    return this.service.latestReaderVoteRankings();
+  async latestReaderVoteRankings(@Req() req: any) {
+    return this.service.latestReaderVoteRankings(req.user.id);
+  }
+
+  @Get('reader-vote-imports/delete-requests/pending')
+  @Roles(Role.EDITORIAL_BOARD)
+  async pendingReaderVoteImportDeleteRequests(@Req() req: any) {
+    return this.service.pendingReaderVoteImportDeleteRequests(req.user.id);
+  }
+
+  @Post('reader-vote-imports/:id/delete-request')
+  @Roles(Role.EDITORIAL_BOARD)
+  async requestDeleteReaderVoteImport(
+    @Param('id') id: string,
+    @Body() dto: DeleteReaderVoteImportDto,
+    @Req() req: any,
+  ) {
+    return this.service.requestDeleteReaderVoteImport(+id, req.user.id, dto);
+  }
+
+  @Post('reader-vote-imports/:id/delete-approval')
+  @Roles(Role.EDITORIAL_BOARD)
+  async approveDeleteReaderVoteImport(@Param('id') id: string, @Req() req: any) {
+    return this.service.approveDeleteReaderVoteImport(+id, req.user.id);
   }
 }

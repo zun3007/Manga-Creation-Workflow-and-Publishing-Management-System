@@ -8,7 +8,7 @@ import {
 } from 'class-validator';
 
 export class ImportReaderVotesDto {
-  @IsIn(['WEEKLY', 'MONTHLY'])
+  @IsIn(['WEEKLY'])
   @IsNotEmpty()
   periodType: 'WEEKLY' | 'MONTHLY';
 

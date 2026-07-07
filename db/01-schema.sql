@@ -337,7 +337,7 @@ CREATE TABLE `Submission` (
 -- Annotation 
 CREATE TABLE `Annotation` (
 	`annotation_id` BIGINT AUTO_INCREMENT,
-    `target_type` ENUM('PAGE','MANUSCRIPT','SUBMISSION') NOT NULL,
+    `target_type` ENUM('PAGE','MANUSCRIPT','SUBMISSION','SERIES') NOT NULL,
     `target_id` BIGINT NOT NULL,
     `created_by_user_id` BIGINT,
     `annotation_category` ENUM('CONTENT_ISSUE','DIALOGUE_ISSUE','SCRIPT_ISSUE','VISUAL_ISSUE','GENERAL') 
@@ -429,6 +429,7 @@ CREATE TABLE `Reader_Vote_Import` (
     `imported_by_user_id` BIGINT,
     `imported_count` INT NOT NULL DEFAULT 0,
     `imported_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `deleted_at` DATETIME,
 
     PRIMARY KEY (`import_id`),
     FOREIGN KEY (`imported_by_user_id`) REFERENCES `User`(`user_id`),
@@ -436,9 +437,34 @@ CREATE TABLE `Reader_Vote_Import` (
     INDEX `idx_reader_vote_import_period` (`ranking_period_type`, `period_start_date`)
 );
 
+-- Reader_Vote_Import_Delete_Request (requires all other active Board accounts to approve)
+CREATE TABLE `Reader_Vote_Import_Delete_Request` (
+    `import_id` BIGINT NOT NULL,
+    `requested_by_user_id` BIGINT NOT NULL,
+    `reason` VARCHAR(1000),
+    `status` ENUM('PENDING','APPROVED') NOT NULL DEFAULT 'PENDING',
+    `requested_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `approved_at` DATETIME,
+
+    PRIMARY KEY (`import_id`),
+    FOREIGN KEY (`import_id`) REFERENCES `Reader_Vote_Import`(`import_id`),
+    FOREIGN KEY (`requested_by_user_id`) REFERENCES `User`(`user_id`)
+);
+
+CREATE TABLE `Reader_Vote_Import_Delete_Approval` (
+    `import_id` BIGINT NOT NULL,
+    `board_user_id` BIGINT NOT NULL,
+    `approved_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (`import_id`, `board_user_id`),
+    FOREIGN KEY (`import_id`) REFERENCES `Reader_Vote_Import_Delete_Request`(`import_id`),
+    FOREIGN KEY (`board_user_id`) REFERENCES `User`(`user_id`)
+);
+
 -- Reader_Vote_Ranking (reader vote import results, separate from Editorial Board ranking)
 CREATE TABLE `Reader_Vote_Ranking` (
 	`reader_ranking_id` BIGINT AUTO_INCREMENT,
+    `import_id` BIGINT,
     `series_id` BIGINT NOT NULL,
     `ranking_period_type` ENUM('WEEKLY','MONTHLY') NOT NULL,
     `period_start_date` DATE NOT NULL,
@@ -453,7 +479,9 @@ CREATE TABLE `Reader_Vote_Ranking` (
     `calculated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (`reader_ranking_id`),
+    FOREIGN KEY (`import_id`) REFERENCES `Reader_Vote_Import`(`import_id`),
     FOREIGN KEY (`series_id`) REFERENCES `Series`(`series_id`),
+    INDEX `idx_reader_ranking_import` (`import_id`),
     UNIQUE KEY `uq_reader_ranking_period` (`series_id`, `ranking_period_type`, `period_start_date`)
 );
 

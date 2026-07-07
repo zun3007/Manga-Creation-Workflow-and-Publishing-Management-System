@@ -1,12 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { DbService } from '../db/db.service';
 import { CreateAnnotationDto } from './dto/create-annotation.dto';
+import { AnnotationTargetType } from '@manga/shared';
 
 @Injectable()
 export class AnnotationsService {
   constructor(private readonly db: DbService) {}
 
   async create(userId: number, dto: CreateAnnotationDto) {
+    if (dto.targetType === AnnotationTargetType.SERIES) {
+      throw new BadRequestException(
+        'Vui lòng tạo báo cáo bảo vệ series từ hồ sơ bảo vệ Series.',
+      );
+    }
+
     const annotationId = await this.db.insert(
       `INSERT INTO \`Annotation\` (target_type, target_id, created_by_user_id, annotation_category, context, x_coordinate, y_coordinate)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -20,6 +27,22 @@ export class AnnotationsService {
         dto.y ?? null,
       ],
     );
+
+    if (typeof this.db.query === 'function') {
+      await this.db.query(
+        `INSERT INTO \`Audit_Log\` (actor_user_id, action, entity_type, entity_id, after_value)
+         VALUES (?, 'CREATE', 'Annotation', ?, ?)`,
+        [
+          userId,
+          annotationId,
+          JSON.stringify({
+            targetType: dto.targetType,
+            targetId: dto.targetId,
+            category: dto.category,
+          }),
+        ],
+      );
+    }
 
     return this.findOne(annotationId);
   }

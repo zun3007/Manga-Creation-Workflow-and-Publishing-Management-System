@@ -2,6 +2,7 @@ export enum AnnotationTargetType {
   PAGE = "PAGE",
   MANUSCRIPT = "MANUSCRIPT",
   SUBMISSION = "SUBMISSION",
+  SERIES = "SERIES",
 }
 
 export enum AnnotationCategory {

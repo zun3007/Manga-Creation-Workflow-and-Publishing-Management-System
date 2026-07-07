@@ -62,6 +62,8 @@ export interface AppNotification {
   title: string;
   content: string | null;
   isRead: number;
+  relatedEntityType?: string | null;
+  relatedEntityId?: number | null;
   createdAt: string;
 }
 

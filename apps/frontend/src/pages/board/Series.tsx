@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
 import { useConfirm } from "../../lib/confirm";
@@ -159,6 +160,9 @@ export default function BoardSeries() {
                 </th>
                 <th className="p-4 text-left font-semibold text-ink">Chương</th>
                 <th className="p-4 text-left font-semibold text-ink">
+                  Báo cáo bảo vệ
+                </th>
+                <th className="p-4 text-left font-semibold text-ink">
                   Biên tập
                 </th>
               </tr>
@@ -176,6 +180,18 @@ export default function BoardSeries() {
                       <Stamp status={row.status} />
                     </td>
                     <td className="p-4 text-ink">{row.chapters}</td>
+                    <td className="p-4">
+                      {row.status === "CANCELLED" ? (
+                        <Link
+                          to={`/board/series/${row.id}/dossier`}
+                          className="inline-flex rounded-lg border border-line bg-surface px-3 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:text-accent"
+                        >
+                          Xem báo cáo
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-ink-soft">—</span>
+                      )}
+                    </td>
                     <td className="p-4">
                       <select
                         value={row.editorUserId ?? ""}

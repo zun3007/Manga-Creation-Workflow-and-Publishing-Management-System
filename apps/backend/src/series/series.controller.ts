@@ -1,10 +1,11 @@
-import { Controller, Get, Param, Req, UseGuards, Put, Delete, Body } from '@nestjs/common';
+import { Controller, Get, Param, Req, UseGuards, Put, Delete, Body, Post } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '@manga/shared';
 import { SeriesService } from './series.service';
 import { AssignEditorDto } from './dto/assign-editor.dto';
+import { CreateDefenseReportDto } from './dto/create-defense-report.dto';
 
 @Controller('series')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -21,6 +22,22 @@ export class SeriesController {
   @Roles(Role.MANGAKA)
   async listMine(@Req() req: any) {
     return this.service.listMine(req.user.id);
+  }
+
+  @Get(':id/dossier')
+  @Roles(Role.TANTOU_EDITOR, Role.EDITORIAL_BOARD)
+  async getDefenseDossier(@Param('id') id: string, @Req() req: any) {
+    return this.service.getDefenseDossier(+id, req.user.id, req.user.role);
+  }
+
+  @Post(':id/defense-reports')
+  @Roles(Role.TANTOU_EDITOR)
+  async createDefenseReport(
+    @Param('id') id: string,
+    @Body() dto: CreateDefenseReportDto,
+    @Req() req: any,
+  ) {
+    return this.service.createDefenseReport(+id, req.user.id, dto);
   }
 
   @Get(':id')

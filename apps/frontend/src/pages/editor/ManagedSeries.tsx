@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
 import { Panel } from "../../components/ui/Panel";
 import { Stamp } from "../../components/ui/Stamp";
@@ -85,6 +86,7 @@ export default function ManagedSeriesPage() {
                   <th className="px-4 py-4 font-semibold">Chờ duyệt</th>
                   <th className="px-4 py-4 font-semibold">Deadline gần nhất</th>
                   <th className="px-4 py-4 font-semibold">Ngày nhận</th>
+                  <th className="px-4 py-4 font-semibold">Hồ sơ</th>
                 </tr>
               </thead>
               <tbody>
@@ -124,6 +126,18 @@ export default function ManagedSeriesPage() {
                     </td>
                     <td className="px-4 py-5">{date(row.nextDeadline)}</td>
                     <td className="px-4 py-5">{date(row.assignedAt)}</td>
+                    <td className="px-4 py-5">
+                      {row.status === "CANCELLED" ? (
+                        <Link
+                          to={`/editor/series/${row.id}/dossier`}
+                          className="inline-flex whitespace-nowrap rounded-[calc(var(--app-radius)*0.66)] border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink transition hover:bg-bg"
+                        >
+                          Hồ sơ bảo vệ
+                        </Link>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

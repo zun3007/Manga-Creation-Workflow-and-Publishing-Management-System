@@ -62,25 +62,25 @@ export class ProposalsController {
   }
 
   @Get('review-queue')
-  @Roles(Role.EDITORIAL_BOARD, Role.TANTOU_EDITOR)
+  @Roles(Role.EDITORIAL_BOARD)
   async reviewQueue() {
     return this.service.reviewQueue();
   }
 
   @Get(':id/review')
-  @Roles(Role.EDITORIAL_BOARD, Role.TANTOU_EDITOR)
+  @Roles(Role.EDITORIAL_BOARD)
   async reviewDetail(@Param('id') id: string) {
     return this.service.reviewDetail(+id);
   }
 
   @Patch(':id/start-review')
-  @Roles(Role.EDITORIAL_BOARD, Role.TANTOU_EDITOR)
+  @Roles(Role.EDITORIAL_BOARD)
   async startReview(@Param('id') id: string) {
     return this.service.startReview(+id);
   }
 
   @Patch(':id/review-note')
-  @Roles(Role.TANTOU_EDITOR)
+  @Roles(Role.EDITORIAL_BOARD)
   async reviewNote(@Param('id') id: string, @Body('note') note: string) {
     return this.service.updateReviewNote(+id, note ?? '');
   }

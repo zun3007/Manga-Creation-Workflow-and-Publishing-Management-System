@@ -23,7 +23,15 @@ export class NotificationsService {
 
   async listForUser(userId: number) {
     return this.db.query(
-      `SELECT notification_id AS id, notification_type AS type, title, content, is_read AS isRead, created_at AS createdAt
+      `SELECT
+        notification_id AS id,
+        notification_type AS type,
+        title,
+        content,
+        is_read AS isRead,
+        related_entity_type AS relatedEntityType,
+        related_entity_id AS relatedEntityId,
+        created_at AS createdAt
        FROM \`Notification\`
        WHERE recipient_user_id = ?
        ORDER BY is_read ASC, created_at DESC
