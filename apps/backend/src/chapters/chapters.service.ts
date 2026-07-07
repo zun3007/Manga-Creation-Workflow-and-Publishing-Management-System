@@ -74,7 +74,10 @@ export class ChaptersService {
         c.chapter_title AS title,
         c.chapter_status AS status,
         c.deadline,
-        (SELECT COUNT(*) FROM \`Page\` p WHERE p.chapter_id = c.chapter_id) AS pages
+        (SELECT COUNT(DISTINCT p.page_id)
+         FROM \`Page\` p
+         JOIN \`Page_Version\` pv ON pv.page_id = p.page_id AND pv.version_number = p.current_version
+         WHERE p.chapter_id = c.chapter_id) AS pages
        FROM \`Chapter\` c
        WHERE c.series_id = ?
        ORDER BY c.chapter_number`,
@@ -111,25 +114,23 @@ export class ChaptersService {
 
     // For PUBLISHED status, verify all pages are COMPLETED
     if (status === ChapterStatus.PUBLISHED) {
-      const incompletePages = await this.db.queryOne<{ c: number }>(
-        `SELECT COUNT(*) AS c FROM \`Page\` WHERE chapter_id = ? AND page_status <> 'COMPLETED'`,
-        [chapterId],
-      );
+      const readiness = await this.getChapterReadiness(chapterId);
 
-      if ((incompletePages?.c ?? 0) > 0) {
+      if (readiness.totalPages === 0) {
+        throw new BadRequestException(
+          'Chương chưa có trang',
+        );
+      }
+
+      if (readiness.incompletePages > 0) {
         throw new BadRequestException(
           'Còn trang chưa hoàn thành — không thể xuất bản',
         );
       }
 
-      const totalPages = await this.db.queryOne<{ c: number }>(
-        `SELECT COUNT(*) AS c FROM \`Page\` WHERE chapter_id = ?`,
-        [chapterId],
-      );
-
-      if ((totalPages?.c ?? 0) === 0) {
+      if (readiness.nonApprovedTasks > 0) {
         throw new BadRequestException(
-          'Chương chưa có trang',
+          'Còn task chưa được duyệt — không thể xuất bản',
         );
       }
     }
@@ -210,7 +211,10 @@ export class ChaptersService {
     return this.db.query(
       `SELECT c.chapter_id AS id, c.chapter_number AS number, c.chapter_title AS title,
               c.chapter_status AS status, c.deadline, s.series_id AS seriesId, s.title AS series,
-              (SELECT COUNT(*) FROM \`Page\` p WHERE p.chapter_id = c.chapter_id) AS pages
+              (SELECT COUNT(DISTINCT p.page_id)
+               FROM \`Page\` p
+               JOIN \`Page_Version\` pv ON pv.page_id = p.page_id AND pv.version_number = p.current_version
+               WHERE p.chapter_id = c.chapter_id) AS pages
        FROM \`Chapter\` c
        JOIN \`Series\` s ON s.series_id = c.series_id
        JOIN \`Series_Tantou_Editor\` ste ON ste.series_id = s.series_id
@@ -257,6 +261,29 @@ export class ChaptersService {
       throw new BadRequestException(
         `Invalid transition ${row.chapter_status} → ${target}`,
       );
+    }
+
+    if (target === ChapterStatus.EDITOR_APPROVED) {
+      const readiness = await this.getChapterReadiness(chapterId);
+
+      if (readiness.totalPages === 0) {
+        throw new BadRequestException(
+          'Chương chưa có trang — không thể duyệt chương',
+        );
+      }
+
+      if (readiness.incompletePages > 0 || readiness.nonApprovedTasks > 0) {
+        const reasons: string[] = [];
+        if (readiness.incompletePages > 0) {
+          reasons.push(`${readiness.incompletePages} trang chưa hoàn thành`);
+        }
+        if (readiness.nonApprovedTasks > 0) {
+          reasons.push(`${readiness.nonApprovedTasks} task chưa được duyệt`);
+        }
+        throw new BadRequestException(
+          `Còn ${reasons.join(' và ')} — không thể duyệt chương`,
+        );
+      }
     }
 
     await this.db.query(
@@ -310,10 +337,43 @@ export class ChaptersService {
         c.chapter_status AS status,
         c.deadline,
         c.is_locked AS isLocked,
-        (SELECT COUNT(*) FROM \`Page\` p WHERE p.chapter_id = c.chapter_id) AS pages
+        (SELECT COUNT(DISTINCT p.page_id)
+         FROM \`Page\` p
+         JOIN \`Page_Version\` pv ON pv.page_id = p.page_id AND pv.version_number = p.current_version
+         WHERE p.chapter_id = c.chapter_id) AS pages
        FROM \`Chapter\` c
        WHERE c.chapter_id = ?`,
       [chapterId],
     );
+  }
+
+  private async getChapterReadiness(chapterId: number) {
+    const row = await this.db.queryOne<{
+      totalPages: number;
+      incompletePages: number;
+      nonApprovedTasks: number;
+    }>(
+      `SELECT
+        (SELECT COUNT(DISTINCT p.page_id)
+         FROM \`Page\` p
+         JOIN \`Page_Version\` pv ON pv.page_id = p.page_id AND pv.version_number = p.current_version
+         WHERE p.chapter_id = ?) AS totalPages,
+        (SELECT COUNT(DISTINCT p.page_id)
+         FROM \`Page\` p
+         JOIN \`Page_Version\` pv ON pv.page_id = p.page_id AND pv.version_number = p.current_version
+         WHERE p.chapter_id = ? AND p.page_status <> 'COMPLETED') AS incompletePages,
+        (SELECT COUNT(DISTINCT t.task_id)
+         FROM \`Task\` t
+         JOIN \`Page\` p ON p.page_id = t.page_id
+         JOIN \`Page_Version\` pv ON pv.page_id = p.page_id AND pv.version_number = p.current_version
+         WHERE p.chapter_id = ? AND t.task_status <> 'APPROVED') AS nonApprovedTasks`,
+      [chapterId, chapterId, chapterId],
+    );
+
+    return {
+      totalPages: Number(row?.totalPages ?? 0),
+      incompletePages: Number(row?.incompletePages ?? 0),
+      nonApprovedTasks: Number(row?.nonApprovedTasks ?? 0),
+    };
   }
 }
