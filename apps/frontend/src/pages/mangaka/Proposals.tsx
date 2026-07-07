@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { api } from "../../lib/api";
+import { ExternalLink, FileText, Upload } from "lucide-react";
+import { api, apiErrorMessage } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
@@ -13,6 +14,13 @@ interface Genre {
   name: string;
 }
 
+interface SampleManuscriptConfig {
+  maxMB: number;
+  extensions: string[];
+  accept: string;
+  hint: string;
+}
+
 export default function Proposals() {
   useAuth();
   const toast = useToast();
@@ -21,6 +29,10 @@ export default function Proposals() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitErrors, setSubmitErrors] = useState<Record<number, string>>({});
+  const [sampleConfig, setSampleConfig] = useState<SampleManuscriptConfig | null>(null);
+  const [sampleFile, setSampleFile] = useState<File | null>(null);
+  const [uploadingProposalId, setUploadingProposalId] = useState<number | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -40,6 +52,10 @@ export default function Proposals() {
       const [proposalsRes, genresRes] = await Promise.all([
         api.get("/proposals/mine"),
         api.get("/genres"),
+        api.get("/proposals/sample-manuscript-config").then((res) => {
+          setSampleConfig(res.data);
+          return res;
+        }),
       ]);
       setProposals(proposalsRes.data);
       setGenres(genresRes.data);
@@ -72,7 +88,11 @@ export default function Proposals() {
         proposedFrequency: formData.proposedFrequency,
         genreIds: formData.genreIds,
       });
-      setProposals([res.data, ...proposals]);
+      let created = res.data;
+      if (sampleFile) {
+        created = await uploadSampleManuscript(created.id, sampleFile);
+      }
+      setProposals([created, ...proposals]);
       toast.success("Đã tạo đề xuất.");
       setFormData({
         title: "",
@@ -80,22 +100,57 @@ export default function Proposals() {
         proposedFrequency: "WEEKLY",
         genreIds: [],
       });
+      setSampleFile(null);
     } catch (err: any) {
       console.error("Failed to create proposal:", err);
-      setError(err.response?.data?.message || "Lỗi khi tạo đề xuất");
+      setError(apiErrorMessage(err, "Lỗi khi tạo đề xuất"));
     } finally {
       setSubmitting(false);
     }
   }
 
   async function handleSubmitProposal(proposalId: number) {
+    const proposal = proposals.find((p) => p.id === proposalId);
+    if (!proposal?.sampleManuscriptUrl) {
+      const msg = "Vui lòng tải bản thảo mẫu trước khi gửi duyệt.";
+      setSubmitErrors((prev) => ({ ...prev, [proposalId]: msg }));
+      toast.error(msg);
+      return;
+    }
+
     try {
       const res = await api.patch(`/proposals/${proposalId}/submit`);
       setProposals(proposals.map((p) => (p.id === proposalId ? res.data : p)));
+      setSubmitErrors((prev) => ({ ...prev, [proposalId]: "" }));
       toast.success("Đã gửi đề xuất cho hội đồng.");
     } catch (err: any) {
       console.error("Failed to submit proposal:", err);
-      setError(err.response?.data?.message || "Lỗi khi gửi đề xuất");
+      const msg = apiErrorMessage(err, "Lỗi khi gửi đề xuất");
+      setSubmitErrors((prev) => ({ ...prev, [proposalId]: msg }));
+    }
+  }
+
+  async function uploadSampleManuscript(proposalId: number, file: File) {
+    const fd = new FormData();
+    fd.append("file", file);
+    const { data } = await api.post(`/proposals/${proposalId}/sample-manuscript`, fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  }
+
+  async function replaceProposalSample(proposalId: number, file: File | null) {
+    if (!file) return;
+    try {
+      setUploadingProposalId(proposalId);
+      const updated = await uploadSampleManuscript(proposalId, file);
+      setProposals(proposals.map((p) => (p.id === proposalId ? updated : p)));
+      setSubmitErrors((prev) => ({ ...prev, [proposalId]: "" }));
+      toast.success("Đã cập nhật bản thảo mẫu.");
+    } catch (err) {
+      setError(apiErrorMessage(err, "Không thể tải bản thảo mẫu."));
+    } finally {
+      setUploadingProposalId(null);
     }
   }
 
@@ -203,6 +258,36 @@ export default function Proposals() {
             </label>
           </div>
 
+          <div>
+            <span className="mb-1 block font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft">
+              Bản thảo mẫu
+            </span>
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-[calc(var(--app-radius)*0.6)] border border-dashed border-line bg-bg px-4 py-3 transition hover:border-accent hover:bg-surface">
+              <span className="flex items-center gap-3 text-sm text-ink">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-accent/10 text-accent">
+                  <Upload size={17} />
+                </span>
+                <span>
+                  <span className="block font-semibold">
+                    {sampleFile ? sampleFile.name : "Bản thảo mẫu (không bắt buộc ở bản nháp)"}
+                  </span>
+                  <span className="text-xs text-ink-soft">
+                    {sampleConfig?.hint ?? "Đang tải cấu hình upload..."}
+                  </span>
+                </span>
+              </span>
+              <span className="rounded bg-surface px-3 py-1 text-xs font-semibold text-ink border border-line">
+                Chọn file
+              </span>
+              <input
+                type="file"
+                className="hidden"
+                accept={sampleConfig?.accept}
+                onChange={(e) => setSampleFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+          </div>
+
           <Button
             type="submit"
             disabled={submitting}
@@ -243,6 +328,22 @@ export default function Proposals() {
                     </p>
                   )}
                   <div className="flex gap-2 flex-wrap">
+                    {proposal.sampleManuscriptUrl ? (
+                      <a
+                        href={proposal.sampleManuscriptUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs bg-accent/10 text-accent px-2 py-1 rounded border border-accent/20"
+                      >
+                        <FileText size={13} />
+                        {proposal.sampleManuscriptName || "Bản thảo mẫu"}
+                        <ExternalLink size={12} />
+                      </a>
+                    ) : (
+                      <span className="text-xs bg-danger/10 text-danger px-2 py-1 rounded border border-danger/20">
+                        Chưa có bản thảo mẫu
+                      </span>
+                    )}
                     {proposal.genres && (
                       <>
                         {proposal.genres.split(",").map((genre, idx) => (
@@ -256,15 +357,33 @@ export default function Proposals() {
                       </>
                     )}
                   </div>
+                  {submitErrors[proposal.id] && (
+                    <p className="mt-2 text-sm text-danger">{submitErrors[proposal.id]}</p>
+                  )}
                 </div>
                 {proposal.status === "DRAFT" && (
-                  <Button
-                    variant="accent"
-                    onClick={() => handleSubmitProposal(proposal.id)}
-                    className="ml-4"
-                  >
-                    Gửi duyệt
-                  </Button>
+                  <div className="ml-4 flex shrink-0 flex-col gap-2">
+                    <label className="inline-flex cursor-pointer items-center justify-center rounded-[calc(var(--app-radius)*0.66)] border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink transition hover:bg-bg">
+                      {uploadingProposalId === proposal.id
+                        ? "Đang tải..."
+                        : proposal.sampleManuscriptUrl
+                          ? "Thay bản thảo"
+                          : "Tải bản thảo"}
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept={sampleConfig?.accept}
+                        disabled={uploadingProposalId === proposal.id}
+                        onChange={(e) => replaceProposalSample(proposal.id, e.target.files?.[0] ?? null)}
+                      />
+                    </label>
+                    <Button
+                      variant="accent"
+                      onClick={() => handleSubmitProposal(proposal.id)}
+                    >
+                      Gửi duyệt
+                    </Button>
+                  </div>
                 )}
               </Panel>
             ))}

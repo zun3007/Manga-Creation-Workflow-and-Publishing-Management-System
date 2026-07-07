@@ -62,6 +62,13 @@ INSERT INTO `Task_Price_Rule` (rule_id, rule_name, region_type, base_price, is_a
 (4,'Dialogue bubble base','DIALOGUE_BUBBLE',10.00,1,'2026-01-01',7),
 (5,'Effect base','EFFECT',15.00,1,'2026-01-01',7);
 
+-- ===== Sample manuscript upload config =====
+INSERT INTO `System_Config` (config_key, config_value, description, updated_by_user_id) VALUES
+('sample_manuscript_allowed_extensions','.pdf,.png,.jpg,.jpeg,.webp','Allowed file extensions for proposal sample manuscripts',7),
+('sample_manuscript_allowed_mime_types','application/pdf,image/png,image/jpeg,image/webp','Allowed MIME types for proposal sample manuscripts',7),
+('sample_manuscript_max_mb','25','Maximum sample manuscript upload size in MB',7)
+ON DUPLICATE KEY UPDATE config_value = VALUES(config_value), description = VALUES(description);
+
 -- ===== Chapters =====
 INSERT INTO `Chapter` (chapter_id, series_id, chapter_number, chapter_title, deadline, chapter_status, is_locked) VALUES
 (1,1,1,'The Black Blade','2026-03-01 23:59:00','PUBLISHED',1),

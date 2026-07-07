@@ -73,6 +73,11 @@ export interface Proposal {
   status: ProposalStatus;
   proposedFrequency?: Frequency;
   genres?: string;
+  sampleManuscriptUrl?: string | null;
+  sampleManuscriptName?: string | null;
+  sampleManuscriptUploadedAt?: string | null;
+  reviewNote?: string | null;
+  decisionNote?: string | null;
   mangaka?: string;
   mangakaUserId?: number;
   mangakaName?: string;

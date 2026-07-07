@@ -161,7 +161,7 @@ function AppRoutes() {
         path="/board/reader-votes/import"
         element={
           <Protected>
-            <RoleProtected roles={["EDITORIAL_BOARD" as Role]}>
+            <RoleProtected roles={["EDITORIAL_BOARD" as Role, "TANTOU_EDITOR" as Role]}>
               <AppShell>
                 <ReaderVoteImport />
               </AppShell>

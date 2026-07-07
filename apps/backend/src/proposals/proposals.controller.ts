@@ -7,7 +7,11 @@ import {
   Param,
   Req,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -33,6 +37,24 @@ export class ProposalsController {
     return this.service.listMine(req.user.id);
   }
 
+  @Get('sample-manuscript-config')
+  @Roles(Role.MANGAKA)
+  async sampleManuscriptConfig() {
+    return this.service.sampleManuscriptConfig();
+  }
+
+  @Post(':id/sample-manuscript')
+  @Roles(Role.MANGAKA)
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  async uploadSampleManuscript(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ) {
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    return this.service.uploadSampleManuscript(+id, req.user.id, file, baseUrl);
+  }
+
   @Patch(':id/submit')
   @Roles(Role.MANGAKA)
   async submit(@Param('id') id: string, @Req() req: any) {
@@ -40,9 +62,27 @@ export class ProposalsController {
   }
 
   @Get('review-queue')
-  @Roles(Role.EDITORIAL_BOARD)
+  @Roles(Role.EDITORIAL_BOARD, Role.TANTOU_EDITOR)
   async reviewQueue() {
     return this.service.reviewQueue();
+  }
+
+  @Get(':id/review')
+  @Roles(Role.EDITORIAL_BOARD, Role.TANTOU_EDITOR)
+  async reviewDetail(@Param('id') id: string) {
+    return this.service.reviewDetail(+id);
+  }
+
+  @Patch(':id/start-review')
+  @Roles(Role.EDITORIAL_BOARD, Role.TANTOU_EDITOR)
+  async startReview(@Param('id') id: string) {
+    return this.service.startReview(+id);
+  }
+
+  @Patch(':id/review-note')
+  @Roles(Role.TANTOU_EDITOR)
+  async reviewNote(@Param('id') id: string, @Body('note') note: string) {
+    return this.service.updateReviewNote(+id, note ?? '');
   }
 
   @Patch(':id/decision')
@@ -52,6 +92,6 @@ export class ProposalsController {
     @Body() dto: DecisionDto,
     @Req() req: any,
   ) {
-    return this.service.decide(+id, dto.decision, req.user.id);
+    return this.service.decide(+id, dto.decision, req.user.id, dto.note);
   }
 }

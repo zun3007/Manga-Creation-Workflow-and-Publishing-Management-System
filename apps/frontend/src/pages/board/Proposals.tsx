@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { api } from "../../lib/api";
+import { ExternalLink, FileText } from "lucide-react";
+import { Role } from "@manga/shared";
+import { api, apiErrorMessage } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
 import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
@@ -13,14 +16,21 @@ interface ReviewProposal {
   proposedFrequency: string;
   mangakaName: string;
   genres: string | null;
+  sampleManuscriptUrl: string | null;
+  sampleManuscriptName: string | null;
+  reviewNote: string | null;
+  decisionNote: string | null;
 }
 
 export default function BoardProposals() {
+  const { user } = useAuth();
   const toast = useToast();
   const [proposals, setProposals] = useState<ReviewProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<number | null>(null);
+  const [rejectNotes, setRejectNotes] = useState<Record<number, string>>({});
+  const [reviewNotes, setReviewNotes] = useState<Record<number, string>>({});
 
   useEffect(() => {
     loadProposals();
@@ -41,9 +51,16 @@ export default function BoardProposals() {
   }
 
   async function handleDecision(proposalId: number, decision: "APPROVED" | "REJECTED") {
+    const note = rejectNotes[proposalId]?.trim() ?? "";
+    if (decision === "REJECTED" && !note) {
+      setError("Vui lòng nhập lý do từ chối.");
+      toast.error("Vui lòng nhập lý do từ chối.");
+      return;
+    }
+
     try {
       setProcessingId(proposalId);
-      await api.patch(`/proposals/${proposalId}/decision`, { decision });
+      await api.patch(`/proposals/${proposalId}/decision`, { decision, note });
       setProposals(proposals.filter((p) => p.id !== proposalId));
       if (decision === "APPROVED") {
         toast.success('Đã duyệt đề xuất — series đã được tạo.');
@@ -52,11 +69,42 @@ export default function BoardProposals() {
       }
     } catch (err: any) {
       console.error(`Failed to ${decision.toLowerCase()} proposal:`, err);
-      setError(err.response?.data?.message || `Lỗi khi xử lý đề xuất`);
+      setError(apiErrorMessage(err, `Lỗi khi xử lý đề xuất`));
     } finally {
       setProcessingId(null);
     }
   }
+
+  async function saveReviewNote(proposalId: number) {
+    try {
+      setProcessingId(proposalId);
+      const { data } = await api.patch(`/proposals/${proposalId}/review-note`, {
+        note: reviewNotes[proposalId] ?? "",
+      });
+      setProposals(proposals.map((p) => (p.id === proposalId ? data : p)));
+      toast.success("Đã lưu ghi chú xét duyệt.");
+    } catch (err) {
+      setError(apiErrorMessage(err, "Không thể lưu ghi chú xét duyệt."));
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  async function startReview(proposalId: number) {
+    try {
+      setProcessingId(proposalId);
+      const { data } = await api.patch(`/proposals/${proposalId}/start-review`);
+      setProposals(proposals.map((p) => (p.id === proposalId ? data : p)));
+      toast.success("Đã chuyển đề xuất sang trạng thái xét duyệt.");
+    } catch (err) {
+      setError(apiErrorMessage(err, "Không thể bắt đầu xét duyệt."));
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  const isBoard = user?.role === Role.EDITORIAL_BOARD;
+  const isTantou = user?.role === Role.TANTOU_EDITOR;
 
   if (loading) {
     return (
@@ -121,23 +169,95 @@ export default function BoardProposals() {
                         </>
                       )}
                     </div>
+                    <div className="mt-3">
+                      {proposal.sampleManuscriptUrl ? (
+                        <Button
+                          type="button"
+                          variant="soft"
+                          onClick={() => window.open(proposal.sampleManuscriptUrl!, "_blank", "noopener,noreferrer")}
+                          className="inline-flex items-center gap-2"
+                        >
+                          <FileText size={16} />
+                          Xem bản thảo
+                          <ExternalLink size={14} />
+                        </Button>
+                      ) : (
+                        <p className="text-sm text-ink-soft">Không có bản thảo đính kèm</p>
+                      )}
+                    </div>
+
+                    {proposal.reviewNote && (
+                      <Panel className="mt-3 bg-bg p-3 text-sm text-ink-soft">
+                        <span className="font-semibold text-ink">Ghi chú xét duyệt:</span>{" "}
+                        {proposal.reviewNote}
+                      </Panel>
+                    )}
+
+                    {isTantou && proposal.status === "UNDER_REVIEW" && (
+                      <div className="mt-3 space-y-2">
+                        <label className="block">
+                          <span className="mb-1 block text-sm font-semibold text-ink">
+                            Thêm ghi chú xét duyệt
+                          </span>
+                          <textarea
+                            rows={3}
+                            value={reviewNotes[proposal.id] ?? proposal.reviewNote ?? ""}
+                            onChange={(e) =>
+                              setReviewNotes((prev) => ({ ...prev, [proposal.id]: e.target.value }))
+                            }
+                            className="w-full rounded-[calc(var(--app-radius)*0.6)] border border-line bg-surface px-3 py-2 text-ink outline-none transition focus:border-accent"
+                          />
+                        </label>
+                        <Button
+                          variant="soft"
+                          onClick={() => saveReviewNote(proposal.id)}
+                          disabled={processingId === proposal.id}
+                        >
+                          Lưu ghi chú
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-2 ml-4 flex-shrink-0">
-                    <Button
-                      variant="accent"
-                      onClick={() => handleDecision(proposal.id, "APPROVED")}
-                      disabled={processingId === proposal.id}
-                    >
-                      {processingId === proposal.id ? "..." : "Duyệt"}
-                    </Button>
-                    <Button
-                      variant="soft"
-                      onClick={() => handleDecision(proposal.id, "REJECTED")}
-                      disabled={processingId === proposal.id}
-                    >
-                      {processingId === proposal.id ? "..." : "Từ chối"}
-                    </Button>
-                  </div>
+                  {proposal.status === "SUBMITTED" && (
+                    <div className="ml-4 flex-shrink-0">
+                      <Button
+                        variant="soft"
+                        onClick={() => startReview(proposal.id)}
+                        disabled={processingId === proposal.id}
+                      >
+                        {processingId === proposal.id ? "..." : "Bắt đầu xét duyệt"}
+                      </Button>
+                    </div>
+                  )}
+                  {isBoard && proposal.status === "UNDER_REVIEW" && (
+                    <div className="flex w-72 flex-shrink-0 flex-col gap-2 ml-4">
+                      <textarea
+                        rows={3}
+                        placeholder="Lý do từ chối (bắt buộc nếu từ chối)"
+                        value={rejectNotes[proposal.id] ?? ""}
+                        onChange={(e) =>
+                          setRejectNotes((prev) => ({ ...prev, [proposal.id]: e.target.value }))
+                        }
+                        className="w-full rounded-[calc(var(--app-radius)*0.6)] border border-line bg-surface px-3 py-2 text-sm text-ink outline-none transition focus:border-accent"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          variant="accent"
+                          onClick={() => handleDecision(proposal.id, "APPROVED")}
+                          disabled={processingId === proposal.id}
+                        >
+                          {processingId === proposal.id ? "..." : "Phê duyệt"}
+                        </Button>
+                        <Button
+                          variant="soft"
+                          onClick={() => handleDecision(proposal.id, "REJECTED")}
+                          disabled={processingId === proposal.id}
+                        >
+                          {processingId === proposal.id ? "..." : "Từ chối"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </Panel>
             ))}
