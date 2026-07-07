@@ -1,8 +1,10 @@
 import {
   Injectable,
+  BadRequestException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { ChapterStatus } from '@manga/shared';
 import { DbService } from '../db/db.service';
 import { CreateRegionDto } from './dto/create-region.dto';
 
@@ -10,12 +12,27 @@ import { CreateRegionDto } from './dto/create-region.dto';
 export class RegionsService {
   constructor(private readonly db: DbService) {}
 
+  private assertChapterEditableForMangaka(status: string) {
+    if (
+      [
+        ChapterStatus.READY_FOR_EDITOR_REVIEW,
+        ChapterStatus.EDITOR_APPROVED,
+        ChapterStatus.PUBLISHED,
+      ].includes(status as ChapterStatus)
+    ) {
+      throw new BadRequestException(
+        'Chapter đang chờ biên tập/đã duyệt/đã xuất bản nên không thể sửa vùng',
+      );
+    }
+  }
+
   async create(userId: number, dto: CreateRegionDto) {
     // Verify ownership: page -> chapter -> series -> mangaka_user_id
     const page = await this.db.queryOne<{
       page_id: number;
+      chapter_status: string;
     }>(
-      `SELECT p.page_id
+      `SELECT p.page_id, c.chapter_status
        FROM \`Page\` p
        JOIN \`Chapter\` c ON p.chapter_id = c.chapter_id
        JOIN \`Series\` s ON c.series_id = s.series_id
@@ -26,6 +43,7 @@ export class RegionsService {
     if (!page) {
       throw new ForbiddenException('You do not own this page');
     }
+    this.assertChapterEditableForMangaka(page.chapter_status);
 
     // Get the page's current page_version_id
     const pageVersion = await this.db.queryOne<{
@@ -95,8 +113,9 @@ export class RegionsService {
     // Verify ownership: region -> page -> chapter -> series -> mangaka_user_id
     const region = await this.db.queryOne<{
       region_id: number;
+      chapter_status: string;
     }>(
-      `SELECT r.region_id
+      `SELECT r.region_id, c.chapter_status
        FROM \`Region\` r
        JOIN \`Page\` p ON r.page_id = p.page_id
        JOIN \`Chapter\` c ON p.chapter_id = c.chapter_id
@@ -108,6 +127,7 @@ export class RegionsService {
     if (!region) {
       throw new ForbiddenException('You do not own this region');
     }
+    this.assertChapterEditableForMangaka(region.chapter_status);
 
     await this.db.query(`DELETE FROM \`Region\` WHERE region_id = ?`, [
       regionId,

@@ -13,6 +13,7 @@ import {
   canTransition,
   NotificationType,
   Role,
+  ChapterStatus,
 } from '@manga/shared';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { syncPageStatusFromTasks } from '../pages/page-status.util';
@@ -26,6 +27,20 @@ export class TasksService {
     private readonly notifications: NotificationsService,
   ) {}
 
+  private assertChapterEditableForMangaka(status: string) {
+    if (
+      [
+        ChapterStatus.READY_FOR_EDITOR_REVIEW,
+        ChapterStatus.EDITOR_APPROVED,
+        ChapterStatus.PUBLISHED,
+      ].includes(status as ChapterStatus)
+    ) {
+      throw new BadRequestException(
+        'Chapter đang chờ biên tập/đã duyệt/đã xuất bản nên không thể giao việc',
+      );
+    }
+  }
+
   async assign(mangakaUserId: number, dto: CreateTaskDto) {
     // Verify region exists and mangaka owns the series
     const region = await this.db.queryOne<{
@@ -33,8 +48,9 @@ export class TasksService {
       page_id: number;
       region_type: string;
       chapter_deadline: string | Date | null;
+      chapter_status: string;
     }>(
-      `SELECT r.region_id, r.page_id, r.region_type, c.deadline AS chapter_deadline
+      `SELECT r.region_id, r.page_id, r.region_type, c.deadline AS chapter_deadline, c.chapter_status
        FROM \`Region\` r
        JOIN \`Page\` p ON p.page_id = r.page_id
        JOIN \`Chapter\` c ON c.chapter_id = p.chapter_id
@@ -45,6 +61,17 @@ export class TasksService {
 
     if (!region) {
       throw new ForbiddenException('Bạn không có quyền giao việc cho vùng này');
+    }
+    this.assertChapterEditableForMangaka(region.chapter_status);
+
+    const existingTask = await this.db.queryOne<{ task_id: number }>(
+      `SELECT task_id FROM \`Task\` WHERE region_id = ? LIMIT 1`,
+      [dto.regionId],
+    );
+    if (existingTask) {
+      throw new BadRequestException(
+        'Vùng này đã được phân công cho một Assistant, không thể giao thêm',
+      );
     }
 
     // Verify assignee is an active ASSISTANT
@@ -161,6 +188,8 @@ export class TasksService {
     return this.db.query(
       `SELECT
         t.task_id AS id,
+        t.page_id AS pageId,
+        t.region_id AS regionId,
         t.task_description AS description,
         t.task_status AS status,
         t.deadline,

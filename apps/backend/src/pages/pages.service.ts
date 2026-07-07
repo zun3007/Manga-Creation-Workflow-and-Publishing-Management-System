@@ -1,8 +1,10 @@
 import {
   Injectable,
+  BadRequestException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { ChapterStatus } from '@manga/shared';
 import { DbService } from '../db/db.service';
 import { CreatePageDto } from './dto/create-page.dto';
 
@@ -10,13 +12,28 @@ import { CreatePageDto } from './dto/create-page.dto';
 export class PagesService {
   constructor(private readonly db: DbService) {}
 
+  private assertChapterEditableForMangaka(status: string) {
+    if (
+      [
+        ChapterStatus.READY_FOR_EDITOR_REVIEW,
+        ChapterStatus.EDITOR_APPROVED,
+        ChapterStatus.PUBLISHED,
+      ].includes(status as ChapterStatus)
+    ) {
+      throw new BadRequestException(
+        'Chapter đang chờ biên tập/đã duyệt/đã xuất bản nên không thể sửa đổi',
+      );
+    }
+  }
+
   async create(userId: number, dto: CreatePageDto) {
     // Verify ownership of chapter via series
     const chapter = await this.db.queryOne<{
       chapter_id: number;
       series_id: number;
+      chapter_status: string;
     }>(
-      `SELECT c.chapter_id, c.series_id
+      `SELECT c.chapter_id, c.series_id, c.chapter_status
        FROM \`Chapter\` c
        JOIN \`Series\` s ON c.series_id = s.series_id
        WHERE c.chapter_id = ? AND s.mangaka_user_id = ?`,
@@ -26,6 +43,7 @@ export class PagesService {
     if (!chapter) {
       throw new ForbiddenException('You do not own this chapter');
     }
+    this.assertChapterEditableForMangaka(chapter.chapter_status);
 
     // Get next page number
     const result = await this.db.queryOne<{ nextNumber: number }>(
@@ -104,8 +122,15 @@ export class PagesService {
        JOIN \`Page_Version\` pv ON pv.page_id = p.page_id AND pv.version_number = p.current_version
        JOIN \`Chapter\` c ON p.chapter_id = c.chapter_id
        JOIN \`Series\` s ON c.series_id = s.series_id
-       WHERE p.page_id = ? AND s.mangaka_user_id = ?`,
-      [pageId, userId],
+       WHERE p.page_id = ?
+         AND (
+           s.mangaka_user_id = ?
+           OR EXISTS (
+             SELECT 1 FROM \`Task\` t
+             WHERE t.page_id = p.page_id AND t.assignee_user_id = ?
+           )
+         )`,
+      [pageId, userId, userId],
     );
 
     if (!page) {

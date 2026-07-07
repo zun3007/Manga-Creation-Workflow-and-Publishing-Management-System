@@ -1,14 +1,9 @@
-import { IsInt, IsOptional, IsString, IsNotEmpty, MaxLength, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class CreateSubmissionDto {
   @IsInt()
   @Min(1)
   taskId!: number;
-
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(500)
-  fileUrl!: string;
 
   @IsOptional()
   @IsString()

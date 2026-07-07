@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import wasmUrl from '@manga/canvas-wasm/inkforge.wasm?url';
 import { InkforgeWasm } from '@manga/canvas-wasm';
 import { api } from '../../lib/api';
-import { roleScope } from '@manga/shared';
+import { Role, roleScope } from '@manga/shared';
 import { useAuth } from '../../lib/auth';
 import { useConfirm } from '../../lib/confirm';
 import { Studio } from '../../components/studio/Studio';
@@ -23,6 +23,7 @@ import { draftKey, saveDraft, loadDraft, getDraftMeta, clearDraft } from '../../
 export default function StudioPage() {
   const { pageId } = useParams<{ pageId: string }>(); const id = Number(pageId);
   const navigate = useNavigate(); const { user } = useAuth();
+  const isAssistant = user?.role === Role.ASSISTANT;
   const toast = useToast(); const { confirm } = useConfirm();
   const [engine, setEngine] = useState<StudioEngine | null>(null);
   const [saving, setSaving] = useState(false); const [error, setError] = useState('');
@@ -155,6 +156,10 @@ export default function StudioPage() {
     } catch (e) { console.error(e); toast.update(tid, 'error', 'Lưu thất bại. Thử lại nhé.'); } finally { setSaving(false); }
   }
   async function onSaveRegions(frames: RectN[]) {
+    if (isAssistant) {
+      toast.error('Assistant chỉ được sửa nội dung trong Studio, không được tạo vùng mới.');
+      return;
+    }
     const tid = toast.loading('Đang lưu vùng…');
     let successCount = 0;
     for (const r of frames) {
@@ -175,6 +180,6 @@ export default function StudioPage() {
   if (error) return <div className="grid h-screen place-items-center bg-bg text-ink"><div className="flex flex-col items-center gap-3 text-center"><p className="text-sm text-danger">{error}</p><button onClick={() => navigate(-1)} className="px-4 py-2 text-xs uppercase tracking-wide rounded bg-accent text-ink">Quay lại</button></div></div>;
   if (!engine || !ai) return <div className="grid h-screen place-items-center bg-bg text-ink"><div className="flex flex-col items-center gap-3 text-ink-soft"><Spinner size={28} className="text-accent" /><span className="font-mono text-xs uppercase tracking-wider">Đang mở Studio…</span></div></div>;
   return <div data-role={user ? roleScope(user.role) : 'mangaka'} className="h-screen w-screen overflow-hidden bg-bg">
-    <Studio engine={engine} ai={ai} aiKind={aiKind} onSave={onSave} onSaveRegions={onSaveRegions} onClose={() => navigate(-1)} saving={saving} title={`Trang ${id}`} />
+    <Studio engine={engine} ai={ai} aiKind={aiKind} onSave={onSave} onSaveRegions={isAssistant ? undefined : onSaveRegions} onClose={() => navigate(-1)} saving={saving} title={`Trang ${id}`} />
   </div>;
 }

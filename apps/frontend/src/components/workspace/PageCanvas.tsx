@@ -29,9 +29,10 @@ interface PriceRule {
 interface PageCanvasProps {
   pageId: number;
   onRegionClick?: (region: RegionItem) => void;
+  readOnly?: boolean;
 }
 
-export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
+export function PageCanvas({ pageId, onRegionClick, readOnly = false }: PageCanvasProps) {
   const toast = useToast();
   const boxRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -110,6 +111,7 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
   }, []);
 
   function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    if (readOnly) return;
     if (e.button !== 0) return; // Left button only
     if (!boxRef.current) return;
 
@@ -163,6 +165,7 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
   }
 
   async function handleSaveRegion() {
+    if (readOnly) return;
     if (!newRegionRect || !boxSize) return;
 
     const { left, top, width, height } = newRegionRect;
@@ -259,16 +262,18 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
         />
 
         {/* Overlay for region drawing */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            cursor: "crosshair",
-          }}
-        />
+        {!readOnly && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              cursor: "crosshair",
+            }}
+          />
+        )}
 
         {/* Live drag rectangle */}
-        {dragging && startPos && currentPos && (
+        {!readOnly && dragging && startPos && currentPos && (
           <div
             style={{
               position: "absolute",
@@ -315,7 +320,7 @@ export function PageCanvas({ pageId, onRegionClick }: PageCanvasProps) {
           ))}
 
         {/* New region popover */}
-        {newRegionRect && boxSize && (
+        {!readOnly && newRegionRect && boxSize && (
           <div
             style={{
               position: "absolute",

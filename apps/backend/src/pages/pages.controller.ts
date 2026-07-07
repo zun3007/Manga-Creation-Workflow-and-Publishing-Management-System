@@ -33,7 +33,7 @@ export class PagesController {
   }
 
   @Get(':id')
-  @Roles(Role.MANGAKA)
+  @Roles(Role.MANGAKA, Role.ASSISTANT)
   async getOne(@Param('id') id: string, @Req() req: any) {
     return this.service.findOne(+id, req.user.id);
   }

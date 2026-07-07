@@ -1,4 +1,10 @@
-import { Injectable, ForbiddenException, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  OnModuleInit,
+} from '@nestjs/common';
+import { ChapterStatus, Role, TaskStatus } from '@manga/shared';
 import { DbService } from '../db/db.service';
 
 @Injectable()
@@ -18,19 +24,87 @@ export class StudioService implements OnModuleInit {
     );
   }
 
-  private async assertOwnsPage(pageId: number, userId: number) {
-    const page = await this.db.queryOne(
-      `SELECT p.page_id FROM \`Page\` p
-       JOIN \`Chapter\` c ON p.chapter_id = c.chapter_id
-       JOIN \`Series\` s ON c.series_id = s.series_id
-       WHERE p.page_id = ? AND s.mangaka_user_id = ?`,
-      [pageId, userId],
-    );
-    if (!page) throw new ForbiddenException('You do not own this page');
+  private assertChapterEditableForMangaka(status: string) {
+    if (
+      [
+        ChapterStatus.READY_FOR_EDITOR_REVIEW,
+        ChapterStatus.EDITOR_APPROVED,
+        ChapterStatus.PUBLISHED,
+      ].includes(status as ChapterStatus)
+    ) {
+      throw new BadRequestException(
+        'Chapter đang chờ biên tập/đã duyệt/đã xuất bản nên không thể sửa Studio',
+      );
+    }
   }
 
-  async savePageVersion(userId: number, pageId: number, imageUrl: string, note?: string) {
-    await this.assertOwnsPage(pageId, userId);
+  private async getPageAccess(pageId: number, userId: number) {
+    const editableTaskStatuses = [
+      TaskStatus.ASSIGNED,
+      TaskStatus.IN_PROGRESS,
+      TaskStatus.REVISION_REQUIRED,
+    ];
+
+    return this.db.queryOne<{
+      page_id: number;
+      mangaka_user_id: number;
+      chapter_status: string;
+      assistant_task_count: number;
+      editable_assistant_task_count: number;
+    }>(
+      `SELECT
+        p.page_id,
+        s.mangaka_user_id,
+        c.chapter_status,
+        (
+          SELECT COUNT(*) FROM \`Task\` t
+          WHERE t.page_id = p.page_id AND t.assignee_user_id = ?
+        ) AS assistant_task_count,
+        (
+          SELECT COUNT(*) FROM \`Task\` t
+          WHERE t.page_id = p.page_id
+            AND t.assignee_user_id = ?
+            AND t.task_status IN (?, ?, ?)
+        ) AS editable_assistant_task_count
+       FROM \`Page\` p
+       JOIN \`Chapter\` c ON p.chapter_id = c.chapter_id
+       JOIN \`Series\` s ON c.series_id = s.series_id
+       WHERE p.page_id = ?`,
+      [
+        userId,
+        userId,
+        ...editableTaskStatuses,
+        pageId,
+      ],
+    );
+  }
+
+  private async assertCanReadPage(pageId: number, userId: number, role: Role) {
+    const page = await this.getPageAccess(pageId, userId);
+    if (!page) throw new ForbiddenException('Không tìm thấy trang');
+    if (role === Role.MANGAKA && page.mangaka_user_id === userId) return page;
+    if (role === Role.ASSISTANT && Number(page.assistant_task_count) > 0) {
+      return page;
+    }
+    throw new ForbiddenException('Bạn không có quyền mở Studio của trang này');
+  }
+
+  private async assertCanWritePage(pageId: number, userId: number, role: Role) {
+    const page = await this.assertCanReadPage(pageId, userId, role);
+    if (role === Role.MANGAKA && page.mangaka_user_id === userId) {
+      this.assertChapterEditableForMangaka(page.chapter_status);
+      return;
+    }
+    if (role === Role.ASSISTANT && Number(page.editable_assistant_task_count) > 0) {
+      return;
+    }
+    throw new BadRequestException(
+      'Task đã nộp/đã duyệt nên không thể sửa Studio nữa',
+    );
+  }
+
+  async savePageVersion(userId: number, role: Role, pageId: number, imageUrl: string, note?: string) {
+    await this.assertCanWritePage(pageId, userId, role);
     const cur = await this.db.queryOne<{ current_version: number }>(
       `SELECT current_version FROM \`Page\` WHERE page_id = ?`, [pageId]);
     const next = (cur?.current_version ?? 0) + 1;
@@ -42,8 +116,8 @@ export class StudioService implements OnModuleInit {
     return { pageId, versionNumber: next, imageUrl };
   }
 
-  async saveDoc(userId: number, pageId: number, manifest: unknown) {
-    await this.assertOwnsPage(pageId, userId);
+  async saveDoc(userId: number, role: Role, pageId: number, manifest: unknown) {
+    await this.assertCanWritePage(pageId, userId, role);
     await this.db.query(
       `INSERT INTO \`Studio_Document\` (page_id, manifest_json, updated_by_user_id)
        VALUES (?, ?, ?)
@@ -52,8 +126,8 @@ export class StudioService implements OnModuleInit {
     return { saved: true };
   }
 
-  async getDoc(userId: number, pageId: number) {
-    await this.assertOwnsPage(pageId, userId);
+  async getDoc(userId: number, role: Role, pageId: number) {
+    await this.assertCanReadPage(pageId, userId, role);
     const row = await this.db.queryOne<{ manifest_json: unknown }>(
       `SELECT manifest_json FROM \`Studio_Document\` WHERE page_id = ?`, [pageId]);
     if (!row) return null;

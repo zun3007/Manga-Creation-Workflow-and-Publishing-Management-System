@@ -134,6 +134,8 @@ export interface PageItem {
 
 export interface TaskItem {
   id: number;
+  pageId?: number;
+  regionId?: number;
   description: string | null;
   status: TaskStatus;
   deadline: string | null;

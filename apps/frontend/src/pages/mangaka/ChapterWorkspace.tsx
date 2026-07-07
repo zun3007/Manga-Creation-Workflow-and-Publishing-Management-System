@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { ChapterStatus } from "@manga/shared";
 import { api } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
-import type { PageItem, RegionItem } from "../../types";
+import type { ChapterItem, PageItem, RegionItem } from "../../types";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { PageCanvas } from "../../components/workspace/PageCanvas";
@@ -22,6 +23,7 @@ export default function ChapterWorkspace() {
   const [selectedPageId, setSelectedPageId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [chapterStatus, setChapterStatus] = useState<ChapterStatus | null>(null);
 
   // Upload state
   const [uploading, setUploading] = useState(false);
@@ -32,12 +34,19 @@ export default function ChapterWorkspace() {
 
   const id = parseInt(chapterId || "0");
   const seriesIdNum = parseInt(seriesId || "0");
+  const isChapterLocked =
+    chapterStatus === ChapterStatus.READY_FOR_EDITOR_REVIEW ||
+    chapterStatus === ChapterStatus.EDITOR_APPROVED ||
+    chapterStatus === ChapterStatus.PUBLISHED;
 
   async function loadPages() {
     setLoading(true);
     setError(false);
     try {
       const res = await api.get(`/pages?chapterId=${id}`);
+      const chaptersRes = await api.get<ChapterItem[]>(`/chapters?seriesId=${seriesIdNum}`);
+      const currentChapter = chaptersRes.data?.find((chapter) => chapter.id === id);
+      setChapterStatus(currentChapter?.status ?? null);
       const pagesList = res.data || [];
       setPages(pagesList);
       if (pagesList.length > 0 && !selectedPageId) {
@@ -56,6 +65,11 @@ export default function ChapterWorkspace() {
   }, [id]);
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    if (isChapterLocked) {
+      setUploadError("Chapter đang chờ biên tập/đã duyệt/đã xuất bản nên không thể sửa đổi.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -127,7 +141,9 @@ export default function ChapterWorkspace() {
           <div>
             <h1 className="text-3xl text-ink">Không gian làm việc Chương</h1>
             <p className="font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft mt-1">
-              Tải trang và vẽ vùng để giao việc
+              {isChapterLocked
+                ? "Chapter đã khóa chỉnh sửa"
+                : "Tải trang và vẽ vùng để giao việc"}
             </p>
           </div>
         </div>
@@ -162,6 +178,7 @@ export default function ChapterWorkspace() {
           </Panel>
 
           {/* Upload control */}
+          {!isChapterLocked && (
           <Panel className="p-4">
             <label className="block">
               <span className="mb-2 block font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft">
@@ -183,20 +200,33 @@ export default function ChapterWorkspace() {
               <p className="mt-2 text-xs text-red-500">{uploadError}</p>
             )}
           </Panel>
+          )}
+          {isChapterLocked && (
+            <Panel className="p-4 text-xs text-ink-soft">
+              Chapter đang chờ biên tập/đã duyệt/đã xuất bản nên Mangaka không
+              thể tải trang, mở Studio hoặc giao việc nữa.
+            </Panel>
+          )}
         </div>
 
         {/* Right: Canvas and regions */}
         <div className="flex-1 flex flex-col gap-4 overflow-hidden">
           {selectedPageId && (
             <div className="flex justify-end">
-              <Button onClick={() => navigate(`/studio/page/${selectedPageId}`)}>🎨 Mở Studio</Button>
+              {!isChapterLocked && (
+                <Button onClick={() => navigate(`/studio/page/${selectedPageId}`)}>🎨 Mở Studio</Button>
+              )}
             </div>
           )}
           <div className="flex-1 overflow-auto border border-line rounded-[var(--app-radius)] bg-surface p-4">
             {selectedPageId ? (
               <PageCanvas
                 pageId={selectedPageId}
-                onRegionClick={(region) => setAssignRegion(region)}
+                readOnly={isChapterLocked}
+                onRegionClick={(region) => {
+                  if (isChapterLocked) return;
+                  setAssignRegion(region);
+                }}
               />
             ) : (
               <div className="grid h-full place-items-center text-ink-soft">
@@ -208,7 +238,7 @@ export default function ChapterWorkspace() {
       </div>
 
       {/* Task assign dialog */}
-      {assignRegion && (
+      {assignRegion && !isChapterLocked && (
         <TaskAssignDialog
           region={assignRegion}
           onClose={() => setAssignRegion(null)}

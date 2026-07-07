@@ -13,20 +13,20 @@ export class StudioController {
   constructor(private readonly service: StudioService) {}
 
   @Post('page-versions')
-  @Roles(Role.MANGAKA)
+  @Roles(Role.MANGAKA, Role.ASSISTANT)
   savePageVersion(@Body() dto: SavePageVersionDto, @Req() req: any) {
-    return this.service.savePageVersion(req.user.id, dto.pageId, dto.imageUrl, dto.note);
+    return this.service.savePageVersion(req.user.id, req.user.role, dto.pageId, dto.imageUrl, dto.note);
   }
 
   @Post('docs')
-  @Roles(Role.MANGAKA)
+  @Roles(Role.MANGAKA, Role.ASSISTANT)
   saveDoc(@Body() dto: SaveDocDto, @Req() req: any) {
-    return this.service.saveDoc(req.user.id, dto.pageId, dto.manifest);
+    return this.service.saveDoc(req.user.id, req.user.role, dto.pageId, dto.manifest);
   }
 
   @Get('docs/:pageId')
-  @Roles(Role.MANGAKA)
+  @Roles(Role.MANGAKA, Role.ASSISTANT)
   getDoc(@Param('pageId') pageId: string, @Req() req: any) {
-    return this.service.getDoc(req.user.id, +pageId);
+    return this.service.getDoc(req.user.id, req.user.role, +pageId);
   }
 }

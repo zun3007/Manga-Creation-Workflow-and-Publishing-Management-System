@@ -72,6 +72,30 @@ export class SubmissionsService {
 
     const version = versionResult?.nextVersion ?? 1;
 
+    const studioWork = await this.db.queryOne<{
+      image_url: string | null;
+      uploaded_by_user_id: number | null;
+      updated_by_user_id: number | null;
+    }>(
+      `SELECT pv.image_url, pv.uploaded_by_user_id, sd.updated_by_user_id
+       FROM \`Page\` p
+       LEFT JOIN \`Page_Version\` pv
+         ON pv.page_id = p.page_id AND pv.version_number = p.current_version
+       LEFT JOIN \`Studio_Document\` sd ON sd.page_id = p.page_id
+       WHERE p.page_id = ?`,
+      [task.page_id],
+    );
+
+    if (
+      !studioWork?.image_url ||
+      Number(studioWork.uploaded_by_user_id) !== assistantUserId ||
+      Number(studioWork.updated_by_user_id) !== assistantUserId
+    ) {
+      throw new BadRequestException(
+        'Bạn phải sửa và lưu trực tiếp trên Studio trước khi nộp bài',
+      );
+    }
+
     // Insert submission
     const submissionId = await this.db.insert(
       `INSERT INTO \`Submission\`
@@ -82,7 +106,7 @@ export class SubmissionsService {
         task.page_id,
         assistantUserId,
         version,
-        dto.fileUrl,
+        studioWork.image_url,
         dto.versionNote ?? null,
         SubmissionStatus.PENDING,
       ],

@@ -24,6 +24,7 @@ export default function StudioRegionPage() {
   const navigate = useNavigate(); const location = useLocation(); const { user } = useAuth();
   const toast = useToast(); const { confirm } = useConfirm();
   const [engine, setEngine] = useState<StudioEngine | null>(null); const [saving, setSaving] = useState(false); const [error, setError] = useState('');
+  const [taskInfo, setTaskInfo] = useState<TaskItem | null>(null);
   const [ai, setAi] = useState<AIAssist | null>(null);
   const [aiKind, setAiKind] = useState<'ONNX' | 'Heuristic'>('Heuristic');
   const autosaveTimerRef = useRef<number | null>(null);
@@ -34,6 +35,8 @@ export default function StudioRegionPage() {
       const wasm = await InkforgeWasm.load(wasmUrl);
       let task: TaskItem | undefined = (location.state as any)?.task;
       if (!task) { const { data } = await api.get<TaskItem[]>('/tasks/mine'); task = data.find(t => t.id === id); }
+      if (!task?.pageId) throw new Error('Task này chưa gắn trang để mở Studio.');
+      if (alive) setTaskInfo(task);
       const w = 1000, h = 1414; const doc = createDocument({ width: w, height: h, background: 'white' });
       let eng = new StudioEngine(doc, wasm);
       if (task?.pageImage) { try { const img = await loadImageFromBlob(await (await fetch(task.pageImage)).blob()); eng.setBuffer(doc.activeLayerId!, imageToBuffer(img, img.naturalWidth, img.naturalHeight, w, h)); } catch { /* draw on blank */ } }
@@ -112,11 +115,25 @@ export default function StudioRegionPage() {
 
   async function onSave() {
     if (!engine) return; setSaving(true);
-    const tid = toast.loading('Đang nộp bài…');
+    if (!taskInfo?.pageId) {
+      setSaving(false);
+      toast.error('Task này chưa gắn trang để lưu Studio.');
+      return;
+    }
+    const tid = toast.loading('Đang lưu Studio và nộp bài…');
     try {
       const blob = await exportPNG(engine); const fd = new FormData(); fd.append('file', new File([blob], `task-${id}.png`, { type: 'image/png' }));
       const { data } = await api.post<{ url: string }>('/uploads', fd);
-      await api.post('/submissions', { taskId: id, fileUrl: data.url });
+      await api.post('/studio/page-versions', { pageId: taskInfo.pageId, imageUrl: data.url });
+      const { manifest, blobs } = await serializeDoc(engine);
+      for (const [lid, layerBlob] of Object.entries(blobs)) {
+        const layerFd = new FormData();
+        layerFd.append('file', new File([layerBlob], `task-${id}-${lid}.png`, { type: 'image/png' }));
+        const layerRes = await api.post<{ url: string }>('/uploads', layerFd);
+        manifest.layerImages[lid] = layerRes.data.url;
+      }
+      await api.post('/studio/docs', { pageId: taskInfo.pageId, manifest });
+      await api.post('/submissions', { taskId: id });
       engine.markSaved();
       const key = draftKey('task', id);
       await clearDraft(key);
