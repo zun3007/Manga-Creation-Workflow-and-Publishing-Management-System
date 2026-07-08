@@ -32,6 +32,7 @@ import { AppShell } from "./components/app/AppShell";
 import { RoleProtected } from "./components/app/RoleProtected";
 import { ToastProvider } from "./components/ui/Toast";
 import { ConfirmProvider } from "./lib/confirm";
+import ChapterApproval from "./pages/board/ChapterApproval.tsx";
 
 function Splash() {
   return (
@@ -312,6 +313,14 @@ function AppRoutes() {
           </Protected>
         }
       />
+        <Route
+            path="/board/chapter-approval"
+            element={
+                <AppShell>
+                    <ChapterApproval />
+                </AppShell>
+            }
+        />
     </Routes>
   );
 }
