@@ -13,6 +13,7 @@ import {
   NotificationType,
 } from '@manga/shared';
 import { CreateChapterDto } from './dto/create-chapter.dto';
+import { toMysqlDeadline } from '../common/date.util';
 
 @Injectable()
 export class ChaptersService {
@@ -41,14 +42,20 @@ export class ChaptersService {
     const chapterNumber = result?.nextNumber || 1;
 
     // Create chapter
+
+    const deadline = dto.deadline ? toMysqlDeadline(dto.deadline) : null;
+
+    if (dto.deadline && !deadline) {
+      throw new BadRequestException('Hạn chót không hợp lệ');
+    }
     const chapterId = await this.db.insert(
       `INSERT INTO \`Chapter\` (series_id, chapter_number, chapter_title, deadline, chapter_status)
        VALUES (?, ?, ?, ?, ?)`,
       [
         dto.seriesId,
         chapterNumber,
-        dto.title,
-        dto.deadline ?? null,
+        dto.title.trim(),
+        deadline,
         ChapterStatus.DRAFT,
       ],
     );
@@ -104,9 +111,7 @@ export class ChaptersService {
       throw new NotFoundException('Chapter not found');
     }
 
-    if (
-      !canTransition(CHAPTER_TRANSITIONS, chapter.chapter_status, status)
-    ) {
+    if (!canTransition(CHAPTER_TRANSITIONS, chapter.chapter_status, status)) {
       throw new BadRequestException(
         `Invalid chapter transition ${chapter.chapter_status} → ${status}`,
       );
@@ -117,9 +122,7 @@ export class ChaptersService {
       const readiness = await this.getChapterReadiness(chapterId);
 
       if (readiness.totalPages === 0) {
-        throw new BadRequestException(
-          'Chương chưa có trang',
-        );
+        throw new BadRequestException('Chương chưa có trang');
       }
 
       if (readiness.incompletePages > 0) {
@@ -138,10 +141,10 @@ export class ChaptersService {
     // Execute DB writes in transaction for PUBLISHED status, direct update otherwise
     if (status === ChapterStatus.PUBLISHED) {
       await this.db.transaction(async (tx) => {
-        await tx.query(`UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`, [
-          status,
-          chapterId,
-        ]);
+        await tx.query(
+          `UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`,
+          [status, chapterId],
+        );
 
         await tx.query(
           `INSERT INTO \`Publication_Schedule\` (chapter_id, release_date, publish_status, scheduled_by_user_id, published_at)
@@ -151,10 +154,10 @@ export class ChaptersService {
         );
       });
     } else {
-      await this.db.query(`UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`, [
-        status,
-        chapterId,
-      ]);
+      await this.db.query(
+        `UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`,
+        [status, chapterId],
+      );
     }
 
     // Send notifications after transaction commits
@@ -315,7 +318,9 @@ export class ChaptersService {
     );
 
     if (!ok) {
-      throw new ForbiddenException('Bạn không phải biên tập phụ trách chương này');
+      throw new ForbiddenException(
+        'Bạn không phải biên tập phụ trách chương này',
+      );
     }
 
     // Return pages with current version details
@@ -326,6 +331,156 @@ export class ChaptersService {
        WHERE p.chapter_id=? ORDER BY p.page_number`,
       [chapterId],
     );
+  }
+
+  async boardReviewQueue() {
+    return this.db.query(
+      `SELECT
+       c.chapter_id AS id,
+       c.chapter_number AS number,
+       c.chapter_title AS title,
+       c.chapter_status AS status,
+       c.deadline AS submittedAt,
+       s.series_id AS seriesId,
+       s.title AS series
+     FROM \`Chapter\` c
+     JOIN \`Series\` s ON s.series_id = c.series_id
+     WHERE c.chapter_status = ?
+     ORDER BY c.deadline ASC, c.chapter_id ASC`,
+      [ChapterStatus.EDITOR_APPROVED],
+    );
+  }
+
+  async boardReviewStatus(chapterId: number) {
+    if (!Number.isInteger(chapterId) || chapterId <= 0) {
+      throw new BadRequestException('Chapter ID không hợp lệ');
+    }
+
+    const chapter = await this.db.queryOne<{
+      chapterId: number;
+      chapterNumber: number;
+      chapterTitle: string;
+      status: ChapterStatus;
+      seriesId: number;
+      seriesTitle: string;
+      hasActiveSchedule: number;
+    }>(
+      `SELECT
+       c.chapter_id AS chapterId,
+       c.chapter_number AS chapterNumber,
+       c.chapter_title AS chapterTitle,
+       c.chapter_status AS status,
+       s.series_id AS seriesId,
+       s.title AS seriesTitle,
+       EXISTS(
+         SELECT 1
+         FROM \`Publication_Schedule\` ps
+         WHERE ps.chapter_id = c.chapter_id
+           AND ps.publish_status <> 'CANCELLED'
+       ) AS hasActiveSchedule
+     FROM \`Chapter\` c
+     JOIN \`Series\` s
+       ON s.series_id = c.series_id
+     WHERE c.chapter_id = ?`,
+      [chapterId],
+    );
+
+    if (!chapter) {
+      throw new NotFoundException('Không tìm thấy chương');
+    }
+
+    const hasActiveSchedule = Number(chapter.hasActiveSchedule) === 1;
+
+    const canBoardReview = chapter.status === ChapterStatus.EDITOR_APPROVED;
+
+    const canSchedule =
+      chapter.status === ChapterStatus.BOARD_APPROVED && !hasActiveSchedule;
+
+    let message = `Trạng thái hiện tại: ${chapter.status}`;
+
+    if (canBoardReview) {
+      message = 'Chương đang chờ Hội đồng phê duyệt';
+    } else if (chapter.status === ChapterStatus.BOARD_APPROVED) {
+      message = hasActiveSchedule
+        ? 'Chương đã được Hội đồng duyệt và đã có lịch xuất bản'
+        : 'Chương đã được Hội đồng duyệt và có thể lên lịch xuất bản';
+    }
+
+    return {
+      chapterId: chapter.chapterId,
+      chapterNumber: chapter.chapterNumber,
+      chapterTitle: chapter.chapterTitle,
+      seriesId: chapter.seriesId,
+      seriesTitle: chapter.seriesTitle,
+      status: chapter.status,
+      hasActiveSchedule,
+      canBoardReview,
+      canSchedule,
+      message,
+    };
+  }
+
+  async boardReview(
+    chapterId: number,
+    boardUserId: number,
+    decision: 'APPROVE' | 'REJECT',
+    feedback?: string,
+  ) {
+    const chapter = await this.db.queryOne<{
+      chapter_id: number;
+      chapter_status: ChapterStatus;
+      chapter_title: string;
+      mangaka_user_id: number;
+    }>(
+      `SELECT
+       c.chapter_id,
+       c.chapter_status,
+       c.chapter_title,
+       s.mangaka_user_id
+     FROM \`Chapter\` c
+     JOIN \`Series\` s ON s.series_id = c.series_id
+     WHERE c.chapter_id = ?`,
+      [chapterId],
+    );
+
+    if (!chapter) {
+      throw new NotFoundException('Không tìm thấy chương');
+    }
+
+    if (chapter.chapter_status !== ChapterStatus.EDITOR_APPROVED) {
+      throw new BadRequestException(
+        'Chỉ có thể xét duyệt chương đã được biên tập viên duyệt',
+      );
+    }
+
+    const target =
+      decision === 'APPROVE'
+        ? ChapterStatus.BOARD_APPROVED
+        : ChapterStatus.IN_PROGRESS;
+
+    await this.db.query(
+      `UPDATE \`Chapter\`
+     SET chapter_status = ?
+     WHERE chapter_id = ?`,
+      [target, chapterId],
+    );
+
+    await this.notifications.notify(
+      chapter.mangaka_user_id,
+      NotificationType.DECISION,
+      decision === 'APPROVE'
+        ? `Hội đồng đã chấp nhận chương "${chapter.chapter_title}"`
+        : `Hội đồng từ chối chương "${chapter.chapter_title}"`,
+      feedback ?? '',
+      'Chapter',
+      chapterId,
+    );
+
+    return {
+      id: chapterId,
+      status: target,
+      reviewedBy: boardUserId,
+    };
   }
 
   private async findOne(chapterId: number) {
@@ -354,19 +509,28 @@ export class ChaptersService {
       nonApprovedTasks: number;
     }>(
       `SELECT
-        (SELECT COUNT(DISTINCT p.page_id)
-         FROM \`Page\` p
-         JOIN \`Page_Version\` pv ON pv.page_id = p.page_id AND pv.version_number = p.current_version
-         WHERE p.chapter_id = ?) AS totalPages,
-        (SELECT COUNT(DISTINCT p.page_id)
-         FROM \`Page\` p
-         JOIN \`Page_Version\` pv ON pv.page_id = p.page_id AND pv.version_number = p.current_version
-         WHERE p.chapter_id = ? AND p.page_status <> 'COMPLETED') AS incompletePages,
-        (SELECT COUNT(DISTINCT t.task_id)
-         FROM \`Task\` t
-         JOIN \`Page\` p ON p.page_id = t.page_id
-         JOIN \`Page_Version\` pv ON pv.page_id = p.page_id AND pv.version_number = p.current_version
-         WHERE p.chapter_id = ? AND t.task_status <> 'APPROVED') AS nonApprovedTasks`,
+    (SELECT COUNT(*)
+     FROM \`Page\` p
+     WHERE p.chapter_id = ?) AS totalPages,
+
+    (SELECT COUNT(*)
+     FROM \`Page\` p
+     WHERE p.chapter_id = ?
+       AND (
+         p.page_status <> 'COMPLETED'
+         OR NOT EXISTS (
+           SELECT 1
+           FROM \`Page_Version\` pv
+           WHERE pv.page_id = p.page_id
+             AND pv.version_number = p.current_version
+         )
+       )) AS incompletePages,
+
+    (SELECT COUNT(DISTINCT t.task_id)
+     FROM \`Task\` t
+     JOIN \`Page\` p ON p.page_id = t.page_id
+     WHERE p.chapter_id = ?
+       AND t.task_status <> 'APPROVED') AS nonApprovedTasks`,
       [chapterId, chapterId, chapterId],
     );
 
