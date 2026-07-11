@@ -12,13 +12,13 @@ describe('PublicationScheduleService', () => {
   });
 
   describe('create', () => {
-    it('creates a schedule for an editor-approved chapter in an active series', async () => {
+    it('creates a schedule for an board-approved chapter in an active series', async () => {
       const db: any = {
         queryOne: jest
           .fn()
           .mockResolvedValueOnce({
             chapter_id: 7,
-            chapter_status: ChapterStatus.EDITOR_APPROVED,
+            chapter_status: ChapterStatus.BOARD_APPROVED,
             series_status: SeriesStatus.ACTIVE,
           })
           .mockResolvedValueOnce(null),
@@ -60,7 +60,7 @@ describe('PublicationScheduleService', () => {
       expect(db.insert).not.toHaveBeenCalled();
     });
 
-    it('rejects a chapter that is not editor-approved', async () => {
+    it('rejects a chapter that is not board-approved', async () => {
       const db: any = {
         queryOne: jest.fn().mockResolvedValueOnce({
           chapter_id: 7,
@@ -85,7 +85,7 @@ describe('PublicationScheduleService', () => {
       const db: any = {
         queryOne: jest.fn().mockResolvedValueOnce({
           chapter_id: 7,
-          chapter_status: ChapterStatus.EDITOR_APPROVED,
+          chapter_status: ChapterStatus.BOARD_APPROVED,
           series_status: SeriesStatus.HIATUS,
         }),
         insert: jest.fn(),
@@ -108,7 +108,7 @@ describe('PublicationScheduleService', () => {
           .fn()
           .mockResolvedValueOnce({
             chapter_id: 7,
-            chapter_status: ChapterStatus.EDITOR_APPROVED,
+            chapter_status: ChapterStatus.BOARD_APPROVED,
             series_status: SeriesStatus.ACTIVE,
           })
           .mockResolvedValueOnce({
@@ -135,7 +135,7 @@ describe('PublicationScheduleService', () => {
           .fn()
           .mockResolvedValueOnce({
             chapter_id: 7,
-            chapter_status: ChapterStatus.EDITOR_APPROVED,
+            chapter_status: ChapterStatus.BOARD_APPROVED,
             series_status: SeriesStatus.ACTIVE,
           })
           .mockResolvedValueOnce({
@@ -248,7 +248,7 @@ describe('PublicationScheduleService', () => {
         chapter_id: 7,
         publish_status: 'SCHEDULED',
         release_date: '2026-07-06',
-        chapter_status: ChapterStatus.EDITOR_APPROVED,
+        chapter_status: ChapterStatus.BOARD_APPROVED,
       }),
       transaction: jest.fn(async (fn) =>
         fn({
@@ -271,7 +271,7 @@ describe('PublicationScheduleService', () => {
         chapter_id: 7,
         publish_status: 'SCHEDULED',
         release_date: '2026-07-08',
-        chapter_status: ChapterStatus.EDITOR_APPROVED,
+        chapter_status: ChapterStatus.BOARD_APPROVED,
       }),
       transaction: jest.fn(),
     };

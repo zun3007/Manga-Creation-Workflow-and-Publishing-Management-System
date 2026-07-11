@@ -17,6 +17,7 @@ import {
 } from '@manga/shared';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { syncPageStatusFromTasks } from '../pages/page-status.util';
+import { toMysqlDeadline } from '../common/date.util';
 
 @Injectable()
 export class TasksService {
@@ -97,9 +98,16 @@ export class TasksService {
       throw new BadRequestException('Assistant này chưa được kích hoạt');
     }
 
-    if (dto.deadline && region.chapter_deadline) {
-      const taskDeadline = this.toDateOnly(dto.deadline);
+    const deadline = dto.deadline ? toMysqlDeadline(dto.deadline) : null;
+
+    if (dto.deadline && !deadline) {
+      throw new BadRequestException('Deadline task không hợp lệ');
+    }
+
+    if (deadline && region.chapter_deadline) {
+      const taskDeadline = this.toDateOnly(deadline);
       const chapterDeadline = this.toDateOnly(region.chapter_deadline);
+
       if (taskDeadline > chapterDeadline) {
         throw new BadRequestException(
           `Deadline task không được muộn hơn deadline chapter (${chapterDeadline})`,
@@ -143,7 +151,7 @@ export class TasksService {
         dto.assigneeUserId,
         dto.description ?? null,
         dto.instruction ?? null,
-        dto.deadline ?? null,
+        deadline,
         TaskStatus.ASSIGNED,
         payment,
         ruleId,
@@ -258,7 +266,11 @@ export class TasksService {
     }
 
     if (
-      !canTransition(TASK_TRANSITIONS, task.status as TaskStatus, TaskStatus.IN_PROGRESS)
+      !canTransition(
+        TASK_TRANSITIONS,
+        task.status as TaskStatus,
+        TaskStatus.IN_PROGRESS,
+      )
     ) {
       throw new BadRequestException(
         `Cannot transition from ${task.status} to IN_PROGRESS`,
