@@ -279,15 +279,73 @@ export class ChaptersService {
        c.chapter_number AS number,
        c.chapter_title AS title,
        c.chapter_status AS status,
-       c.deadline AS submittedAt,
+       c.updated_at AS submittedAt,
        s.series_id AS seriesId,
        s.title AS series
      FROM \`Chapter\` c
      JOIN \`Series\` s ON s.series_id = c.series_id
      WHERE c.chapter_status = ?
-     ORDER BY c.deadline ASC, c.chapter_id ASC`,
+     ORDER BY c.updated_at ASC, c.chapter_id ASC`,
       [ChapterStatus.EDITOR_APPROVED],
     );
+  }
+
+  async boardReviewDetail(chapterId: number) {
+    if (!Number.isInteger(chapterId) || chapterId <= 0) {
+      throw new BadRequestException('Chapter ID không hợp lệ');
+    }
+
+    const chapter = await this.db.queryOne<{
+      id: number;
+      number: number;
+      title: string;
+      status: ChapterStatus;
+      deadline: string | Date | null;
+      seriesId: number;
+      series: string;
+    }>(
+      `SELECT
+       c.chapter_id AS id,
+       c.chapter_number AS number,
+       c.chapter_title AS title,
+       c.chapter_status AS status,
+       c.deadline,
+       s.series_id AS seriesId,
+       s.title AS series
+     FROM \`Chapter\` c
+     JOIN \`Series\` s ON s.series_id = c.series_id
+     WHERE c.chapter_id = ?`,
+      [chapterId],
+    );
+
+    if (!chapter) {
+      throw new NotFoundException('Không tìm thấy chương');
+    }
+
+    const pages = await this.db.query<{
+      id: number;
+      number: number;
+      status: string;
+      imageUrl: string | null;
+    }>(
+      `SELECT
+       p.page_id AS id,
+       p.page_number AS number,
+       p.page_status AS status,
+       pv.image_url AS imageUrl
+     FROM \`Page\` p
+     LEFT JOIN \`Page_Version\` pv
+       ON pv.page_id = p.page_id
+      AND pv.version_number = p.current_version
+     WHERE p.chapter_id = ?
+     ORDER BY p.page_number`,
+      [chapterId],
+    );
+
+    return {
+      ...chapter,
+      pages,
+    };
   }
 
   async boardReviewStatus(chapterId: number) {
@@ -392,6 +450,12 @@ export class ChaptersService {
       );
     }
 
+    const normalizedFeedback = feedback?.trim();
+
+    if (decision === 'REJECT' && !normalizedFeedback) {
+      throw new BadRequestException('Vui lòng nhập lý do từ chối');
+    }
+
     const target =
       decision === 'APPROVE'
         ? ChapterStatus.BOARD_APPROVED
@@ -410,7 +474,7 @@ export class ChaptersService {
       decision === 'APPROVE'
         ? `Hội đồng đã chấp nhận chương "${chapter.chapter_title}"`
         : `Hội đồng từ chối chương "${chapter.chapter_title}"`,
-      feedback ?? '',
+      normalizedFeedback ?? '',
       'Chapter',
       chapterId,
     );

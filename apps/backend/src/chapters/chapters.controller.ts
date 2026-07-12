@@ -65,6 +65,12 @@ export class ChaptersController {
     return this.service.boardReviewQueue();
   }
 
+  @Get(':id/board-review-detail')
+  @Roles(Role.EDITORIAL_BOARD, Role.ADMIN)
+  async boardReviewDetail(@Param('id') id: string) {
+    return this.service.boardReviewDetail(Number(id));
+  }
+
   /*
    * Kiểm tra một chương có:
    * - đang được Hội đồng duyệt hay không
