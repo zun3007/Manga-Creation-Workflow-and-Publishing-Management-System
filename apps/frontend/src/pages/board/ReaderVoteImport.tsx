@@ -645,9 +645,13 @@ export default function ReaderVoteImport() {
             />
             <SummaryCard
               label="Sao độc giả cao nhất"
-              value={Math.max(
-                ...result.rankings.map((row) => row.averageReaderStars),
-              ).toFixed(2)}
+              value={
+                result.rankings.length
+                  ? Math.max(
+                      ...result.rankings.map((row) => row.averageReaderStars),
+                    ).toFixed(2)
+                  : "—"
+              }
             />
             <SummaryCard
               label="Tổng doanh số"

@@ -201,7 +201,16 @@ export default function SeriesDossierPage() {
   }
 
   if (!dossier || dossier.series.status !== "CANCELLED") {
-    return null;
+    return (
+      <div className="space-y-4 p-8">
+        <Link to="/editor/series" className="text-sm text-muted hover:text-accent">
+          ← Quay lại series quản lý
+        </Link>
+        <Panel className="p-6 text-center text-muted">
+          Hồ sơ bảo vệ chỉ khả dụng cho series đã bị huỷ (CANCELLED).
+        </Panel>
+      </div>
+    );
   }
 
   const isBoard = user?.role === Role.EDITORIAL_BOARD;

@@ -26,8 +26,13 @@ export default function Login() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
-  const [email, setEmail] = useState("dungminer69@gmail.com");
-  const [password, setPassword] = useState("Dung123456@");
+  // Prefill demo credentials only in local dev builds — never in production.
+  const [email, setEmail] = useState(
+    import.meta.env.DEV ? "dungminer69@gmail.com" : "",
+  );
+  const [password, setPassword] = useState(
+    import.meta.env.DEV ? "Dung123456@" : "",
+  );
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -240,10 +245,12 @@ export default function Login() {
               Tiếp tục với Google
             </a>
 
-            <Panel className="mt-8 p-3">
-              <p className="font-mono text-xs uppercase tracking-wider text-ink-soft mb-1">Demo account</p>
-              <p className="font-mono text-xs text-ink">dungminer69@gmail.com · Dung123456@</p>
-            </Panel>
+            {import.meta.env.DEV && (
+              <Panel className="mt-8 p-3">
+                <p className="font-mono text-xs uppercase tracking-wider text-ink-soft mb-1">Demo account</p>
+                <p className="font-mono text-xs text-ink">dungminer69@gmail.com · Dung123456@</p>
+              </Panel>
+            )}
           </motion.div>
           )}
         </section>

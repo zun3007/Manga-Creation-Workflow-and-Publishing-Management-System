@@ -43,18 +43,6 @@ export function TaskAssignDialog({ region, onClose, onAssigned }: TaskAssignDial
     setPayment(null);
   }, []);
 
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.debug("[TaskAssignDialog] form state", {
-        regionId: region.id,
-        assigneeUserId: selectedAssistantId,
-        description,
-        instruction,
-        deadline,
-      });
-    }
-  }, [region.id, selectedAssistantId, description, instruction, deadline]);
-
   async function loadAssistants() {
     setLoading(true);
     setError("");
@@ -112,10 +100,6 @@ export function TaskAssignDialog({ region, onClose, onAssigned }: TaskAssignDial
       if (description.trim()) payload.description = description.trim();
       if (instruction.trim()) payload.instruction = instruction.trim();
       if (deadline) payload.deadline = new Date(deadline).toISOString();
-
-      if (import.meta.env.DEV) {
-        console.debug("[TaskAssignDialog] submit payload", payload);
-      }
 
       const res = await api.post<{ payment?: number | string; payment_amount?: number | string }>("/tasks", payload);
       const assignedPayment = Number(res.data.payment ?? res.data.payment_amount ?? 0);
