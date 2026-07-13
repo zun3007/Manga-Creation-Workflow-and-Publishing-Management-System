@@ -37,6 +37,23 @@ export const CHAPTER_TRANSITIONS: Record<ChapterStatus, ChapterStatus[]> = {
   [ChapterStatus.PUBLISHED]: [],
 };
 
+/**
+ * Transitions a MANGAKA may drive directly on their own chapter via
+ * `PATCH /chapters/:id/status`. Editor approval, board approval and publishing
+ * are intentionally excluded — they happen only through their own role-guarded
+ * endpoints (editor-review, board-review, publication-schedule). This prevents
+ * a mangaka from self-approving past the editor/board or self-publishing.
+ */
+export const MANGAKA_CHAPTER_TRANSITIONS: Record<ChapterStatus, ChapterStatus[]> =
+  {
+    [ChapterStatus.DRAFT]: [ChapterStatus.IN_PROGRESS],
+    [ChapterStatus.IN_PROGRESS]: [ChapterStatus.READY_FOR_EDITOR_REVIEW],
+    [ChapterStatus.READY_FOR_EDITOR_REVIEW]: [],
+    [ChapterStatus.EDITOR_APPROVED]: [],
+    [ChapterStatus.BOARD_APPROVED]: [],
+    [ChapterStatus.PUBLISHED]: [],
+  };
+
 export const PAGE_TRANSITIONS: Record<PageStatus, PageStatus[]> = {
   [PageStatus.RAW]: [PageStatus.ASSIGNED],
   [PageStatus.ASSIGNED]: [PageStatus.IN_PROGRESS],

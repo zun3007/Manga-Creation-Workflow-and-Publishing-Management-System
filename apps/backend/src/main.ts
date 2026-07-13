@@ -9,7 +9,31 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
 import { StorageService } from './s3/storage.service';
 
+/**
+ * Refuse to boot in production with missing or left-at-dev-default secrets.
+ * These defaults are fine for local development but would allow forged JWTs
+ * (dev-secret) or trivial DB/storage access if shipped.
+ */
+function assertProductionSecrets() {
+  if (process.env.NODE_ENV !== 'production') return;
+  const insecure: string[] = [];
+  const check = (name: string, devDefault: string) => {
+    const v = process.env[name];
+    if (!v || v === devDefault) insecure.push(name);
+  };
+  check('JWT_SECRET', 'dev-secret');
+  check('DB_PASSWORD', 'manga_root');
+  check('S3_SECRET_KEY', 'manga-s3-dev-secret');
+  if (insecure.length) {
+    throw new Error(
+      `Refusing to start in production: missing or insecure secrets → ${insecure.join(', ')}. ` +
+        'Set strong values in the environment before deploying.',
+    );
+  }
+}
+
 async function bootstrap() {
+  assertProductionSecrets();
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix('api');
   app.enableCors({

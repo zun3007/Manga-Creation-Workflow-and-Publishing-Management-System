@@ -307,6 +307,19 @@ export class SeriesService implements OnModuleInit {
       throw new NotFoundException('Series not found');
     }
 
+    // The assignee must actually be an active Tantou editor — never an
+    // assistant, mangaka, or a non-existent user id.
+    const editor = await this.db.queryOne<{ role: Role; is_activated: number }>(
+      `SELECT role, is_activated FROM \`User\` WHERE user_id = ?`,
+      [editorUserId],
+    );
+
+    if (!editor || editor.role !== Role.TANTOU_EDITOR || !editor.is_activated) {
+      throw new BadRequestException(
+        'Người được phân công phải là biên tập viên (Tantou) đang hoạt động.',
+      );
+    }
+
     await this.db.query(
       `UPDATE \`Series_Tantou_Editor\` SET unassigned_at = NOW() WHERE series_id = ? AND unassigned_at IS NULL`,
       [seriesId],

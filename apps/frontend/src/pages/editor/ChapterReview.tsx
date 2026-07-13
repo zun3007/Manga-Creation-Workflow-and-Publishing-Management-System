@@ -126,25 +126,13 @@ export default function ChapterReview() {
         x: formState.x,
         y: formState.y,
       };
-      await api.post("/annotations", payload);
+      const { data: created } = await api.post("/annotations", payload);
 
-      // Add to local state
+      // Add to local state using the real annotation returned by the backend,
+      // so the "resolve" button targets a real id instead of a placeholder 0.
       setAnnotationsByPageId((prev) => ({
         ...prev,
-        [formState.pageId]: [
-          ...(prev[formState.pageId] || []),
-          {
-            id: 0, // temporary; real id comes from backend
-            targetType: "PAGE",
-            targetId: formState.pageId,
-            category: formCategory,
-            context: formContext,
-            x: formState.x,
-            y: formState.y,
-            isResolved: 0,
-            createdAt: new Date().toISOString(),
-          },
-        ],
+        [formState.pageId]: [...(prev[formState.pageId] || []), created],
       }));
 
       toast.success('Đã thêm góp ý.');

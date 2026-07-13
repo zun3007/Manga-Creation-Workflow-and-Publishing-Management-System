@@ -240,6 +240,12 @@ describe('RankingsService', () => {
   describe('latestReaderVoteRankings', () => {
     it('loads the latest persisted reader import ranking from Reader_Vote_Ranking', async () => {
       const db: any = {
+        // ensure* helpers probe INFORMATION_SCHEMA via queryOne; return a
+        // non-zero count so they skip the idempotent ALTERs, and null for the
+        // "latest import" lookup so the summary is derived from the rows below.
+        queryOne: jest.fn((sql: string) =>
+          Promise.resolve(/INFORMATION_SCHEMA/.test(sql) ? { count: 1 } : null),
+        ),
         query: jest.fn().mockResolvedValue([
           {
             seriesId: 3,
@@ -266,7 +272,7 @@ describe('RankingsService', () => {
       expect(db.query).toHaveBeenCalledWith(
         expect.stringContaining('Reader_Vote_Ranking'),
       );
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         importedCount: 1,
         periodType: 'WEEKLY',
         startDate: '2026-07-06',

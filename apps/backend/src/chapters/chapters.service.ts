@@ -9,6 +9,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import {
   ChapterStatus,
   CHAPTER_TRANSITIONS,
+  MANGAKA_CHAPTER_TRANSITIONS,
   canTransition,
   NotificationType,
 } from '@manga/shared';
@@ -111,56 +112,21 @@ export class ChaptersService {
       throw new NotFoundException('Chapter not found');
     }
 
-    if (!canTransition(CHAPTER_TRANSITIONS, chapter.chapter_status, status)) {
+    if (
+      !canTransition(MANGAKA_CHAPTER_TRANSITIONS, chapter.chapter_status, status)
+    ) {
       throw new BadRequestException(
-        `Invalid chapter transition ${chapter.chapter_status} → ${status}`,
+        `Mangaka không thể tự chuyển chương từ ${chapter.chapter_status} sang ${status}. ` +
+          `Duyệt biên tập, duyệt hội đồng và xuất bản là các bước riêng do biên tập viên / hội đồng thực hiện.`,
       );
     }
 
-    // For PUBLISHED status, verify all pages are COMPLETED
-    if (status === ChapterStatus.PUBLISHED) {
-      const readiness = await this.getChapterReadiness(chapterId);
+    await this.db.query(
+      `UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`,
+      [status, chapterId],
+    );
 
-      if (readiness.totalPages === 0) {
-        throw new BadRequestException('Chương chưa có trang');
-      }
-
-      if (readiness.incompletePages > 0) {
-        throw new BadRequestException(
-          'Còn trang chưa hoàn thành — không thể xuất bản',
-        );
-      }
-
-      if (readiness.nonApprovedTasks > 0) {
-        throw new BadRequestException(
-          'Còn task chưa được duyệt — không thể xuất bản',
-        );
-      }
-    }
-
-    // Execute DB writes in transaction for PUBLISHED status, direct update otherwise
-    if (status === ChapterStatus.PUBLISHED) {
-      await this.db.transaction(async (tx) => {
-        await tx.query(
-          `UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`,
-          [status, chapterId],
-        );
-
-        await tx.query(
-          `INSERT INTO \`Publication_Schedule\` (chapter_id, release_date, publish_status, scheduled_by_user_id, published_at)
-           VALUES (?, NOW(), 'PUBLISHED', ?, NOW())
-           ON DUPLICATE KEY UPDATE publish_status='PUBLISHED', published_at=NOW()`,
-          [chapterId, userId],
-        );
-      });
-    } else {
-      await this.db.query(
-        `UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`,
-        [status, chapterId],
-      );
-    }
-
-    // Send notifications after transaction commits
+    // Notify assigned editors when a chapter is submitted for editor review.
     if (status === ChapterStatus.READY_FOR_EDITOR_REVIEW) {
       // Notify active assigned editors of this series
       const editors = await this.db.query<{ editor_user_id: number }>(
@@ -174,33 +140,6 @@ export class ChaptersService {
           NotificationType.REVIEW,
           `Chương "${chapter.chapter_title}" chờ duyệt`,
           'Một chương mới chờ duyệt của bạn.',
-          'Chapter',
-          chapterId,
-        );
-      }
-    } else if (status === ChapterStatus.PUBLISHED) {
-      // Notify mangaka (confirmation)
-      await this.notifications.notify(
-        chapter.mangaka_user_id,
-        NotificationType.GENERAL,
-        `Chương "${chapter.chapter_title}" đã xuất bản`,
-        'Chương của bạn đã được xuất bản thành công.',
-        'Chapter',
-        chapterId,
-      );
-
-      // Notify active assigned editors
-      const editors = await this.db.query<{ editor_user_id: number }>(
-        `SELECT editor_user_id FROM \`Series_Tantou_Editor\` WHERE series_id = ? AND unassigned_at IS NULL`,
-        [chapter.series_id],
-      );
-
-      for (const editor of editors) {
-        await this.notifications.notify(
-          editor.editor_user_id,
-          NotificationType.GENERAL,
-          `Chương "${chapter.chapter_title}" đã xuất bản`,
-          'Một chương đã được xuất bản.',
           'Chapter',
           chapterId,
         );

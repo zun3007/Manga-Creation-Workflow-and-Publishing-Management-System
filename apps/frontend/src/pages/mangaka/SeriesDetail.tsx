@@ -12,11 +12,21 @@ import type { ChapterStatus } from "@manga/shared";
 const fmtDate = (s: string | null) =>
   s ? new Date(s).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
 
-// Mangaka lifecycle actions: maps current status to next status + label
+// Mangaka lifecycle actions: maps current status to the next status the MANGAKA
+// may drive. Editor approval, board approval and publishing are NOT mangaka
+// actions (they happen on the editor/board screens), so those stages are shown
+// as read-only status hints (WAITING_LABEL) rather than action buttons.
 const NEXT: Record<string, { to: ChapterStatus; label: string } | undefined> = {
   DRAFT: { to: "IN_PROGRESS" as ChapterStatus, label: "Bắt đầu vẽ" },
   IN_PROGRESS: { to: "READY_FOR_EDITOR_REVIEW" as ChapterStatus, label: "Gửi duyệt biên tập" },
-  EDITOR_APPROVED: { to: "PUBLISHED" as ChapterStatus, label: "Xuất bản" },
+};
+
+// Read-only labels for stages the mangaka is waiting on (no action button).
+const WAITING_LABEL: Record<string, string | undefined> = {
+  READY_FOR_EDITOR_REVIEW: "Đang chờ biên tập",
+  EDITOR_APPROVED: "Chờ hội đồng duyệt",
+  BOARD_APPROVED: "Chờ lên lịch xuất bản",
+  PUBLISHED: "Đã xuất bản",
 };
 
 export default function SeriesDetail() {
@@ -108,11 +118,7 @@ export default function SeriesDetail() {
         prev.map((ch) => (ch.id === chapterId ? { ...ch, status: newStatus } : ch))
       );
       await api.patch(`/chapters/${chapterId}/status`, { status: newStatus });
-      if (newStatus === "PUBLISHED") {
-        toast.success('Đã xuất bản chương.');
-      } else {
-        toast.success('Đã cập nhật chương.');
-      }
+      toast.success('Đã cập nhật chương.');
     } catch (e) {
       console.error("Failed to update chapter status", e);
       // Revert to previous state
@@ -279,10 +285,10 @@ export default function SeriesDetail() {
                             >
                               {savingId === ch.id ? "Đang cập nhật…" : action.label}
                             </Button>
-                          ) : ch.status === "READY_FOR_EDITOR_REVIEW" ? (
-                            <span className="text-ink-soft font-mono text-xs">Đang chờ biên tập</span>
-                          ) : ch.status === "PUBLISHED" ? (
-                            <span className="text-ink-soft font-mono text-xs">Đã xuất bản</span>
+                          ) : WAITING_LABEL[ch.status] ? (
+                            <span className="text-ink-soft font-mono text-xs">
+                              {WAITING_LABEL[ch.status]}
+                            </span>
                           ) : null}
                           <div className="text-ink-soft font-mono text-xs">→</div>
                         </div>

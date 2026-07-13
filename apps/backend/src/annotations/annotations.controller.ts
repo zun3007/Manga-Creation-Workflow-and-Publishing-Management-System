@@ -32,13 +32,14 @@ export class AnnotationsController {
   async list(
     @Query('targetType') targetType: string,
     @Query('targetId') targetId: string,
+    @Req() req: any,
   ) {
-    return this.service.list(targetType, +targetId);
+    return this.service.list(req.user, targetType, +targetId);
   }
 
   @Patch(':id/resolve')
   @Roles(Role.TANTOU_EDITOR)
-  async resolve(@Param('id') id: string) {
-    return this.service.resolve(+id);
+  async resolve(@Param('id') id: string, @Req() req: any) {
+    return this.service.resolve(req.user.id, +id);
   }
 }

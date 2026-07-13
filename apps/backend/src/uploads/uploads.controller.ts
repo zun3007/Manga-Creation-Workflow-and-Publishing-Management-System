@@ -8,10 +8,10 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { extname } from 'path';
 import { randomUUID } from 'crypto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { StorageService } from '../s3/storage.service';
+import { assertValidImageUpload } from '../common/file-validation.util';
 
 @Controller('uploads')
 export class UploadsController {
@@ -29,7 +29,9 @@ export class UploadsController {
   )
   async uploadFile(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('Thiếu file để tải lên.');
-    const key = `${randomUUID()}${extname(file.originalname)}`;
+    // Only real images may be stored (endpoint serves objects publicly).
+    const { extension } = assertValidImageUpload(file);
+    const key = `${randomUUID()}${extension}`;
     await this.storage.put(key, file.buffer, file.mimetype);
     return { url: `/uploads/${key}`, originalName: file.originalname };
   }

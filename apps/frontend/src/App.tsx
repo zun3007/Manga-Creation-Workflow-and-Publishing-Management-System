@@ -32,7 +32,7 @@ import { AppShell } from "./components/app/AppShell";
 import { RoleProtected } from "./components/app/RoleProtected";
 import { ToastProvider } from "./components/ui/Toast";
 import { ConfirmProvider } from "./lib/confirm";
-import ChapterApproval from "./pages/board/ChapterApproval.tsx";
+import ChapterApproval from "./pages/board/ChapterApproval";
 
 function Splash() {
   return (
@@ -175,9 +175,21 @@ function AppRoutes() {
         path="/board/reader-votes/import"
         element={
           <Protected>
-            <RoleProtected roles={["EDITORIAL_BOARD" as Role, "TANTOU_EDITOR" as Role]}>
+            <RoleProtected roles={["EDITORIAL_BOARD" as Role]}>
               <AppShell>
                 <ReaderVoteImport />
+              </AppShell>
+            </RoleProtected>
+          </Protected>
+        }
+      />
+      <Route
+        path="/board/chapter-approval"
+        element={
+          <Protected>
+            <RoleProtected roles={["EDITORIAL_BOARD" as Role]}>
+              <AppShell>
+                <ChapterApproval />
               </AppShell>
             </RoleProtected>
           </Protected>
@@ -313,14 +325,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-        <Route
-            path="/board/chapter-approval"
-            element={
-                <AppShell>
-                    <ChapterApproval />
-                </AppShell>
-            }
-        />
     </Routes>
   );
 }

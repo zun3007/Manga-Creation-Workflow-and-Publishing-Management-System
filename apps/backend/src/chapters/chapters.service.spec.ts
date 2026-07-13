@@ -6,6 +6,11 @@ describe('ChaptersService.editorReview', () => {
     queryOne: jest
       .fn()
       .mockResolvedValueOnce(chapter) // assignment+chapter lookup
+      .mockResolvedValueOnce({
+        totalPages: 2,
+        incompletePages: 0,
+        nonApprovedTasks: 0,
+      }) // getChapterReadiness (approval gate)
       .mockResolvedValue({
         id: chapter?.chapter_id,
         status: 'EDITOR_APPROVED',
@@ -42,72 +47,70 @@ describe('ChaptersService.editorReview', () => {
 });
 
 describe('ChaptersService.setStatus', () => {
-  it('transitions EDITOR_APPROVED → PUBLISHED and writes Publication_Schedule', async () => {
+  it('advances IN_PROGRESS → READY_FOR_EDITOR_REVIEW (a mangaka-legal step)', async () => {
     const db: any = {
       queryOne: jest
         .fn()
         .mockResolvedValueOnce({
           chapter_id: 10,
-          chapter_status: ChapterStatus.EDITOR_APPROVED,
+          chapter_status: ChapterStatus.IN_PROGRESS,
           series_id: 2,
           mangaka_user_id: 5,
           chapter_title: 'Ch 1',
         }) // ownership lookup
-        .mockResolvedValueOnce({ c: 0 }) // incomplete pages count
-        .mockResolvedValueOnce({ c: 5 }) // total pages count
         .mockResolvedValue({
           id: 10,
-          status: ChapterStatus.PUBLISHED,
+          status: ChapterStatus.READY_FOR_EDITOR_REVIEW,
         }), // findOne
       query: jest.fn().mockResolvedValue([]),
-      transaction: jest.fn(async (fn) => fn(db)),
     };
     const notif: any = { notify: jest.fn().mockResolvedValue(undefined) };
     const s = new ChaptersService(db, notif);
-    await s.setStatus(10, 99, ChapterStatus.PUBLISHED);
+    await s.setStatus(10, 5, ChapterStatus.READY_FOR_EDITOR_REVIEW);
 
-    // Verify UPDATE to Chapter table
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE'),
-      expect.arrayContaining([ChapterStatus.PUBLISHED, 10]),
-    );
-
-    // Verify INSERT to Publication_Schedule
-    expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('Publication_Schedule'),
-      expect.arrayContaining([10, 99]),
+      expect.arrayContaining([ChapterStatus.READY_FOR_EDITOR_REVIEW, 10]),
     );
   });
 
-  it('rejects PUBLISHED when a page is not COMPLETED (e.g. still RAW)', async () => {
-    const transaction = jest.fn();
+  it('rejects a mangaka self-approving READY_FOR_EDITOR_REVIEW → EDITOR_APPROVED', async () => {
     const db: any = {
-      queryOne: jest
-        .fn()
-        .mockResolvedValueOnce({
-          chapter_id: 10,
-          chapter_status: ChapterStatus.EDITOR_APPROVED,
-          series_id: 2,
-          mangaka_user_id: 5,
-          chapter_title: 'Ch 1',
-        }) // ownership lookup
-        .mockResolvedValueOnce({ c: 1 }), // one incomplete (non-COMPLETED) page
+      queryOne: jest.fn().mockResolvedValueOnce({
+        chapter_id: 10,
+        chapter_status: ChapterStatus.READY_FOR_EDITOR_REVIEW,
+        series_id: 2,
+        mangaka_user_id: 5,
+        chapter_title: 'Ch 1',
+      }),
       query: jest.fn().mockResolvedValue([]),
-      transaction,
     };
-    const notif: any = { notify: jest.fn().mockResolvedValue(undefined) };
-    const s = new ChaptersService(db, notif);
+    const s = new ChaptersService(db, { notify: jest.fn() } as any);
 
-    await expect(s.setStatus(10, 99, ChapterStatus.PUBLISHED)).rejects.toThrow(
-      /Còn trang chưa hoàn thành/,
-    );
+    await expect(
+      s.setStatus(10, 5, ChapterStatus.EDITOR_APPROVED),
+    ).rejects.toThrow(/Mangaka không thể/);
+    // No write may happen on an illegal transition.
+    expect(db.query).not.toHaveBeenCalled();
+  });
 
-    // Gate must fail BEFORE any write happens
-    expect(transaction).not.toHaveBeenCalled();
-    expect(db.query).not.toHaveBeenCalledWith(
-      expect.stringContaining('UPDATE'),
-      expect.anything(),
-    );
+  it('rejects a mangaka self-publishing EDITOR_APPROVED → PUBLISHED', async () => {
+    const db: any = {
+      queryOne: jest.fn().mockResolvedValueOnce({
+        chapter_id: 10,
+        chapter_status: ChapterStatus.EDITOR_APPROVED,
+        series_id: 2,
+        mangaka_user_id: 5,
+        chapter_title: 'Ch 1',
+      }),
+      query: jest.fn().mockResolvedValue([]),
+    };
+    const s = new ChaptersService(db, { notify: jest.fn() } as any);
+
+    await expect(
+      s.setStatus(10, 5, ChapterStatus.PUBLISHED),
+    ).rejects.toThrow(/Mangaka không thể/);
+    expect(db.query).not.toHaveBeenCalled();
   });
 });
 

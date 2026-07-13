@@ -9,7 +9,7 @@
     "dev:frontend": "pnpm build:packages && pnpm -F frontend dev",
     "dev:backend": "pnpm build:packages && pnpm -F backend start:dev",
     "build": "pnpm -r build",
-    "test": "pnpm -r test",
+    "test": "pnpm build:packages && pnpm -r test",
     "db:up": "docker compose -f db/docker-compose.yml up -d",
     "db:down": "docker compose -f db/docker-compose.yml down"
   }

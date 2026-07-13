@@ -1,5 +1,6 @@
 # ───────────────── Dependencies ─────────────────
 node_modules/
+.pnpm-store/
 .pnp
 .pnp.js
 .yarn/*
@@ -33,6 +34,8 @@ pnpm-debug.log*
 # ───────────────── Testing / coverage ─────────────────
 coverage/
 .nyc_output/
+# Generated test/benchmark reports — may embed real JWTs/secrets, never commit
+test/reports/
 
 # ───────────────── Local file storage (uploads MVP) ─────────────────
 # NOTE: only ignore the runtime upload STORAGE dir, never the source module

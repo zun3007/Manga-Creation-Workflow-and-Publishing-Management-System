@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
+import { useConfirm } from "../../lib/confirm";
+import { Modal } from "../../components/ui/Modal";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { Stamp } from "../../components/ui/Stamp";
@@ -16,15 +18,18 @@ type BoardChapter = {
   series: string;
 };
 
-type BoardDecision = "APPROVE" | "REJECT";
-
 export default function ChapterApproval() {
   const toast = useToast();
+  const { confirm } = useConfirm();
 
   const [chapters, setChapters] = useState<BoardChapter[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [error, setError] = useState("");
+
+  // Reject-with-reason modal state (replaces the old window.prompt).
+  const [rejectTarget, setRejectTarget] = useState<BoardChapter | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const loadChapters = useCallback(async () => {
     setLoading(true);
@@ -52,64 +57,72 @@ export default function ChapterApproval() {
     void loadChapters();
   }, [loadChapters]);
 
-  async function reviewChapter(chapter: BoardChapter, decision: BoardDecision) {
-    let feedback = "";
+  const submitReview = useCallback(
+    async (
+      chapter: BoardChapter,
+      decision: "APPROVE" | "REJECT",
+      feedback?: string,
+    ) => {
+      setProcessingId(chapter.id);
 
-    if (decision === "APPROVE") {
-      const confirmed = window.confirm(
-        `Chấp nhận Chapter ${chapter.number} - ${chapter.title}?`,
-      );
+      try {
+        await api.patch(`/chapters/${chapter.id}/board-review`, {
+          decision,
+          feedback: feedback || undefined,
+        });
 
-      if (!confirmed) {
-        return;
-      }
-    } else {
-      const enteredFeedback = window.prompt(
-        `Nhập lý do từ chối Chapter ${chapter.number} - ${chapter.title}:`,
-      );
-
-      if (enteredFeedback === null) {
-        return;
-      }
-
-      feedback = enteredFeedback.trim();
-
-      if (!feedback) {
-        toast.error("Vui lòng nhập lý do từ chối.");
-        return;
-      }
-    }
-
-    setProcessingId(chapter.id);
-
-    try {
-      await api.patch(`/chapters/${chapter.id}/board-review`, {
-        decision,
-        feedback: feedback || undefined,
-      });
-
-      toast.success(
-        decision === "APPROVE"
-          ? "Hội đồng đã chấp nhận chương."
-          : "Hội đồng đã từ chối và gửi yêu cầu chỉnh sửa.",
-      );
-
-      // Xóa ngay khỏi danh sách vì chương không còn EDITOR_APPROVED.
-      setChapters((current) =>
-        current.filter((item) => item.id !== chapter.id),
-      );
-    } catch (err) {
-      toast.error(
-        apiErrorMessage(
-          err,
+        toast.success(
           decision === "APPROVE"
-            ? "Không thể chấp nhận chương"
-            : "Không thể từ chối chương",
-        ),
-      );
-    } finally {
-      setProcessingId(null);
+            ? "Hội đồng đã chấp nhận chương."
+            : "Hội đồng đã từ chối và gửi yêu cầu chỉnh sửa.",
+        );
+
+        // Drop it from the queue — it is no longer EDITOR_APPROVED.
+        setChapters((current) =>
+          current.filter((item) => item.id !== chapter.id),
+        );
+        return true;
+      } catch (err) {
+        toast.error(
+          apiErrorMessage(
+            err,
+            decision === "APPROVE"
+              ? "Không thể chấp nhận chương"
+              : "Không thể từ chối chương",
+          ),
+        );
+        return false;
+      } finally {
+        setProcessingId(null);
+      }
+    },
+    [toast],
+  );
+
+  async function handleApprove(chapter: BoardChapter) {
+    const ok = await confirm({
+      title: "Chấp nhận chương?",
+      body: `Chapter ${chapter.number} — ${chapter.title} sẽ được chuyển sang bước lên lịch xuất bản.`,
+      confirmText: "Chấp nhận",
+    });
+    if (!ok) return;
+    await submitReview(chapter, "APPROVE");
+  }
+
+  function openReject(chapter: BoardChapter) {
+    setRejectTarget(chapter);
+    setRejectReason("");
+  }
+
+  async function handleRejectSubmit() {
+    if (!rejectTarget) return;
+    const reason = rejectReason.trim();
+    if (!reason) {
+      toast.error("Vui lòng nhập lý do từ chối.");
+      return;
     }
+    const ok = await submitReview(rejectTarget, "REJECT", reason);
+    if (ok) setRejectTarget(null);
   }
 
   return (
@@ -207,9 +220,7 @@ export default function ChapterApproval() {
                                 processingId !== null &&
                                 processingId !== chapter.id
                               }
-                              onClick={() =>
-                                void reviewChapter(chapter, "APPROVE")
-                              }
+                              onClick={() => void handleApprove(chapter)}
                             >
                               Chấp nhận
                             </Button>
@@ -217,9 +228,7 @@ export default function ChapterApproval() {
                             <Button
                               variant="ghost"
                               disabled={processingId !== null}
-                              onClick={() =>
-                                void reviewChapter(chapter, "REJECT")
-                              }
+                              onClick={() => openReject(chapter)}
                             >
                               Từ chối
                             </Button>
@@ -234,6 +243,43 @@ export default function ChapterApproval() {
           )}
         </div>
       </Panel>
+
+      <Modal
+        open={rejectTarget !== null}
+        onClose={() => setRejectTarget(null)}
+        title="Từ chối chương"
+        className="w-full max-w-md"
+      >
+        <div className="space-y-4 p-6">
+          <h2 className="text-lg font-semibold text-ink">Từ chối chương</h2>
+          <p className="text-sm text-ink-soft">
+            {rejectTarget
+              ? `Nhập lý do yêu cầu chỉnh sửa cho Chapter ${rejectTarget.number} — ${rejectTarget.title}. Chương sẽ quay lại trạng thái đang thực hiện.`
+              : ""}
+          </p>
+          <textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            rows={4}
+            placeholder="Lý do từ chối / yêu cầu chỉnh sửa…"
+            className="w-full rounded-[calc(var(--app-radius)*0.6)] border border-line bg-surface px-3 py-2 text-ink outline-none transition focus:border-accent"
+          />
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setRejectTarget(null)}>
+              Hủy
+            </Button>
+            <Button
+              className="bg-danger text-white hover:brightness-95"
+              loading={
+                rejectTarget !== null && processingId === rejectTarget.id
+              }
+              onClick={() => void handleRejectSubmit()}
+            >
+              Từ chối chương
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

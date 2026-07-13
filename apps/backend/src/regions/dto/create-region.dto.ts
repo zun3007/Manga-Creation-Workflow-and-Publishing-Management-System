@@ -11,18 +11,22 @@ export class CreateRegionDto {
   regionType!: RegionType;
 
   @IsNumber()
+  @Min(0)
   @IsNotEmpty()
   x!: number;
 
   @IsNumber()
+  @Min(0)
   @IsNotEmpty()
   y!: number;
 
   @IsNumber()
+  @Min(0)
   @IsNotEmpty()
   width!: number;
 
   @IsNumber()
+  @Min(0)
   @IsNotEmpty()
   height!: number;
 }
