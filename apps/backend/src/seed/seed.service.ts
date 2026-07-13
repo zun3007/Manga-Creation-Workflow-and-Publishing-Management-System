@@ -17,6 +17,20 @@ export class SeedService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    // Demo-password seeding is a LOCAL DEVELOPMENT convenience only. It is
+    // disabled in production (and whenever SEED_DEMO_USERS=false) so a
+    // deployment can never have its accounts reset to a source-known password.
+    const isProd = this.config.get<string>('NODE_ENV') === 'production';
+    const enabled =
+      this.config.get<string>('SEED_DEMO_USERS', isProd ? 'false' : 'true') !==
+      'false';
+    if (!enabled) {
+      this.logger.log(
+        'Demo user seeding skipped (production or SEED_DEMO_USERS=false).',
+      );
+      return;
+    }
+
     const password = this.config.get<string>(
       'DEMO_USER_PASSWORD',
       'Dung123456@',
@@ -25,12 +39,13 @@ export class SeedService implements OnModuleInit {
       'DEMO_USER_EMAIL',
       'dungminer69@gmail.com',
     );
+    // The ADMIN account is intentionally NEVER reset here — an operator must
+    // own that credential. Only non-privileged demo accounts are (re)synced.
     const emails = [
       primary,
       'mai.assistant@inkframe.studio', // ASSISTANT (seed user 2)
       'hiroshi.editor@inkframe.studio', // TANTOU_EDITOR (seed user 5)
       'yamamoto.board@inkframe.studio', // EDITORIAL_BOARD (seed user 6)
-      'admin@inkframe.studio', // ADMIN (seed user 7)
       'kenji.assistant@inkframe.studio',
       'lan.assistant@inkframe.studio',
     ];

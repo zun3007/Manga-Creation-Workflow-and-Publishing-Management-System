@@ -70,6 +70,7 @@ export class AuthService {
     if (!ok) {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
+    this.assertActive(user);
     if (!this.twoFactorEnabled) {
       return this.issue(user);
     }
@@ -195,6 +196,9 @@ export class AuthService {
 
   // ── token issuance ───────────────────────────────────────────────────────
   private issue(user: UserRow): AuthSuccess {
+    // Backstop for every auth path (local, Google, post-2FA): a deactivated
+    // account can never receive an access token.
+    this.assertActive(user);
     const payload: JwtPayload = {
       sub: user.user_id,
       email: user.email,
@@ -215,5 +219,14 @@ export class AuthService {
       role: user.role,
       avatarUrl: user.avatar_url,
     };
+  }
+
+  /** Reject authentication for deactivated accounts (admin lockout must bite). */
+  private assertActive(user: UserRow): void {
+    if (!user.is_activated) {
+      throw new UnauthorizedException(
+        'Tài khoản đã bị vô hiệu hoá. Vui lòng liên hệ quản trị viên.',
+      );
+    }
   }
 }
