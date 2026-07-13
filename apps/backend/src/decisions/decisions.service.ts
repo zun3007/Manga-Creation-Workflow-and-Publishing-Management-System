@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { DbService } from '../db/db.service';
@@ -8,6 +9,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import {
   DecisionType,
   Frequency,
+  Role,
   SeriesStatus,
   NotificationType,
 } from '@manga/shared';
@@ -26,13 +28,25 @@ export class DecisionsService {
       series_id: number;
       title: string;
       mangaka_user_id: number;
+      series_status: SeriesStatus;
     }>(
-      `SELECT series_id, title, mangaka_user_id FROM \`Series\` WHERE series_id = ?`,
+      `SELECT series_id, title, mangaka_user_id, series_status FROM \`Series\` WHERE series_id = ?`,
       [dto.seriesId],
     );
 
     if (!series) {
       throw new NotFoundException('Series not found');
+    }
+
+    // A terminated series (cancelled/completed) is final — reject any new
+    // decision so CONTINUE/CHANGE_FREQUENCY can't silently revive it.
+    if (
+      series.series_status === SeriesStatus.CANCELLED ||
+      series.series_status === SeriesStatus.COMPLETED
+    ) {
+      throw new BadRequestException(
+        'Series đã kết thúc (đã huỷ hoặc hoàn thành) — không thể ra quyết định mới.',
+      );
     }
 
     // Step 2: Validate CHANGE_FREQUENCY requires newFrequency
@@ -49,46 +63,41 @@ export class DecisionsService {
       [dto.seriesId],
     );
 
-    // Step 4: Insert into Decision
-    await this.db.insert(
-      `INSERT INTO \`Decision\` (series_id, ranking_id, decision_type, new_frequency, reason, decided_by_user_id)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        dto.seriesId,
-        rankingRow?.ranking_id ?? null,
-        dto.decisionType,
-        dto.newFrequency ?? null,
-        dto.reason,
-        boardUserId,
-      ],
-    );
+    // Steps 4-5: persist the decision and apply its effect to the series
+    // atomically — a mid-sequence failure must not leave one without the other.
+    const nextStatus: Record<DecisionType, SeriesStatus> = {
+      [DecisionType.CONTINUE]: SeriesStatus.ACTIVE,
+      [DecisionType.CHANGE_FREQUENCY]: SeriesStatus.ACTIVE,
+      [DecisionType.CANCEL]: SeriesStatus.CANCELLED,
+      [DecisionType.HIATUS]: SeriesStatus.HIATUS,
+    };
 
-    // Step 5: Apply decision to Series
-    if (dto.decisionType === DecisionType.CHANGE_FREQUENCY) {
-      // Revive the series with the new cadence after Board review.
-      await this.db.query(
-        `UPDATE \`Series\` SET publication_frequency = ?, series_status = ? WHERE series_id = ?`,
-        [dto.newFrequency, SeriesStatus.ACTIVE, dto.seriesId],
+    await this.db.transaction(async (tx) => {
+      await tx.insert(
+        `INSERT INTO \`Decision\` (series_id, ranking_id, decision_type, new_frequency, reason, decided_by_user_id)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          dto.seriesId,
+          rankingRow?.ranking_id ?? null,
+          dto.decisionType,
+          dto.newFrequency ?? null,
+          dto.reason,
+          boardUserId,
+        ],
       );
-    } else if (dto.decisionType === DecisionType.CONTINUE) {
-      // Set status to ACTIVE
-      await this.db.query(
-        `UPDATE \`Series\` SET series_status = ? WHERE series_id = ?`,
-        [SeriesStatus.ACTIVE, dto.seriesId],
-      );
-    } else if (dto.decisionType === DecisionType.CANCEL) {
-      // Set status to CANCELLED
-      await this.db.query(
-        `UPDATE \`Series\` SET series_status = ? WHERE series_id = ?`,
-        [SeriesStatus.CANCELLED, dto.seriesId],
-      );
-    } else if (dto.decisionType === DecisionType.HIATUS) {
-      // Set status to HIATUS
-      await this.db.query(
-        `UPDATE \`Series\` SET series_status = ? WHERE series_id = ?`,
-        [SeriesStatus.HIATUS, dto.seriesId],
-      );
-    }
+
+      if (dto.decisionType === DecisionType.CHANGE_FREQUENCY) {
+        await tx.query(
+          `UPDATE \`Series\` SET publication_frequency = ?, series_status = ? WHERE series_id = ?`,
+          [dto.newFrequency, SeriesStatus.ACTIVE, dto.seriesId],
+        );
+      } else {
+        await tx.query(
+          `UPDATE \`Series\` SET series_status = ? WHERE series_id = ?`,
+          [nextStatus[dto.decisionType], dto.seriesId],
+        );
+      }
+    });
 
     const notificationTitle = this.decisionNotificationTitle(
       series.title,
@@ -126,7 +135,19 @@ export class DecisionsService {
     return { ok: true };
   }
 
-  async listForSeries(seriesId: number) {
+  async listForSeries(seriesId: number, user: { id: number; role: Role }) {
+    // A mangaka may only read decisions for a series they own.
+    if (user.role === Role.MANGAKA) {
+      const owns = await this.db.queryOne(
+        `SELECT 1 AS ok FROM \`Series\` WHERE series_id = ? AND mangaka_user_id = ? LIMIT 1`,
+        [seriesId, user.id],
+      );
+      if (!owns) {
+        throw new ForbiddenException(
+          'Bạn không có quyền xem quyết định của series này.',
+        );
+      }
+    }
     return this.db.query(
       `SELECT decision_id AS id, decision_type AS type, new_frequency AS newFrequency, reason, decided_at AS decidedAt
        FROM \`Decision\`

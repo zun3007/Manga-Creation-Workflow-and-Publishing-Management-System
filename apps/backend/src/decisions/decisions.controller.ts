@@ -27,7 +27,7 @@ export class DecisionsController {
 
   @Get()
   @Roles(Role.EDITORIAL_BOARD, Role.ADMIN, Role.MANGAKA)
-  async listForSeries(@Query('seriesId') seriesId: string) {
-    return this.service.listForSeries(+seriesId);
+  async listForSeries(@Query('seriesId') seriesId: string, @Req() req: any) {
+    return this.service.listForSeries(+seriesId, req.user);
   }
 }

@@ -1,10 +1,13 @@
 import { SeriesService } from './series.service';
-import { NotificationType } from '@manga/shared';
+import { NotificationType, Role } from '@manga/shared';
 
 describe('SeriesService', () => {
   it('assignEditor unassigns current editor, inserts new assignment, and notifies', async () => {
     const db: any = {
-      queryOne: jest.fn().mockResolvedValue({ title: 'My Series', mangaka_user_id: 5 }),
+      queryOne: jest
+        .fn()
+        .mockResolvedValueOnce({ title: 'My Series', mangaka_user_id: 5 })
+        .mockResolvedValueOnce({ role: Role.TANTOU_EDITOR, is_activated: 1 }),
       query: jest.fn().mockResolvedValue([]),
     };
     const notifications: any = {
@@ -59,6 +62,23 @@ describe('SeriesService', () => {
     };
 
     const service = new SeriesService(db, notifications);
-    await expect(service.assignEditor(999, 9)).rejects.toThrow('Series not found');
+    await expect(service.assignEditor(999, 9)).rejects.toThrow(
+      'Series not found',
+    );
+  });
+
+  it('assignEditor rejects when the assignee is not an active Tantou editor', async () => {
+    const db: any = {
+      queryOne: jest
+        .fn()
+        .mockResolvedValueOnce({ title: 'My Series', mangaka_user_id: 5 })
+        .mockResolvedValueOnce({ role: Role.ASSISTANT, is_activated: 1 }),
+      query: jest.fn(),
+    };
+    const service = new SeriesService(db, { notify: jest.fn() } as any);
+
+    await expect(service.assignEditor(5, 9)).rejects.toThrow(/Tantou/);
+    // Must reject before any assignment write.
+    expect(db.query).not.toHaveBeenCalled();
   });
 });

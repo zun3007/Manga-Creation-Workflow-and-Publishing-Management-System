@@ -1,20 +1,39 @@
 import { DecisionsService } from './decisions.service';
-import { DecisionType, Frequency, NotificationType } from '@manga/shared';
+import {
+  DecisionType,
+  Frequency,
+  NotificationType,
+  SeriesStatus,
+} from '@manga/shared';
+
+// decide() now persists the Decision + Series update inside db.transaction(),
+// so the mock exposes a tx context and assertions target it.
+function makeDb() {
+  const tx = {
+    insert: jest.fn().mockResolvedValue(101),
+    query: jest.fn().mockResolvedValue([]),
+    queryOne: jest.fn().mockResolvedValue(null),
+  };
+  const db: any = {
+    queryOne: jest.fn(),
+    query: jest.fn().mockResolvedValue([]),
+    insert: jest.fn().mockResolvedValue(101),
+    transaction: jest.fn().mockImplementation((fn: any) => fn(tx)),
+  };
+  return { db, tx };
+}
 
 describe('DecisionsService.decide', () => {
   it('creates a CANCEL decision, updates Series status, and notifies mangaka', async () => {
-    const db: any = {
-      queryOne: jest
-        .fn()
-        .mockResolvedValueOnce({
-          series_id: 7,
-          title: 'Test Series',
-          mangaka_user_id: 42,
-        })
-        .mockResolvedValueOnce({ ranking_id: 3 }),
-      insert: jest.fn().mockResolvedValue(101),
-      query: jest.fn().mockResolvedValue([]),
-    };
+    const { db, tx } = makeDb();
+    db.queryOne
+      .mockResolvedValueOnce({
+        series_id: 7,
+        title: 'Test Series',
+        mangaka_user_id: 42,
+        series_status: SeriesStatus.ACTIVE,
+      })
+      .mockResolvedValueOnce({ ranking_id: 3 });
     const notifications: any = {
       notify: jest.fn().mockResolvedValue(undefined),
     };
@@ -26,7 +45,6 @@ describe('DecisionsService.decide', () => {
       reason: 'low sales',
     });
 
-    // Verify queryOne calls (series, then ranking)
     expect(db.queryOne).toHaveBeenNthCalledWith(
       1,
       expect.stringContaining('SELECT series_id, title, mangaka_user_id'),
@@ -38,19 +56,16 @@ describe('DecisionsService.decide', () => {
       [7],
     );
 
-    // Verify INSERT into Decision
-    expect(db.insert).toHaveBeenCalledWith(
+    expect(tx.insert).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO `Decision`'),
       [7, 3, DecisionType.CANCEL, null, 'low sales', 9],
     );
 
-    // Verify UPDATE Series status to CANCELLED
-    expect(db.query).toHaveBeenCalledWith(
+    expect(tx.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE `Series` SET series_status'),
-      expect.arrayContaining([DecisionType.CANCEL === DecisionType.CANCEL ? 'CANCELLED' : undefined, 7]),
+      expect.arrayContaining([SeriesStatus.CANCELLED, 7]),
     );
 
-    // Verify notify
     expect(notifications.notify).toHaveBeenCalledWith(
       42,
       NotificationType.DECISION,
@@ -64,18 +79,15 @@ describe('DecisionsService.decide', () => {
   });
 
   it('creates a CHANGE_FREQUENCY decision and updates publication_frequency', async () => {
-    const db: any = {
-      queryOne: jest
-        .fn()
-        .mockResolvedValueOnce({
-          series_id: 5,
-          title: 'Another Series',
-          mangaka_user_id: 99,
-        })
-        .mockResolvedValueOnce(null),
-      insert: jest.fn().mockResolvedValue(102),
-      query: jest.fn().mockResolvedValue([]),
-    };
+    const { db, tx } = makeDb();
+    db.queryOne
+      .mockResolvedValueOnce({
+        series_id: 5,
+        title: 'Another Series',
+        mangaka_user_id: 99,
+        series_status: SeriesStatus.HIATUS,
+      })
+      .mockResolvedValueOnce(null);
     const notifications: any = {
       notify: jest.fn().mockResolvedValue(undefined),
     };
@@ -88,36 +100,35 @@ describe('DecisionsService.decide', () => {
       reason: 'artist request',
     });
 
-    // Verify INSERT with null ranking_id
-    expect(db.insert).toHaveBeenCalledWith(
+    expect(tx.insert).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO `Decision`'),
-      [5, null, DecisionType.CHANGE_FREQUENCY, Frequency.MONTHLY, 'artist request', 9],
+      [
+        5,
+        null,
+        DecisionType.CHANGE_FREQUENCY,
+        Frequency.MONTHLY,
+        'artist request',
+        9,
+      ],
     );
 
-    // Verify UPDATE Series with new frequency
-    expect(db.query).toHaveBeenCalledWith(
+    expect(tx.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE `Series` SET publication_frequency'),
-      [Frequency.MONTHLY, 5],
+      [Frequency.MONTHLY, SeriesStatus.ACTIVE, 5],
     );
 
     expect(result).toEqual({ ok: true });
   });
 
   it('throws BadRequestException when CHANGE_FREQUENCY without newFrequency', async () => {
-    const db: any = {
-      queryOne: jest
-        .fn()
-        .mockResolvedValueOnce({
-          series_id: 5,
-          title: 'Series',
-          mangaka_user_id: 99,
-        }),
-      insert: jest.fn(),
-      query: jest.fn(),
-    };
-    const notifications: any = {
-      notify: jest.fn(),
-    };
+    const { db } = makeDb();
+    db.queryOne.mockResolvedValueOnce({
+      series_id: 5,
+      title: 'Series',
+      mangaka_user_id: 99,
+      series_status: SeriesStatus.ACTIVE,
+    });
+    const notifications: any = { notify: jest.fn() };
 
     const service = new DecisionsService(db, notifications);
 
@@ -131,14 +142,9 @@ describe('DecisionsService.decide', () => {
   });
 
   it('throws NotFoundException when series does not exist', async () => {
-    const db: any = {
-      queryOne: jest.fn().mockResolvedValueOnce(null),
-      insert: jest.fn(),
-      query: jest.fn(),
-    };
-    const notifications: any = {
-      notify: jest.fn(),
-    };
+    const { db } = makeDb();
+    db.queryOne.mockResolvedValueOnce(null);
+    const notifications: any = { notify: jest.fn() };
 
     const service = new DecisionsService(db, notifications);
 
@@ -149,5 +155,26 @@ describe('DecisionsService.decide', () => {
         reason: 'test',
       }),
     ).rejects.toThrow('Series not found');
+  });
+
+  it('rejects a new decision on a terminated (CANCELLED) series', async () => {
+    const { db } = makeDb();
+    db.queryOne.mockResolvedValueOnce({
+      series_id: 7,
+      title: 'Dead Series',
+      mangaka_user_id: 42,
+      series_status: SeriesStatus.CANCELLED,
+    });
+    const notifications: any = { notify: jest.fn() };
+
+    const service = new DecisionsService(db, notifications);
+
+    await expect(
+      service.decide(9, {
+        seriesId: 7,
+        decisionType: DecisionType.CONTINUE,
+        reason: 'revive',
+      }),
+    ).rejects.toThrow('đã kết thúc');
   });
 });
