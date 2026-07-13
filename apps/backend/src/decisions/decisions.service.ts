@@ -8,7 +8,6 @@ import { DbService } from '../db/db.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
   DecisionType,
-  Frequency,
   Role,
   SeriesStatus,
   NotificationType,
