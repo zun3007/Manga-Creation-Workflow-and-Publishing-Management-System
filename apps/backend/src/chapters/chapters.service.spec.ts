@@ -6,6 +6,11 @@ describe('ChaptersService.editorReview', () => {
     queryOne: jest
       .fn()
       .mockResolvedValueOnce(chapter) // assignment+chapter lookup
+      .mockResolvedValueOnce({
+        totalPages: 2,
+        incompletePages: 0,
+        nonApprovedTasks: 0,
+      }) // getChapterReadiness (approval gate)
       .mockResolvedValue({
         id: chapter?.chapter_id,
         status: 'EDITOR_APPROVED',

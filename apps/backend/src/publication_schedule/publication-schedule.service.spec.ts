@@ -39,7 +39,7 @@ describe('PublicationScheduleService', () => {
         expect.stringContaining('INSERT INTO `Publication_Schedule`'),
         ['2026-07-06 12:00:00', 99, 7],
       );
-      expect(result).toEqual({ id: 21 });
+      expect(result).toEqual({ id: 21, status: 'SCHEDULED' });
     });
 
     it('rejects release dates before today', async () => {
@@ -157,7 +157,7 @@ describe('PublicationScheduleService', () => {
         ['2026-07-08 12:00:00', 99, 12],
       );
       expect(db.insert).not.toHaveBeenCalled();
-      expect(result).toEqual({ id: 12 });
+      expect(result).toEqual({ id: 12, status: 'SCHEDULED' });
     });
 
     it('throws when the chapter does not exist', async () => {
@@ -201,6 +201,7 @@ describe('PublicationScheduleService', () => {
 
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('canPublish'),
+      [ChapterStatus.BOARD_APPROVED],
     );
     expect(result).toBe(rows);
   });
@@ -219,10 +220,10 @@ describe('PublicationScheduleService', () => {
     const result = await service.cancel(12);
 
     expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining("publish_status='CANCELLED'"),
+      expect.stringContaining("publish_status = 'CANCELLED'"),
       [12],
     );
-    expect(result).toEqual({ ok: true });
+    expect(result).toEqual({ ok: true, status: 'CANCELLED' });
   });
 
   it('rejects cancelling a schedule that reached release day', async () => {
@@ -261,7 +262,7 @@ describe('PublicationScheduleService', () => {
     const result = await service.publish(12);
 
     expect(db.transaction).toHaveBeenCalled();
-    expect(result).toEqual({ ok: true });
+    expect(result).toEqual({ ok: true, status: 'PUBLISHED' });
   });
 
   it('rejects publishing before release day', async () => {

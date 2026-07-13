@@ -44,7 +44,11 @@ const deps = (over: Partial<Record<string, any>> = {}) => {
 
 describe('AuthService.validateLocal', () => {
   it('triggers an email OTP challenge on a correct password (2FA on by default)', async () => {
-    const { svc, users, otp, mail } = deps();
+    // Configure SMTP so devEcho is off (otherwise the OTP is echoed in dev
+    // when no mailer is configured, which is the intended local-dev behaviour).
+    const { svc, users, otp, mail } = deps({
+      env: { SMTP_HOST: 'smtp.example.com', SMTP_USER: 'u', SMTP_PASS: 'p' },
+    });
     users.findByEmail.mockResolvedValue(await baseUser());
 
     const res: any = await svc.validateLocal('dung@example.com', 'pw123456');
