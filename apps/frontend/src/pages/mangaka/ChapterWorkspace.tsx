@@ -31,12 +31,14 @@ export default function ChapterWorkspace() {
 
   // Task assignment
   const [assignRegion, setAssignRegion] = useState<RegionItem | null>(null);
+  const [canvasRevision, setCanvasRevision] = useState(0);
 
   const id = parseInt(chapterId || "0");
   const seriesIdNum = parseInt(seriesId || "0");
   const isChapterLocked =
     chapterStatus === ChapterStatus.READY_FOR_EDITOR_REVIEW ||
     chapterStatus === ChapterStatus.EDITOR_APPROVED ||
+    chapterStatus === ChapterStatus.BOARD_APPROVED ||
     chapterStatus === ChapterStatus.PUBLISHED;
 
   async function loadPages() {
@@ -223,6 +225,7 @@ export default function ChapterWorkspace() {
               <PageCanvas
                 pageId={selectedPageId}
                 readOnly={isChapterLocked}
+                refreshKey={canvasRevision}
                 onRegionClick={(region) => {
                   if (isChapterLocked) return;
                   setAssignRegion(region);
@@ -244,7 +247,11 @@ export default function ChapterWorkspace() {
           onClose={() => setAssignRegion(null)}
           onAssigned={() => {
             setAssignRegion(null);
-            // Optionally reload page to see updated regions
+            setCanvasRevision((current) => current + 1);
+          }}
+          onDeleted={() => {
+            setAssignRegion(null);
+            setCanvasRevision((current) => current + 1);
           }}
         />
       )}

@@ -33,6 +33,7 @@ export class TasksService {
       [
         ChapterStatus.READY_FOR_EDITOR_REVIEW,
         ChapterStatus.EDITOR_APPROVED,
+        ChapterStatus.BOARD_APPROVED,
         ChapterStatus.PUBLISHED,
       ].includes(status as ChapterStatus)
     ) {

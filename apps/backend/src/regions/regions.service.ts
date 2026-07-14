@@ -17,6 +17,7 @@ export class RegionsService {
       [
         ChapterStatus.READY_FOR_EDITOR_REVIEW,
         ChapterStatus.EDITOR_APPROVED,
+        ChapterStatus.BOARD_APPROVED,
         ChapterStatus.PUBLISHED,
       ].includes(status as ChapterStatus)
     ) {
@@ -114,8 +115,16 @@ export class RegionsService {
     const region = await this.db.queryOne<{
       region_id: number;
       chapter_status: string;
+      has_task: number;
     }>(
-      `SELECT r.region_id, c.chapter_status
+      `SELECT
+         r.region_id,
+         c.chapter_status,
+         EXISTS(
+           SELECT 1
+           FROM \`Task\` t
+           WHERE t.region_id = r.region_id
+         ) AS has_task
        FROM \`Region\` r
        JOIN \`Page\` p ON r.page_id = p.page_id
        JOIN \`Chapter\` c ON p.chapter_id = c.chapter_id
@@ -128,6 +137,12 @@ export class RegionsService {
       throw new ForbiddenException('You do not own this region');
     }
     this.assertChapterEditableForMangaka(region.chapter_status);
+
+    if (Number(region.has_task) === 1) {
+      throw new BadRequestException(
+        'Không thể hủy region đã được giao cho Assistant',
+      );
+    }
 
     await this.db.query(`DELETE FROM \`Region\` WHERE region_id = ?`, [
       regionId,

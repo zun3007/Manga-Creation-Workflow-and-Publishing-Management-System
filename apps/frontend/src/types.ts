@@ -114,6 +114,10 @@ export interface RegionItem {
   y: number;
   width: number;
   height: number;
+  taskId?: number | null;
+  taskStatus?: TaskStatus | null;
+  assigneeId?: number | null;
+  assigneeName?: string | null;
 }
 
 export interface PageDetail {

@@ -5,6 +5,7 @@ import type { RegionItem } from "../../types";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { useToast } from "../ui/Toast";
+import { Stamp } from "../ui/Stamp";
 
 interface Assistant {
   id: number;
@@ -21,9 +22,15 @@ interface TaskAssignDialogProps {
   region: RegionItem;
   onClose: () => void;
   onAssigned?: () => void;
+  onDeleted?: () => void;
 }
 
-export function TaskAssignDialog({ region, onClose, onAssigned }: TaskAssignDialogProps) {
+export function TaskAssignDialog({
+  region,
+  onClose,
+  onAssigned,
+  onDeleted,
+}: TaskAssignDialogProps) {
   const toast = useToast();
   const [assistants, setAssistants] = useState<Assistant[]>([]);
   const [selectedAssistantId, setSelectedAssistantId] = useState("");
@@ -35,13 +42,20 @@ export function TaskAssignDialog({ region, onClose, onAssigned }: TaskAssignDial
   const [error, setError] = useState("");
   const [payment, setPayment] = useState<number | null>(null);
   const [estimatedPayment, setEstimatedPayment] = useState<number | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
+    setPayment(null);
+
+    if (region.taskId) {
+      setLoading(false);
+      return;
+    }
+
     loadAssistants();
     loadEstimatedPayment();
-    // Reset payment state when dialog opens
-    setPayment(null);
-  }, []);
+  }, [region.id, region.taskId]);
 
   async function loadAssistants() {
     setLoading(true);
@@ -120,12 +134,83 @@ export function TaskAssignDialog({ region, onClose, onAssigned }: TaskAssignDial
     }
   }
 
+  async function handleDeleteRegion() {
+    setDeleting(true);
+    setError("");
+
+    try {
+      await api.delete(`/regions/${region.id}`);
+      toast.success("Đã hủy region chưa phân công.");
+      onDeleted?.();
+      onClose();
+    } catch (e) {
+      console.error("Failed to delete region", e);
+      setError(apiErrorMessage(e, "Không thể hủy region."));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const fieldClass =
     "w-full rounded-xl border border-[#4a3430] bg-[#211817] px-4 py-3 text-sm text-[#fff8f1] outline-none transition placeholder:text-[#9d8178] focus:border-accent focus:ring-2 focus:ring-accent/25 disabled:opacity-50";
   const labelClass = "mb-2 block text-sm font-semibold text-[#ead7d0]";
   const selectedAssistant = assistants.find((a) => String(a.id) === selectedAssistantId);
   const money = (value: number | null) =>
     value === null ? "Chưa có giá" : `${value.toLocaleString("vi-VN")} ₫`;
+
+  if (region.taskId) {
+    return (
+      <Modal
+        open={true}
+        onClose={onClose}
+        title={`Chi tiết region - ${region.type}`}
+        className="w-full max-w-md !border-[#3a2725] !bg-[#161110] p-7 text-[#fff8f1] shadow-2xl shadow-black/45"
+      >
+        <div className="space-y-5">
+          <div>
+            <p className="font-mono text-[0.65rem] uppercase tracking-[0.28em] text-accent/80">
+              Region đã phân công
+            </p>
+            <h2 className="mt-2 font-[var(--font-display)] text-3xl text-[#fff8f1]">
+              {region.type}
+            </h2>
+          </div>
+
+          <div className="rounded-2xl border border-accent/25 bg-accent/10 p-4">
+            <p className="mb-2 text-xs uppercase tracking-wider text-[#c6aaa1]">
+              Assistant phụ trách
+            </p>
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-accent/15 text-accent">
+                <UserRound size={20} aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-[#fff8f1]">
+                  {region.assigneeName ?? "Không xác định"}
+                </p>
+                <p className="mt-1 text-xs text-[#c6aaa1]">
+                  Task #{region.taskId}
+                </p>
+              </div>
+              {region.taskStatus && <Stamp status={region.taskStatus} />}
+            </div>
+          </div>
+
+          <p className="text-sm text-[#c6aaa1]">
+            Region đã có task nên không thể giao lại hoặc hủy.
+          </p>
+
+          <Button
+            type="button"
+            className="w-full !bg-accent text-white"
+            onClick={onClose}
+          >
+            Đóng
+          </Button>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -252,6 +337,46 @@ export function TaskAssignDialog({ region, onClose, onAssigned }: TaskAssignDial
                 </p>
               )}
 
+              {confirmingDelete ? (
+                <div className="rounded-xl border border-danger/30 bg-danger/10 p-4">
+                  <p className="text-sm font-semibold text-[#fff8f1]">
+                    Xác nhận hủy region này?
+                  </p>
+                  <p className="mt-1 text-xs text-[#c6aaa1]">
+                    Region chưa được giao nên có thể xóa khỏi trang.
+                  </p>
+                  <div className="mt-3 flex gap-3">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="flex-1 !text-[#ead7d0]"
+                      disabled={deleting}
+                      onClick={() => setConfirmingDelete(false)}
+                    >
+                      Quay lại
+                    </Button>
+                    <Button
+                      type="button"
+                      className="flex-1 !bg-danger text-white hover:brightness-95"
+                      loading={deleting}
+                      onClick={() => void handleDeleteRegion()}
+                    >
+                      Xác nhận hủy
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full border border-danger/40 !text-[#f0a39b] hover:!bg-danger/10"
+                  disabled={submitting}
+                  onClick={() => setConfirmingDelete(true)}
+                >
+                  Hủy region chưa phân công
+                </Button>
+              )}
+
               <div className="flex gap-3 pt-2">
                 <Button
                   variant="ghost"
@@ -260,7 +385,7 @@ export function TaskAssignDialog({ region, onClose, onAssigned }: TaskAssignDial
                   onClick={onClose}
                   disabled={submitting}
                 >
-                  Hủy
+                  Đóng
                 </Button>
                 <Button
                   type="submit"

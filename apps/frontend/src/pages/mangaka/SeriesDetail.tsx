@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api } from "../../lib/api";
+import { api, apiErrorMessage } from "../../lib/api";
 import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
 import { Stamp } from "../../components/ui/Stamp";
@@ -125,7 +125,10 @@ export default function SeriesDetail() {
       setChapters(previousChapters);
       setLifecycleError({
         chapterId,
-        message: "Không thể cập nhật trạng thái. Vui lòng thử lại.",
+        message: apiErrorMessage(
+          e,
+          "Không thể cập nhật trạng thái. Vui lòng thử lại.",
+        ),
       });
     } finally {
       setSavingId(null);

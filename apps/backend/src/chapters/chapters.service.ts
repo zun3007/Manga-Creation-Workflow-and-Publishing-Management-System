@@ -121,6 +121,28 @@ export class ChaptersService {
       );
     }
 
+    if (status === ChapterStatus.READY_FOR_EDITOR_REVIEW) {
+      const readiness = await this.getChapterReadiness(chapterId);
+
+      if (readiness.totalPages === 0) {
+        throw new BadRequestException(
+          'Chapter phải có ít nhất một trang trước khi gửi duyệt biên tập',
+        );
+      }
+
+      if (readiness.nonApprovedTasks > 0) {
+        throw new BadRequestException(
+          'Còn task chưa hoàn thành hoặc chưa được duyệt',
+        );
+      }
+
+      if (readiness.incompletePages > 0) {
+        throw new BadRequestException(
+          'Còn trang chưa hoàn thành nên chưa thể gửi duyệt biên tập',
+        );
+      }
+    }
+
     await this.db.query(
       `UPDATE \`Chapter\` SET chapter_status = ? WHERE chapter_id = ?`,
       [status, chapterId],

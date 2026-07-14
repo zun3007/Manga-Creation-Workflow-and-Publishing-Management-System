@@ -17,11 +17,12 @@ export class PagesService {
       [
         ChapterStatus.READY_FOR_EDITOR_REVIEW,
         ChapterStatus.EDITOR_APPROVED,
+        ChapterStatus.BOARD_APPROVED,
         ChapterStatus.PUBLISHED,
       ].includes(status as ChapterStatus)
     ) {
       throw new BadRequestException(
-        'Chapter đang chờ biên tập/đã duyệt/đã xuất bản nên không thể sửa đổi',
+        'Chapter đang chờ duyệt/chờ xuất bản/đã xuất bản nên không thể sửa đổi',
       );
     }
   }
@@ -140,14 +141,20 @@ export class PagesService {
     // Get regions for this page
     const regions = await this.db.query(
       `SELECT
-        region_id AS id,
-        region_type AS type,
-        x_coordinate AS x,
-        y_coordinate AS y,
-        width,
-        height
-       FROM \`Region\`
-       WHERE page_id = ?`,
+        r.region_id AS id,
+        r.region_type AS type,
+        r.x_coordinate AS x,
+        r.y_coordinate AS y,
+        r.width,
+        r.height,
+        t.task_id AS taskId,
+        t.task_status AS taskStatus,
+        t.assignee_user_id AS assigneeId,
+        u.full_name AS assigneeName
+       FROM \`Region\` r
+       LEFT JOIN \`Task\` t ON t.region_id = r.region_id
+       LEFT JOIN \`User\` u ON u.user_id = t.assignee_user_id
+       WHERE r.page_id = ?`,
       [pageId],
     );
 

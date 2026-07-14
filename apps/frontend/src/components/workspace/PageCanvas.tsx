@@ -30,9 +30,15 @@ interface PageCanvasProps {
   pageId: number;
   onRegionClick?: (region: RegionItem) => void;
   readOnly?: boolean;
+  refreshKey?: number;
 }
 
-export function PageCanvas({ pageId, onRegionClick, readOnly = false }: PageCanvasProps) {
+export function PageCanvas({
+  pageId,
+  onRegionClick,
+  readOnly = false,
+  refreshKey = 0,
+}: PageCanvasProps) {
   const toast = useToast();
   const boxRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -94,7 +100,7 @@ export function PageCanvas({ pageId, onRegionClick, readOnly = false }: PageCanv
       loadPage();
       loadPriceRules();
     }
-  }, [pageId]);
+  }, [pageId, refreshKey]);
 
   // Measure box size on img load and window resize
   function updateBoxSize() {
