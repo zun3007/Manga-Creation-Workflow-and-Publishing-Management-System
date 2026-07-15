@@ -222,6 +222,17 @@ REJECTED → [] (terminal)
 
 ## 6. User Management Mechanics
 
+**Internal account creation (`POST /api/admin/users`):**
+
+- Admin can create internal accounts from the Admin Console.
+- Required information includes full name, email, initial password, and role.
+- Creatable roles are MANGAKA, ASSISTANT, TANTOU_EDITOR, and EDITORIAL_BOARD.
+- ADMIN cannot be selected through this endpoint.
+- The system normalizes the email and rejects duplicate emails.
+- The password is hashed before it is stored.
+- The User and matching role profile are created in one database transaction.
+- If profile creation fails, the entire account creation operation is rolled back.
+
 **Activation gate (`is_activated`):**
 
 - New users (registered via login or seeded in bulk) default to `is_activated = 0` (deactivated).
@@ -250,7 +261,27 @@ REJECTED → [] (terminal)
 
 ## 7. Key Workflows
 
-### Workflow A: Activate a Newly Seeded or Registered User & Assign Role
+### Workflow A: Create an Internal Account
+
+**Scenario:** A studio member needs access as a Mangaka, Assistant, Tantou Editor, or Editorial Board member.
+
+**Steps:**
+
+1. Navigate to the Admin Console at `/admin`.
+2. Open the internal-account creation form.
+3. Enter full name, email, initial password, and role.
+4. Submit the form to `POST /api/admin/users`.
+5. The system validates the email, password, and allowed role.
+6. The system creates the User and matching role profile in one transaction.
+7. The new account appears in the Admin user list.
+
+**Related endpoint:**
+
+- POST `/api/admin/users` — create an internal account.
+
+---
+
+### Workflow B: Activate a Newly Seeded or Registered User & Assign Role
 
 **Scenario:** A new user has registered via email or been bulk-seeded in the database. They cannot log in yet because `is_activated=0`. Admin needs to onboard them.
 
@@ -268,7 +299,7 @@ REJECTED → [] (terminal)
 
 ---
 
-### Workflow B: Investigate & Resolve an Earning Dispute (With or Without Amount Adjustment)
+### Workflow C: Investigate & Resolve an Earning Dispute (With or Without Amount Adjustment)
 
 **Scenario A: Assistant claims unfair payment; Admin approves adjustment.**
 
@@ -372,7 +403,7 @@ REJECTED → [] (terminal)
 
 **Admin has exclusive control over:**
 
-- **User management:** Activate/deactivate any user; assign roles to any user (except last-admin guard).
+- **User management:** Create internal accounts; activate/deactivate users; assign roles subject to role and last-admin safeguards.
 - **Dispute adjudication:** List, review, and resolve all earning disputes; optionally adjust payment amounts and update assistant earnings retroactively.
 - **System visibility:** View real-time metrics (user counts, series counts, task counts) via Overview dashboard.
 - **Profile management:** Edit own profile (`/users/me`): name, bio, avatar upload to self-hosted S3.
@@ -380,7 +411,7 @@ REJECTED → [] (terminal)
 
 **Admin cannot:**
 
-- Create users (must be registered via login or pre-seeded via database migration).
+- Create another ADMIN through the internal-account endpoint (ADMIN is excluded from the allowed creation roles).
 - Delete users (no deletion endpoint exists; only deactivation).
 - Modify task descriptions, pricing rules, or series metadata directly (only dispute resolution can adjust task payment).
 - Access or modify other roles' data (e.g., cannot mark a Mangaka's proposal as approved; that is EDITORIAL_BOARD's role).
