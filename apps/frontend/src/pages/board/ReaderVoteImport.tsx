@@ -46,6 +46,19 @@ type ImportResult = {
   rankings: ImportedSeries[];
 };
 
+type ImportHistoryItem = {
+  importId: number;
+  fileName?: string | null;
+  periodType: "WEEKLY" | "MONTHLY";
+  startDate: string;
+  endDate: string;
+  importedCount: number;
+  importedAt: string;
+  deletedAt?: string | null;
+  importedByName?: string | null;
+  status: "IMPORTED" | "DELETED";
+};
+
 type DeleteRequestSummary = NonNullable<ImportResult["deleteRequest"]>;
 
 type PendingDeleteRequest = DeleteRequestSummary & {
@@ -77,6 +90,10 @@ const addDays = (value: string, days: number) => {
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 };
+const formatPeriodDate = (value: string) =>
+  new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString("vi-VN");
+const formatImportedAt = (value: string) =>
+  new Date(value).toLocaleString("vi-VN");
 
 function importConflictFromError(err: unknown): ImportConflictError | null {
   const responseData =
@@ -151,6 +168,9 @@ export default function ReaderVoteImport() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [loadingLatest, setLoadingLatest] = useState(true);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [importHistory, setImportHistory] = useState<ImportHistoryItem[]>([]);
+  const [loadingImportHistory, setLoadingImportHistory] = useState(true);
+  const [showImportHistory, setShowImportHistory] = useState(false);
   const [pendingDeleteRequests, setPendingDeleteRequests] = useState<
     PendingDeleteRequest[]
   >([]);
@@ -165,6 +185,16 @@ export default function ReaderVoteImport() {
   >({});
   const [busyDecisionId, setBusyDecisionId] = useState<number | null>(null);
   const [actionError, setActionError] = useState("");
+  const activeImportForSelectedPeriod = importHistory.find(
+    (item) =>
+      item.status === "IMPORTED" &&
+      item.periodType === periodType &&
+      item.startDate === startDate &&
+      item.endDate === endDate,
+  );
+  const activeImportCount = importHistory.filter(
+    (item) => item.status === "IMPORTED",
+  ).length;
 
   function applyResult(next: ImportResult | null) {
     setResult(next);
@@ -221,11 +251,28 @@ export default function ReaderVoteImport() {
     }
   }
 
+  async function loadImportHistory() {
+    setLoadingImportHistory(true);
+    try {
+      const response = await api.get<ImportHistoryItem[]>(
+        "/reader-vote-imports/history",
+      );
+      setImportHistory(response.data || []);
+    } catch (err) {
+      setActionError(
+        apiErrorMessage(err, "Không tải được lịch sử các kỳ đã import."),
+      );
+    } finally {
+      setLoadingImportHistory(false);
+    }
+  }
+
   useEffect(() => {
     // Load once on page open. Keep this effect one-shot so an API error cannot spam toasts.
     // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
     void loadLatestReaderRankings();
     void loadPendingDeleteRequests();
+    void loadImportHistory();
   }, []);
 
   async function handleFileChange(nextFile?: File) {
@@ -245,6 +292,15 @@ export default function ReaderVoteImport() {
   }
 
   async function importCsv() {
+    if (activeImportForSelectedPeriod) {
+      toast.error(
+        `Giai đoạn ${startDate} → ${endDate} đã được import bằng ${
+          activeImportForSelectedPeriod.fileName ||
+          `Import #${activeImportForSelectedPeriod.importId}`
+        }.`,
+      );
+      return;
+    }
     if (!file) {
       toast.error("Vui lòng chọn file CSV.");
       return;
@@ -275,6 +331,7 @@ export default function ReaderVoteImport() {
         },
       );
       applyResult(response.data);
+      await loadImportHistory();
       toast.success("Đã import dữ liệu độc giả và cập nhật bảng xếp hạng.");
     } catch (err) {
       const conflict = importConflictFromError(err);
@@ -313,6 +370,7 @@ export default function ReaderVoteImport() {
       });
       await loadLatestReaderRankings();
       await loadPendingDeleteRequests();
+      await loadImportHistory();
       toast.success("Đã gửi yêu cầu xóa tới các tài khoản Board còn lại.");
     } catch (err) {
       setActionError(apiErrorMessage(err, "Không thể gửi yêu cầu xóa import."));
@@ -328,6 +386,7 @@ export default function ReaderVoteImport() {
       await api.post(`/reader-vote-imports/${importId}/delete-approval`);
       await loadLatestReaderRankings();
       await loadPendingDeleteRequests();
+      await loadImportHistory();
       toast.success("Đã duyệt yêu cầu xóa import.");
     } catch (err) {
       setActionError(
@@ -526,6 +585,23 @@ export default function ReaderVoteImport() {
           </label>
         </div>
 
+        {activeImportForSelectedPeriod && (
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-danger/20 bg-danger/10 p-4 text-sm text-danger"
+            role="alert"
+          >
+            <div>
+              <div className="font-semibold">Giai đoạn này đã được import.</div>
+              <div className="mt-1">
+                {activeImportForSelectedPeriod.fileName ||
+                  `Import #${activeImportForSelectedPeriod.importId}`} · {" "}
+                {activeImportForSelectedPeriod.importedCount} series
+              </div>
+            </div>
+            <Stamp status="PUBLISHED" label="Đã import" />
+          </div>
+        )}
+
         <label className="block text-sm font-medium text-ink">
           File CSV
           <input
@@ -546,11 +622,39 @@ export default function ReaderVoteImport() {
         )}
 
         <div className="flex justify-end">
-          <Button onClick={importCsv} loading={loading}>
+          <Button
+            onClick={importCsv}
+            loading={loading}
+            disabled={
+              loadingImportHistory || Boolean(activeImportForSelectedPeriod)
+            }
+          >
             Import và tính xếp hạng
           </Button>
         </div>
       </Panel>
+
+      <div className="flex justify-end">
+        <Button
+          variant="soft"
+          onClick={() => setShowImportHistory((current) => !current)}
+          aria-expanded={showImportHistory}
+          aria-controls="reader-vote-import-history"
+        >
+          {showImportHistory
+            ? "Ẩn các giai đoạn đã import"
+            : `Xem các giai đoạn đã import (${activeImportCount})`}
+        </Button>
+      </div>
+
+      {showImportHistory && (
+        <div id="reader-vote-import-history">
+          <ImportHistoryPanel
+            items={importHistory}
+            loading={loadingImportHistory}
+          />
+        </div>
+      )}
 
       {loadingLatest && (
         <Panel className="p-6 text-sm text-muted">
@@ -827,6 +931,90 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
         {label}
       </p>
       <p className="mt-2 text-2xl font-bold text-ink">{value}</p>
+    </Panel>
+  );
+}
+
+function ImportHistoryPanel({
+  items,
+  loading,
+}: {
+  items: ImportHistoryItem[];
+  loading: boolean;
+}) {
+  return (
+    <Panel className="overflow-hidden">
+      <div className="border-b border-line p-5">
+        <h2 className="text-lg font-semibold text-ink">
+          Các giai đoạn đã import
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          Kỳ đã xóa có thể được import lại; kỳ đang có dữ liệu không thể import
+          trùng.
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="p-6 text-sm text-muted">Đang tải lịch sử import…</div>
+      ) : items.length === 0 ? (
+        <div className="p-6">
+          <EmptyState title="Chưa có giai đoạn nào được import." />
+        </div>
+      ) : (
+        <div className="max-h-[30rem] overflow-auto">
+          <table className="min-w-full text-sm">
+            <thead className="sticky top-0 bg-bg text-left">
+              <tr className="border-b border-line">
+                <th className="px-4 py-3 font-semibold">Giai đoạn</th>
+                <th className="px-4 py-3 font-semibold">File</th>
+                <th className="px-4 py-3 font-semibold">Số series</th>
+                <th className="px-4 py-3 font-semibold">Ngày import</th>
+                <th className="px-4 py-3 font-semibold">Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr
+                  key={item.importId}
+                  className={`border-b border-line last:border-0 ${
+                    item.status === "DELETED" ? "opacity-60" : ""
+                  }`}
+                >
+                  <td className="whitespace-nowrap px-4 py-4 font-medium text-ink">
+                    {formatPeriodDate(item.startDate)} → {" "}
+                    {formatPeriodDate(item.endDate)}
+                    <div className="mt-1 text-xs font-normal text-muted">
+                      {item.periodType === "WEEKLY" ? "Hàng tuần" : "Hàng tháng"}
+                    </div>
+                  </td>
+                  <td className="max-w-64 px-4 py-4 text-ink-soft">
+                    <div className="truncate" title={item.fileName || undefined}>
+                      {item.fileName || `Import #${item.importId}`}
+                    </div>
+                    {item.importedByName && (
+                      <div className="mt-1 text-xs text-muted">
+                        Bởi {item.importedByName}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-4 text-ink">
+                    {item.importedCount}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-4 text-ink-soft">
+                    {formatImportedAt(item.importedAt)}
+                  </td>
+                  <td className="px-4 py-4">
+                    <Stamp
+                      status={item.status === "IMPORTED" ? "PUBLISHED" : "CANCELLED"}
+                      label={item.status === "IMPORTED" ? "Đã import" : "Đã xóa"}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Panel>
   );
 }

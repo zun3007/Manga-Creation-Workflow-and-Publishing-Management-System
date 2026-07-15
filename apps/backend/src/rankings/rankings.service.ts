@@ -420,6 +420,49 @@ export class RankingsService {
     };
   }
 
+  async readerVoteImportHistory() {
+    await this.ensureReaderVoteImportTable();
+
+    const rows = await this.db.query<{
+      importId: number | string;
+      fileName: string | null;
+      periodType: 'WEEKLY' | 'MONTHLY';
+      startDate: string | Date;
+      endDate: string | Date;
+      importedCount: number | string;
+      importedAt: string | Date;
+      deletedAt: string | Date | null;
+      importedByName: string | null;
+    }>(
+      `SELECT
+         i.import_id AS importId,
+         i.file_name AS fileName,
+         i.ranking_period_type AS periodType,
+         i.period_start_date AS startDate,
+         i.period_end_date AS endDate,
+         i.imported_count AS importedCount,
+         i.imported_at AS importedAt,
+         i.deleted_at AS deletedAt,
+         u.full_name AS importedByName
+       FROM \`Reader_Vote_Import\` i
+       LEFT JOIN \`User\` u ON u.user_id = i.imported_by_user_id
+       ORDER BY i.period_start_date DESC, i.period_end_date DESC, i.import_id DESC`,
+    );
+
+    return rows.map((row) => ({
+      importId: Number(row.importId),
+      fileName: row.fileName,
+      periodType: row.periodType,
+      startDate: this.dateOnly(row.startDate),
+      endDate: this.dateOnly(row.endDate),
+      importedCount: Number(row.importedCount),
+      importedAt: row.importedAt,
+      deletedAt: row.deletedAt,
+      importedByName: row.importedByName,
+      status: row.deletedAt ? 'DELETED' : 'IMPORTED',
+    }));
+  }
+
   async latestReaderVoteRankings(currentUserId?: number) {
     await this.ensureReaderVoteImportTable();
     await this.ensureReaderVoteRankingTable();
