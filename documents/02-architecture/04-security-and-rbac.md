@@ -36,6 +36,19 @@ The platform supports two authentication methods:
 - First-time Google login auto-creates a user account with email, name, and avatar from the Google profile; existing users are linked.
 - OAuth profile is idempotent: if a user with the same email exists, `google_id` is stored/updated; no duplicate accounts.
 
+### Account Provisioning and Activation
+
+- The platform has no public LOCAL email-and-password registration endpoint.
+- Admin creates internal LOCAL accounts through `POST /api/admin/users`.
+- Admin-created internal accounts are active immediately (`is_activated = 1`).
+- First-time Google OAuth accounts are active immediately and receive the MANGAKA role by default.
+- Admin can deactivate or reactivate existing accounts through `PATCH /api/admin/users/:id`.
+- Deactivated users cannot complete local login, Google login, or post-2FA token issuance.
+- `JwtStrategy` reloads the current User record from the database for every authenticated request.
+- A previously issued JWT stops working immediately after the account is deactivated.
+- Current database role, name, email, and avatar values replace stale JWT claim values.
+- The final active ADMIN cannot be deactivated or demoted.
+
 ### JWT Token Issuance
 The `AuthService.issue(user: UserRow)` method signs a JWT with the following payload claims:
 - `sub` (subject): user ID (BIGINT from `User.user_id`)
@@ -68,11 +81,11 @@ sequenceDiagram
     API->>DB: findByEmail(email)
     DB-->>API: User row (incl. password_hash)
     API->>API: bcrypt.compare(password, password_hash)
-    alt password matches
-      API->>API: JwtService.sign({sub, email, name, role}) → accessToken
-      API-->>Web: {accessToken, user: {id, email, name, role, avatarUrl}}
-    else password mismatch or user not found
-      API-->>Web: UnauthorizedException (generic message)
+    alt password matches and account is active
+      API->>API: Begin email 2FA or issue access token when 2FA is disabled
+      API-->>Web: 2FA challenge or {accessToken, user}
+    else password mismatch, user missing, or account deactivated
+      API-->>Web: UnauthorizedException
     end
   end
   
@@ -124,8 +137,10 @@ All protected endpoints use a two-guard pattern via `@UseGuards(JwtAuthGuard, Ro
 1. **JwtAuthGuard** (`JwtAuthGuard extends AuthGuard('jwt')`)
    - Validates the JWT signature and expiration using the `JWT_SECRET`.
    - Extracts the token from the `Authorization: Bearer` header.
-   - Populates `req.user` with the decoded payload: `{id, email, role, name}`.
-   - Returns 401 Unauthorized if the token is missing, invalid, or expired.
+   - `JwtStrategy` reloads the User by the JWT `sub` claim on every request.
+   - Rejects the request with 401 when the user no longer exists or is deactivated.
+   - Populates `req.user` with current database values: `{id, email, role, name, avatarUrl}`.
+   - This makes deactivation and role changes effective without waiting for the JWT to expire.
 
 2. **RolesGuard** (`RolesGuard implements CanActivate`)
    - Inspects the `@Roles(...)` decorator metadata on the handler.

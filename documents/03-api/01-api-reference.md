@@ -86,7 +86,7 @@ Public endpoints for login and OAuth. All other endpoints require `Authorization
 }
 ```
 
-**Notes:** Rate-limited to prevent brute-force attacks while tolerating shared NAT scenarios. Token valid for JWT lifetime (configured in app). Password must be ≥6 chars. Email case-insensitive.
+**Notes:** Rate-limited to prevent brute-force attacks. Email is case-insensitive and the password must be at least 6 characters. A deactivated account is rejected before access-token issuance. Depending on configuration, successful credentials return either a 2FA challenge or an access token.
 
 ---
 
@@ -108,7 +108,7 @@ Public endpoints for login and OAuth. All other endpoints require `Authorization
 }
 ```
 
-**Notes:** Returns current user from JWT payload. No database hit (payload-driven).
+**Notes:** Requires a valid JWT and reloads the current User record from the database. Returns 401 when the user no longer exists or the account has been deactivated. Current database role and profile values are returned instead of stale JWT claims.
 
 ---
 
@@ -172,7 +172,7 @@ Public endpoints for login and OAuth. All other endpoints require `Authorization
 |------|------|----------|-------------|
 | code | string | yes | OAuth authorization code from Google |
 
-**Notes:** Passport handler validates with Google, links or creates user, issues JWT, redirects to `{CLIENT_URL}/auth/callback?token={accessToken}`. Client extracts token from URL.
+**Notes:** Passport validates the Google identity and links an existing account or creates a new active MANGAKA account. A deactivated existing account is denied access-token issuance. On success, the API redirects to `{CLIENT_URL}/auth/callback?token={accessToken}`.
 
 ---
 
@@ -1857,6 +1857,8 @@ Role-aware summary endpoints for quick overview.
 Admin-only tools for user management and system overview.
 
 #### POST /api/admin/users
+
+**Activation policy:** The internal LOCAL account is active immediately after creation (`isActivated: true`).
 
 **Roles:** ADMIN
 
