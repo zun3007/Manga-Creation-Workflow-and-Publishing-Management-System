@@ -3,6 +3,7 @@
 Complete REST API documentation for the Manga Creation Workflow & Publishing Management System. This is an internal production & publishing management tool (not a reader) digitizing a manga studio's pipeline: proposal → approval → production → review → publish → vote → ranking → decision → earnings → disputes.
 
 **Table of Contents**
+
 - [Conventions](#conventions)
 - [Auth](#auth)
 - [Proposals](#proposals)
@@ -37,7 +38,8 @@ Complete REST API documentation for the Manga Creation Workflow & Publishing Man
 
 **Response Format:** Standard Nest error shape on failure: `{ statusCode: number, message: string, error: string }` (sanitized via `AllExceptionsFilter` to remove stack traces and SQL details). Success payloads vary by endpoint (see examples below).
 
-**Status Codes:** 
+**Status Codes:**
+
 - `200` OK (GET, PATCH success)
 - `201` Created (POST success)
 - `400` Bad Request (validation error, invalid state transition)
@@ -61,6 +63,7 @@ Public endpoints for login and OAuth. All other endpoints require `Authorization
 **Rate Limit:** 20 requests per minute per IP (via `@Throttle()`)
 
 **Request body:**
+
 ```json
 {
   "email": "mangaka@studio.local",
@@ -69,6 +72,7 @@ Public endpoints for login and OAuth. All other endpoints require `Authorization
 ```
 
 **Response (201):**
+
 ```json
 {
   "accessToken": "eyJhbGc...",
@@ -93,6 +97,7 @@ Public endpoints for login and OAuth. All other endpoints require `Authorization
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "id": 1,
@@ -114,6 +119,7 @@ Public endpoints for login and OAuth. All other endpoints require `Authorization
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "ok": true
@@ -129,6 +135,7 @@ Public endpoints for login and OAuth. All other endpoints require `Authorization
 **Roles:** Any authenticated user
 
 **Request body:**
+
 ```json
 {
   "currentPassword": "Dung123456@",
@@ -137,6 +144,7 @@ Public endpoints for login and OAuth. All other endpoints require `Authorization
 ```
 
 **Response (200):**
+
 ```json
 {
   "ok": true
@@ -177,6 +185,7 @@ Mangaka authors proposals; Editorial Board reviews and approves. Approved propos
 **Roles:** MANGAKA
 
 **Request body:**
+
 ```json
 {
   "title": "My Manga Series",
@@ -187,6 +196,7 @@ Mangaka authors proposals; Editorial Board reviews and approves. Approved propos
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": 10,
@@ -214,6 +224,7 @@ Mangaka authors proposals; Editorial Board reviews and approves. Approved propos
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -248,6 +259,7 @@ Mangaka authors proposals; Editorial Board reviews and approves. Approved propos
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "id": 10,
@@ -268,6 +280,7 @@ Mangaka authors proposals; Editorial Board reviews and approves. Approved propos
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -297,6 +310,7 @@ Mangaka authors proposals; Editorial Board reviews and approves. Approved propos
 | id | number | yes | Proposal ID |
 
 **Request body:**
+
 ```json
 {
   "decision": "APPROVED"
@@ -304,6 +318,7 @@ Mangaka authors proposals; Editorial Board reviews and approves. Approved propos
 ```
 
 **Response (200):**
+
 ```json
 {
   "id": 10,
@@ -333,6 +348,7 @@ Approved proposals → Series. Mangaka manages series; Board assigns Tantou edit
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -360,6 +376,7 @@ Approved proposals → Series. Mangaka manages series; Board assigns Tantou edit
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -392,6 +409,7 @@ Approved proposals → Series. Mangaka manages series; Board assigns Tantou edit
 | id | number | yes | Series ID |
 
 **Response (200):**
+
 ```json
 {
   "id": 5,
@@ -423,6 +441,7 @@ Approved proposals → Series. Mangaka manages series; Board assigns Tantou edit
 | id | number | yes | Series ID |
 
 **Request body:**
+
 ```json
 {
   "editorUserId": 2
@@ -430,6 +449,7 @@ Approved proposals → Series. Mangaka manages series; Board assigns Tantou edit
 ```
 
 **Response (200):**
+
 ```json
 {
   "id": 5,
@@ -458,6 +478,7 @@ Approved proposals → Series. Mangaka manages series; Board assigns Tantou edit
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "ok": true
@@ -477,6 +498,7 @@ Mangaka creates chapters under series. Tantou editors review before publication.
 **Roles:** MANGAKA
 
 **Request body:**
+
 ```json
 {
   "seriesId": 5,
@@ -486,6 +508,7 @@ Mangaka creates chapters under series. Tantou editors review before publication.
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": 1,
@@ -514,6 +537,7 @@ Mangaka creates chapters under series. Tantou editors review before publication.
 | seriesId | number | yes | Series ID |
 
 **Response (200):**
+
 ```json
 [
   {
@@ -544,6 +568,7 @@ Mangaka creates chapters under series. Tantou editors review before publication.
 | id | number | yes | Chapter ID |
 
 **Request body:**
+
 ```json
 {
   "status": "READY_FOR_EDITOR_REVIEW"
@@ -551,6 +576,7 @@ Mangaka creates chapters under series. Tantou editors review before publication.
 ```
 
 **Response (200):**
+
 ```json
 {
   "id": 1,
@@ -570,6 +596,7 @@ Mangaka creates chapters under series. Tantou editors review before publication.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -599,6 +626,7 @@ Mangaka creates chapters under series. Tantou editors review before publication.
 | id | number | yes | Chapter ID |
 
 **Response (200):**
+
 ```json
 [
   {
@@ -632,6 +660,7 @@ Mangaka creates chapters under series. Tantou editors review before publication.
 | id | number | yes | Chapter ID |
 
 **Request body:**
+
 ```json
 {
   "decision": "APPROVE",
@@ -640,6 +669,7 @@ Mangaka creates chapters under series. Tantou editors review before publication.
 ```
 
 **Response (200):**
+
 ```json
 {
   "id": 1,
@@ -663,6 +693,7 @@ Mangaka uploads page images per chapter. Versions tracked for audit.
 **Roles:** MANGAKA
 
 **Request body:**
+
 ```json
 {
   "chapterId": 1,
@@ -672,6 +703,7 @@ Mangaka uploads page images per chapter. Versions tracked for audit.
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": 101,
@@ -699,6 +731,7 @@ Mangaka uploads page images per chapter. Versions tracked for audit.
 | chapterId | number | yes | Chapter ID |
 
 **Response (200):**
+
 ```json
 [
   {
@@ -727,6 +760,7 @@ Mangaka uploads page images per chapter. Versions tracked for audit.
 | id | number | yes | Page ID |
 
 **Response (200):**
+
 ```json
 {
   "id": 101,
@@ -761,6 +795,7 @@ Mangaka defines regions (panels, bubbles, backgrounds) on pages for task assignm
 **Roles:** MANGAKA
 
 **Request body:**
+
 ```json
 {
   "pageId": 101,
@@ -773,6 +808,7 @@ Mangaka defines regions (panels, bubbles, backgrounds) on pages for task assignm
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": 1001,
@@ -802,6 +838,7 @@ Mangaka defines regions (panels, bubbles, backgrounds) on pages for task assignm
 | pageId | number | yes | Page ID |
 
 **Response (200):**
+
 ```json
 [
   {
@@ -835,6 +872,7 @@ Mangaka defines regions (panels, bubbles, backgrounds) on pages for task assignm
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "ok": true
@@ -854,6 +892,7 @@ Mangaka creates tasks for Assistants by assigning regions. Payment auto-calculat
 **Roles:** MANGAKA
 
 **Request body:**
+
 ```json
 {
   "regionId": 1001,
@@ -865,6 +904,7 @@ Mangaka creates tasks for Assistants by assigning regions. Payment auto-calculat
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": 2001,
@@ -893,6 +933,7 @@ Mangaka creates tasks for Assistants by assigning regions. Payment auto-calculat
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -926,6 +967,7 @@ Mangaka creates tasks for Assistants by assigning regions. Payment auto-calculat
 | pageId | number | yes | Page ID |
 
 **Response (200):**
+
 ```json
 [
   {
@@ -955,6 +997,7 @@ Mangaka creates tasks for Assistants by assigning regions. Payment auto-calculat
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "id": 2001,
@@ -976,6 +1019,7 @@ Assistants submit completed work. Mangaka reviews and approves or requests revis
 **Roles:** ASSISTANT
 
 **Request body:**
+
 ```json
 {
   "taskId": 2001,
@@ -985,6 +1029,7 @@ Assistants submit completed work. Mangaka reviews and approves or requests revis
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": 3001,
@@ -1012,6 +1057,7 @@ Assistants submit completed work. Mangaka reviews and approves or requests revis
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -1041,6 +1087,7 @@ Assistants submit completed work. Mangaka reviews and approves or requests revis
 | id | number | yes | Submission ID |
 
 **Request body:**
+
 ```json
 {
   "decision": "APPROVED",
@@ -1049,6 +1096,7 @@ Assistants submit completed work. Mangaka reviews and approves or requests revis
 ```
 
 **Response (200):**
+
 ```json
 {
   "id": 3001,
@@ -1073,6 +1121,7 @@ Editorial feedback on pages, manuscripts, or submissions. Polymorphic storage wi
 **Roles:** TANTOU_EDITOR
 
 **Request body:**
+
 ```json
 {
   "targetType": "SUBMISSION",
@@ -1085,6 +1134,7 @@ Editorial feedback on pages, manuscripts, or submissions. Polymorphic storage wi
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": 4001,
@@ -1115,6 +1165,7 @@ Editorial feedback on pages, manuscripts, or submissions. Polymorphic storage wi
 | targetId | number | yes | Target entity ID |
 
 **Response (200):**
+
 ```json
 [
   {
@@ -1149,6 +1200,7 @@ Editorial feedback on pages, manuscripts, or submissions. Polymorphic storage wi
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "id": 4001,
@@ -1170,6 +1222,7 @@ Editorial Board opens voting periods, casts votes, closes periods to compute ran
 **Roles:** EDITORIAL_BOARD, ADMIN
 
 **Request body:**
+
 ```json
 {
   "seriesId": 5,
@@ -1180,6 +1233,7 @@ Editorial Board opens voting periods, casts votes, closes periods to compute ran
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": 101,
@@ -1203,6 +1257,7 @@ Editorial Board opens voting periods, casts votes, closes periods to compute ran
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -1227,6 +1282,7 @@ Editorial Board opens voting periods, casts votes, closes periods to compute ran
 **Roles:** EDITORIAL_BOARD
 
 **Request body:**
+
 ```json
 {
   "votePeriodId": 101,
@@ -1236,6 +1292,7 @@ Editorial Board opens voting periods, casts votes, closes periods to compute ran
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": 201,
@@ -1263,6 +1320,7 @@ Editorial Board opens voting periods, casts votes, closes periods to compute ran
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "id": 101,
@@ -1296,6 +1354,7 @@ Editorial Board opens voting periods, casts votes, closes periods to compute ran
 | periodType | string | no | Filter by period type (WEEKLY, MONTHLY) |
 
 **Response (200):**
+
 ```json
 [
   {
@@ -1326,6 +1385,7 @@ Editorial Board applies post-voting decisions to series: continue, cancel, chang
 **Roles:** EDITORIAL_BOARD
 
 **Request body:**
+
 ```json
 {
   "seriesId": 5,
@@ -1335,6 +1395,7 @@ Editorial Board applies post-voting decisions to series: continue, cancel, chang
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": 601,
@@ -1361,6 +1422,7 @@ Editorial Board applies post-voting decisions to series: continue, cancel, chang
 | seriesId | number | yes | Series ID |
 
 **Response (200):**
+
 ```json
 [
   {
@@ -1391,6 +1453,7 @@ Assistants view their accumulated earnings from approved submissions.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "total": 15000,
@@ -1430,6 +1493,7 @@ Assistants can dispute approved earnings. Admins review and resolve.
 **Roles:** ASSISTANT
 
 **Request body:**
+
 ```json
 {
   "taskId": 2001,
@@ -1439,6 +1503,7 @@ Assistants can dispute approved earnings. Admins review and resolve.
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": 701,
@@ -1463,6 +1528,7 @@ Assistants can dispute approved earnings. Admins review and resolve.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -1489,6 +1555,7 @@ Assistants can dispute approved earnings. Admins review and resolve.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -1522,6 +1589,7 @@ Assistants can dispute approved earnings. Admins review and resolve.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "id": 701,
@@ -1545,6 +1613,7 @@ Assistants can dispute approved earnings. Admins review and resolve.
 | id | number | yes | Dispute ID |
 
 **Request body:**
+
 ```json
 {
   "status": "RESOLVED",
@@ -1554,6 +1623,7 @@ Assistants can dispute approved earnings. Admins review and resolve.
 ```
 
 **Response (200):**
+
 ```json
 {
   "id": 701,
@@ -1583,6 +1653,7 @@ All authenticated users receive notifications on key events.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -1619,6 +1690,7 @@ All authenticated users receive notifications on key events.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "ok": true
@@ -1641,6 +1713,7 @@ All authenticated users receive notifications on key events.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "ok": true
@@ -1662,6 +1735,7 @@ Role-aware summary endpoints for quick overview.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "role": "MANGAKA",
@@ -1684,6 +1758,7 @@ Role-aware summary endpoints for quick overview.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -1709,6 +1784,7 @@ Role-aware summary endpoints for quick overview.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -1733,6 +1809,7 @@ Role-aware summary endpoints for quick overview.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -1756,6 +1833,7 @@ Role-aware summary endpoints for quick overview.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "unread": 5,
@@ -1777,6 +1855,20 @@ Role-aware summary endpoints for quick overview.
 ## Admin
 
 Admin-only tools for user management and system overview.
+
+#### POST /api/admin/users
+
+**Roles:** ADMIN
+
+**Request body:**
+
+````json
+{
+  "email": "assistant@studio.local",
+  "password": "TemporaryPassword123@",
+  "fullName": "Internal Assistant",
+  "role": "ASSISTANT"
+}
 
 #### GET /api/admin/users
 
@@ -1806,7 +1898,7 @@ Admin-only tools for user management and system overview.
     "createdAt": "2026-05-20T14:30:00Z"
   }
 ]
-```
+````
 
 **Notes:** All users in system. isActivated = false blocks login (except GOOGLE auth auto-activates). Ordered by creation date.
 
@@ -1819,6 +1911,7 @@ Admin-only tools for user management and system overview.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "totalUsers": 12,
@@ -1854,6 +1947,7 @@ Admin-only tools for user management and system overview.
 | id | number | yes | User ID |
 
 **Request body:**
+
 ```json
 {
   "isActivated": true,
@@ -1862,6 +1956,7 @@ Admin-only tools for user management and system overview.
 ```
 
 **Response (200):**
+
 ```json
 {
   "id": 3,
@@ -1888,6 +1983,7 @@ User profile management and staff roster endpoints.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 {
   "id": 1,
@@ -1907,6 +2003,7 @@ User profile management and staff roster endpoints.
 **Roles:** Any authenticated user
 
 **Request body:**
+
 ```json
 {
   "fullName": "Taro Mangaka Updated",
@@ -1915,10 +2012,12 @@ User profile management and staff roster endpoints.
 ```
 
 **Request validation:**
+
 - `fullName`: optional, max 120 characters
 - `avatarUrl`: optional, max 500 characters
 
 **Response (200):**
+
 ```json
 {
   "id": 1,
@@ -1940,6 +2039,7 @@ User profile management and staff roster endpoints.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -1966,6 +2066,7 @@ User profile management and staff roster endpoints.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -1991,6 +2092,7 @@ Available manga genres for proposal/series tagging.
 **Request body:** None
 
 **Response (200):**
+
 ```json
 [
   {
@@ -2021,11 +2123,13 @@ File upload to SeaweedFS S3-compatible storage. Public read via `GET /uploads/:k
 **Roles:** Any authenticated user
 
 **Request body:** multipart/form-data
+
 ```
 file: <binary file, max 30MB>
 ```
 
 **Response (201):**
+
 ```json
 {
   "url": "/uploads/550e8400-e29b-41d4-a716-446655440000.png",
@@ -2033,7 +2137,8 @@ file: <binary file, max 30MB>
 }
 ```
 
-**Notes:** 
+**Notes:**
+
 - File uploaded to SeaweedFS S3 storage with UUID filename + original extension
 - 30MB file size cap enforced by multer
 - Returns stable `/uploads/<key>` URL for retrieval
@@ -2054,16 +2159,19 @@ file: <binary file, max 30MB>
 Binary file content with appropriate `Content-Type` and `Cache-Control: public, max-age=86400` headers.
 
 **Response (404):**
+
 ```
 Not found
 ```
 
 **Response (400):**
+
 ```
 Invalid key
 ```
 
 **Notes:**
+
 - Public endpoint served from main.ts express route (not a controller endpoint)
 - Key validated with regex `^[A-Za-z0-9._-]+$` to prevent path traversal attacks
 - Falls back to legacy on-disk storage at `./uploads/:key` if S3 fetch fails
@@ -2081,6 +2189,7 @@ In-browser drawing app persistence. Pages are documents with layers, history, vi
 **Roles:** MANGAKA
 
 **Request body:**
+
 ```json
 {
   "pageId": 101,
@@ -2090,6 +2199,7 @@ In-browser drawing app persistence. Pages are documents with layers, history, vi
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": 1,
@@ -2111,6 +2221,7 @@ In-browser drawing app persistence. Pages are documents with layers, history, vi
 **Roles:** MANGAKA
 
 **Request body:**
+
 ```json
 {
   "pageId": 101,
@@ -2123,6 +2234,7 @@ In-browser drawing app persistence. Pages are documents with layers, history, vi
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": 1,
@@ -2150,6 +2262,7 @@ In-browser drawing app persistence. Pages are documents with layers, history, vi
 | pageId | number | yes | Page ID |
 
 **Response (200):**
+
 ```json
 {
   "id": 1,
@@ -2178,6 +2291,7 @@ Root endpoint for app health check.
 **Request body:** None
 
 **Response (200):**
+
 ```
 Hello from the API
 ```
@@ -2188,81 +2302,81 @@ Hello from the API
 
 ## Endpoint Index
 
-| Method | Path | Roles | Purpose |
-|--------|------|-------|---------|
-| POST | `/api/auth/login` | Public | Email+password login → JWT (rate-limited 20/min per IP) |
-| GET | `/api/auth/me` | Any auth | Current user from JWT |
-| POST | `/api/auth/logout` | Any auth | Client-side token drop |
-| PATCH | `/api/auth/password` | Any auth | Change password (LOCAL auth only) |
-| GET | `/api/auth/google` | Public | Start Google OAuth flow |
-| GET | `/api/auth/google/callback` | Public | OAuth redirect → token |
-| POST | `/api/proposals` | MANGAKA | Create proposal (DRAFT) |
-| GET | `/api/proposals/mine` | MANGAKA | List own proposals |
-| PATCH | `/api/proposals/:id/submit` | MANGAKA | Submit for review (DRAFT→SUBMITTED) |
-| GET | `/api/proposals/review-queue` | EDITORIAL_BOARD | Board review queue |
-| PATCH | `/api/proposals/:id/decision` | EDITORIAL_BOARD | Approve/reject proposal (auto-creates Series) |
-| GET | `/api/series/all` | EDITORIAL_BOARD, ADMIN | All series with editor info |
-| GET | `/api/series/mine` | MANGAKA | Own series list |
-| GET | `/api/series/:id` | MANGAKA | Series details |
-| PUT | `/api/series/:id/editor` | EDITORIAL_BOARD, ADMIN | Assign Tantou editor |
-| DELETE | `/api/series/:id/editor` | EDITORIAL_BOARD, ADMIN | Unassign editor |
-| POST | `/api/chapters` | MANGAKA | Create chapter (DRAFT) |
-| GET | `/api/chapters?seriesId=` | MANGAKA | List chapters in series |
-| PATCH | `/api/chapters/:id/status` | MANGAKA | Lifecycle (PUBLISHED triggers Publication_Schedule) |
-| GET | `/api/chapters/review-queue` | TANTOU_EDITOR | Editor's assigned chapters ready for review |
-| GET | `/api/chapters/:id/pages` | TANTOU_EDITOR | View pages in chapter (editing) |
-| PATCH | `/api/chapters/:id/editor-review` | TANTOU_EDITOR | Approve/revise chapter (notifies Mangaka) |
-| POST | `/api/pages` | MANGAKA | Upload page image (RAW status) |
-| GET | `/api/pages?chapterId=` | MANGAKA | List pages in chapter |
-| GET | `/api/pages/:id` | MANGAKA | Page details + version history |
-| POST | `/api/regions` | MANGAKA | Define region (panel, bubble, etc.) |
-| GET | `/api/regions?pageId=` | MANGAKA | List regions on page |
-| DELETE | `/api/regions/:id` | MANGAKA | Delete region |
-| POST | `/api/tasks` | MANGAKA | Create task for Assistant (auto-prices from Task_Price_Rule) |
-| GET | `/api/tasks/mine` | ASSISTANT | Assigned tasks |
-| GET | `/api/tasks?pageId=` | MANGAKA | Tasks on page |
-| PATCH | `/api/tasks/:id/start` | ASSISTANT | Start task (ASSIGNED→IN_PROGRESS) |
-| POST | `/api/submissions` | ASSISTANT | Submit work (task→SUBMITTED, notify Mangaka) |
-| GET | `/api/submissions/review-queue` | MANGAKA | Submissions awaiting review |
-| PATCH | `/api/submissions/:id/review` | MANGAKA | Approve/revise (APPROVED accrues earnings, REVISION_REQUIRED loops) |
-| POST | `/api/annotations` | TANTOU_EDITOR | Create editorial feedback |
-| GET | `/api/annotations?targetType=&targetId=` | TANTOU_EDITOR, MANGAKA | Query annotations on entity |
-| PATCH | `/api/annotations/:id/resolve` | TANTOU_EDITOR | Mark feedback resolved |
-| POST | `/api/vote-periods` | EDITORIAL_BOARD, ADMIN | Open voting period |
-| GET | `/api/vote-periods/open` | EDITORIAL_BOARD | Current open periods |
-| POST | `/api/votes` | EDITORIAL_BOARD | Cast score (1–5) |
-| POST | `/api/vote-periods/:id/close` | EDITORIAL_BOARD, ADMIN | Close period → compute Ranking (detect AT_RISK) |
-| GET | `/api/rankings` | EDITORIAL_BOARD, ADMIN, MANGAKA | Leaderboard |
-| POST | `/api/decisions` | EDITORIAL_BOARD | Apply decision (CONTINUE/CANCEL/CHANGE_FREQUENCY/HIATUS, notifies Mangaka) |
-| GET | `/api/decisions?seriesId=` | EDITORIAL_BOARD, ADMIN, MANGAKA | Decision history |
-| GET | `/api/earnings/mine` | ASSISTANT | Total + approved task breakdown |
-| POST | `/api/disputes` | ASSISTANT | Open dispute on APPROVED task |
-| GET | `/api/disputes/mine` | ASSISTANT | Own disputes |
-| GET | `/api/disputes` | ADMIN | All disputes |
-| PATCH | `/api/disputes/:id/review` | ADMIN | Mark under review (OPEN→UNDER_REVIEW) |
-| PATCH | `/api/disputes/:id/resolve` | ADMIN | Resolve/reject (adjustedAmount updates Task.payment_amount + Assistant earnings, notifies) |
-| GET | `/api/notifications` | Any auth | User's notifications (unread first) |
-| PATCH | `/api/notifications/read-all` | Any auth | Mark all as read |
-| PATCH | `/api/notifications/:id/read` | Any auth | Mark one as read |
-| GET | `/api/dashboard/summary` | Any auth | Role-aware summary |
-| GET | `/api/dashboard/series` | MANGAKA | Series with counts + editor |
-| GET | `/api/dashboard/tasks` | MANGAKA | Open task assignments |
-| GET | `/api/dashboard/submissions` | MANGAKA | Pending submissions |
-| GET | `/api/dashboard/notifications` | Any auth | Unread count + recent |
-| GET | `/api/admin/users` | ADMIN | All users (with activation/role) |
-| GET | `/api/admin/overview` | ADMIN | System metrics |
-| PATCH | `/api/admin/users/:id` | ADMIN | Activate/deactivate, change role (last-admin guard) |
-| GET | `/api/users/me` | Any auth | Current user profile (fullName, avatarUrl, role, email) |
-| PATCH | `/api/users/me` | Any auth | Update profile (fullName ≤120, avatarUrl ≤500) |
-| GET | `/api/users/assistants` | MANGAKA | Active assistants for task assignment |
-| GET | `/api/users/editors` | EDITORIAL_BOARD | Active Tantou editors for assignment |
-| GET | `/api/genres` | Any auth | All genres |
-| POST | `/api/uploads` | Any auth | Upload file (multipart, 30MB max) to SeaweedFS S3 → {url, originalName} |
-| GET | `/uploads/:key` | Public | Retrieve uploaded file from S3 (path-traversal guarded, cache-friendly) |
-| POST | `/api/studio/page-versions` | MANGAKA | Save canvas export as page version |
-| POST | `/api/studio/docs` | MANGAKA | Save studio manifest (layers, history, state) |
-| GET | `/api/studio/docs/:pageId` | MANGAKA | Load latest manifest |
-| GET | `/api` | Public | Health check |
+| Method | Path                                     | Roles                           | Purpose                                                                                    |
+| ------ | ---------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------ |
+| POST   | `/api/auth/login`                        | Public                          | Email+password login → JWT (rate-limited 20/min per IP)                                    |
+| GET    | `/api/auth/me`                           | Any auth                        | Current user from JWT                                                                      |
+| POST   | `/api/auth/logout`                       | Any auth                        | Client-side token drop                                                                     |
+| PATCH  | `/api/auth/password`                     | Any auth                        | Change password (LOCAL auth only)                                                          |
+| GET    | `/api/auth/google`                       | Public                          | Start Google OAuth flow                                                                    |
+| GET    | `/api/auth/google/callback`              | Public                          | OAuth redirect → token                                                                     |
+| POST   | `/api/proposals`                         | MANGAKA                         | Create proposal (DRAFT)                                                                    |
+| GET    | `/api/proposals/mine`                    | MANGAKA                         | List own proposals                                                                         |
+| PATCH  | `/api/proposals/:id/submit`              | MANGAKA                         | Submit for review (DRAFT→SUBMITTED)                                                        |
+| GET    | `/api/proposals/review-queue`            | EDITORIAL_BOARD                 | Board review queue                                                                         |
+| PATCH  | `/api/proposals/:id/decision`            | EDITORIAL_BOARD                 | Approve/reject proposal (auto-creates Series)                                              |
+| GET    | `/api/series/all`                        | EDITORIAL_BOARD, ADMIN          | All series with editor info                                                                |
+| GET    | `/api/series/mine`                       | MANGAKA                         | Own series list                                                                            |
+| GET    | `/api/series/:id`                        | MANGAKA                         | Series details                                                                             |
+| PUT    | `/api/series/:id/editor`                 | EDITORIAL_BOARD, ADMIN          | Assign Tantou editor                                                                       |
+| DELETE | `/api/series/:id/editor`                 | EDITORIAL_BOARD, ADMIN          | Unassign editor                                                                            |
+| POST   | `/api/chapters`                          | MANGAKA                         | Create chapter (DRAFT)                                                                     |
+| GET    | `/api/chapters?seriesId=`                | MANGAKA                         | List chapters in series                                                                    |
+| PATCH  | `/api/chapters/:id/status`               | MANGAKA                         | Lifecycle (PUBLISHED triggers Publication_Schedule)                                        |
+| GET    | `/api/chapters/review-queue`             | TANTOU_EDITOR                   | Editor's assigned chapters ready for review                                                |
+| GET    | `/api/chapters/:id/pages`                | TANTOU_EDITOR                   | View pages in chapter (editing)                                                            |
+| PATCH  | `/api/chapters/:id/editor-review`        | TANTOU_EDITOR                   | Approve/revise chapter (notifies Mangaka)                                                  |
+| POST   | `/api/pages`                             | MANGAKA                         | Upload page image (RAW status)                                                             |
+| GET    | `/api/pages?chapterId=`                  | MANGAKA                         | List pages in chapter                                                                      |
+| GET    | `/api/pages/:id`                         | MANGAKA                         | Page details + version history                                                             |
+| POST   | `/api/regions`                           | MANGAKA                         | Define region (panel, bubble, etc.)                                                        |
+| GET    | `/api/regions?pageId=`                   | MANGAKA                         | List regions on page                                                                       |
+| DELETE | `/api/regions/:id`                       | MANGAKA                         | Delete region                                                                              |
+| POST   | `/api/tasks`                             | MANGAKA                         | Create task for Assistant (auto-prices from Task_Price_Rule)                               |
+| GET    | `/api/tasks/mine`                        | ASSISTANT                       | Assigned tasks                                                                             |
+| GET    | `/api/tasks?pageId=`                     | MANGAKA                         | Tasks on page                                                                              |
+| PATCH  | `/api/tasks/:id/start`                   | ASSISTANT                       | Start task (ASSIGNED→IN_PROGRESS)                                                          |
+| POST   | `/api/submissions`                       | ASSISTANT                       | Submit work (task→SUBMITTED, notify Mangaka)                                               |
+| GET    | `/api/submissions/review-queue`          | MANGAKA                         | Submissions awaiting review                                                                |
+| PATCH  | `/api/submissions/:id/review`            | MANGAKA                         | Approve/revise (APPROVED accrues earnings, REVISION_REQUIRED loops)                        |
+| POST   | `/api/annotations`                       | TANTOU_EDITOR                   | Create editorial feedback                                                                  |
+| GET    | `/api/annotations?targetType=&targetId=` | TANTOU_EDITOR, MANGAKA          | Query annotations on entity                                                                |
+| PATCH  | `/api/annotations/:id/resolve`           | TANTOU_EDITOR                   | Mark feedback resolved                                                                     |
+| POST   | `/api/vote-periods`                      | EDITORIAL_BOARD, ADMIN          | Open voting period                                                                         |
+| GET    | `/api/vote-periods/open`                 | EDITORIAL_BOARD                 | Current open periods                                                                       |
+| POST   | `/api/votes`                             | EDITORIAL_BOARD                 | Cast score (1–5)                                                                           |
+| POST   | `/api/vote-periods/:id/close`            | EDITORIAL_BOARD, ADMIN          | Close period → compute Ranking (detect AT_RISK)                                            |
+| GET    | `/api/rankings`                          | EDITORIAL_BOARD, ADMIN, MANGAKA | Leaderboard                                                                                |
+| POST   | `/api/decisions`                         | EDITORIAL_BOARD                 | Apply decision (CONTINUE/CANCEL/CHANGE_FREQUENCY/HIATUS, notifies Mangaka)                 |
+| GET    | `/api/decisions?seriesId=`               | EDITORIAL_BOARD, ADMIN, MANGAKA | Decision history                                                                           |
+| GET    | `/api/earnings/mine`                     | ASSISTANT                       | Total + approved task breakdown                                                            |
+| POST   | `/api/disputes`                          | ASSISTANT                       | Open dispute on APPROVED task                                                              |
+| GET    | `/api/disputes/mine`                     | ASSISTANT                       | Own disputes                                                                               |
+| GET    | `/api/disputes`                          | ADMIN                           | All disputes                                                                               |
+| PATCH  | `/api/disputes/:id/review`               | ADMIN                           | Mark under review (OPEN→UNDER_REVIEW)                                                      |
+| PATCH  | `/api/disputes/:id/resolve`              | ADMIN                           | Resolve/reject (adjustedAmount updates Task.payment_amount + Assistant earnings, notifies) |
+| GET    | `/api/notifications`                     | Any auth                        | User's notifications (unread first)                                                        |
+| PATCH  | `/api/notifications/read-all`            | Any auth                        | Mark all as read                                                                           |
+| PATCH  | `/api/notifications/:id/read`            | Any auth                        | Mark one as read                                                                           |
+| GET    | `/api/dashboard/summary`                 | Any auth                        | Role-aware summary                                                                         |
+| GET    | `/api/dashboard/series`                  | MANGAKA                         | Series with counts + editor                                                                |
+| GET    | `/api/dashboard/tasks`                   | MANGAKA                         | Open task assignments                                                                      |
+| GET    | `/api/dashboard/submissions`             | MANGAKA                         | Pending submissions                                                                        |
+| GET    | `/api/dashboard/notifications`           | Any auth                        | Unread count + recent                                                                      |
+| GET    | `/api/admin/users`                       | ADMIN                           | All users (with activation/role)                                                           |
+| GET    | `/api/admin/overview`                    | ADMIN                           | System metrics                                                                             |
+| PATCH  | `/api/admin/users/:id`                   | ADMIN                           | Activate/deactivate, change role (last-admin guard)                                        |
+| GET    | `/api/users/me`                          | Any auth                        | Current user profile (fullName, avatarUrl, role, email)                                    |
+| PATCH  | `/api/users/me`                          | Any auth                        | Update profile (fullName ≤120, avatarUrl ≤500)                                             |
+| GET    | `/api/users/assistants`                  | MANGAKA                         | Active assistants for task assignment                                                      |
+| GET    | `/api/users/editors`                     | EDITORIAL_BOARD                 | Active Tantou editors for assignment                                                       |
+| GET    | `/api/genres`                            | Any auth                        | All genres                                                                                 |
+| POST   | `/api/uploads`                           | Any auth                        | Upload file (multipart, 30MB max) to SeaweedFS S3 → {url, originalName}                    |
+| GET    | `/uploads/:key`                          | Public                          | Retrieve uploaded file from S3 (path-traversal guarded, cache-friendly)                    |
+| POST   | `/api/studio/page-versions`              | MANGAKA                         | Save canvas export as page version                                                         |
+| POST   | `/api/studio/docs`                       | MANGAKA                         | Save studio manifest (layers, history, state)                                              |
+| GET    | `/api/studio/docs/:pageId`               | MANGAKA                         | Load latest manifest                                                                       |
+| GET    | `/api`                                   | Public                          | Health check                                                                               |
 
 ---
 
