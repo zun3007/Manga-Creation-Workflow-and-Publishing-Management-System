@@ -27,7 +27,9 @@ export class AdminService {
     const fullName = dto.fullName.trim();
     if (!fullName) throw new BadRequestException('Tên người dùng là bắt buộc');
     if (dto.role === Role.ADMIN) {
-      throw new BadRequestException('Hệ thống chỉ có một admin, không thể tạo thêm ADMIN');
+      throw new BadRequestException(
+        'Hệ thống chỉ có một admin, không thể tạo thêm ADMIN',
+      );
     }
 
     const existing = await this.db.queryOne<{ id: number }>(
@@ -57,48 +59,289 @@ export class AdminService {
   }
 
   async updateUser(id: number, dto: UpdateUserDto) {
-    const u = await this.db.queryOne<{ role: string; is_activated: number }>(
-      `SELECT role, is_activated FROM \`User\` WHERE user_id = ?`,
-      [id],
-    );
-    if (!u) throw new NotFoundException('User not found');
-
-    if (dto.role === Role.ADMIN) {
-      throw new BadRequestException('Hệ thống chỉ có một admin, không thể gán thêm ADMIN');
-    }
-
-    // guard: don't remove the last active admin
-    const losingAdmin =
-      u.role === 'ADMIN' &&
-      (dto.isActivated === false || dto.role !== undefined);
-    if (losingAdmin) {
-      const cnt = await this.db.queryOne<{ n: number }>(
-        `SELECT COUNT(*) AS n FROM \`User\` WHERE role='ADMIN' AND is_activated=1`,
-        [],
+    return this.db.transaction(async (tx) => {
+      const user = await tx.queryOne<{
+        role: Role;
+        is_activated: number;
+        full_name: string;
+      }>(
+        `SELECT role, is_activated, full_name
+         FROM \`User\`
+         WHERE user_id = ?
+         FOR UPDATE`,
+        [id],
       );
-      if ((cnt?.n ?? 0) <= 1)
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      const roleChanging = dto.role !== undefined && dto.role !== user.role;
+
+      if (roleChanging && dto.role === Role.ADMIN) {
         throw new BadRequestException(
-          'Cannot deactivate/demote the last active admin',
+          'Hệ thống chỉ có một admin, không thể gán thêm ADMIN',
         );
+      }
+
+      const losingAdmin =
+        user.role === Role.ADMIN &&
+        Boolean(user.is_activated) &&
+        (dto.isActivated === false ||
+          (roleChanging && dto.role !== Role.ADMIN));
+
+      if (losingAdmin) {
+        const count = await tx.queryOne<{
+          n: number | string;
+        }>(
+          `SELECT COUNT(*) AS n
+           FROM \`User\`
+           WHERE role = 'ADMIN'
+             AND is_activated = 1`,
+          [],
+        );
+
+        if (Number(count?.n ?? 0) <= 1) {
+          throw new BadRequestException(
+            'Cannot deactivate/demote the last active admin',
+          );
+        }
+      }
+
+      if (roleChanging && dto.role) {
+        await this.assertRoleTransitionAllowed(tx, id, user.role);
+
+        await this.deleteRoleProfile(tx, id, user.role);
+
+        await this.createDefaultProfile(tx, id, dto.role, user.full_name);
+      }
+
+      const sets: string[] = [];
+      const params: Array<string | number> = [];
+
+      if (dto.isActivated !== undefined) {
+        sets.push('is_activated = ?');
+        params.push(dto.isActivated ? 1 : 0);
+      }
+
+      if (roleChanging && dto.role) {
+        sets.push('role = ?');
+        params.push(dto.role);
+      }
+
+      if (!sets.length) {
+        return { ok: true };
+      }
+
+      params.push(id);
+
+      await tx.query(
+        `UPDATE \`User\`
+         SET ${sets.join(', ')}
+         WHERE user_id = ?`,
+        params,
+      );
+
+      return { ok: true };
+    });
+  }
+
+  private async assertRoleTransitionAllowed(
+    tx: ITransactionContext,
+    userId: number,
+    currentRole: Role,
+  ): Promise<void> {
+    if (currentRole === Role.MANGAKA) {
+      const history = await tx.queryOne<{
+        proposals: number | string;
+        series: number | string;
+      }>(
+        `SELECT
+          (
+            SELECT COUNT(*)
+            FROM \`Series_Proposal\`
+            WHERE mangaka_user_id = ?
+          ) AS proposals,
+          (
+            SELECT COUNT(*)
+            FROM \`Series\`
+            WHERE mangaka_user_id = ?
+          ) AS series`,
+        [userId, userId],
+      );
+
+      if (
+        Number(history?.proposals ?? 0) > 0 ||
+        Number(history?.series ?? 0) > 0
+      ) {
+        throw new BadRequestException(
+          'Không thể đổi vai trò: Mangaka đã có đề xuất hoặc series.',
+        );
+      }
+
+      return;
     }
 
-    const sets: string[] = [];
-    const params: any[] = [];
-    if (dto.isActivated !== undefined) {
-      sets.push('is_activated = ?');
-      params.push(dto.isActivated ? 1 : 0);
+    if (currentRole === Role.ASSISTANT) {
+      const history = await tx.queryOne<{
+        tasks: number | string;
+        submissions: number | string;
+        disputes: number | string;
+        earnings: number | string;
+      }>(
+        `SELECT
+          (
+            SELECT COUNT(*)
+            FROM \`Task\`
+            WHERE assignee_user_id = ?
+          ) AS tasks,
+          (
+            SELECT COUNT(*)
+            FROM \`Submission\`
+            WHERE assistant_user_id = ?
+          ) AS submissions,
+          (
+            SELECT COUNT(*)
+            FROM \`Earning_Dispute\`
+            WHERE assistant_user_id = ?
+          ) AS disputes,
+          COALESCE(
+            (
+              SELECT total_earnings
+              FROM \`Assistant_Profile\`
+              WHERE user_id = ?
+            ),
+            0
+          ) AS earnings`,
+        [userId, userId, userId, userId],
+      );
+
+      if (
+        Number(history?.tasks ?? 0) > 0 ||
+        Number(history?.submissions ?? 0) > 0 ||
+        Number(history?.disputes ?? 0) > 0 ||
+        Number(history?.earnings ?? 0) !== 0
+      ) {
+        throw new BadRequestException(
+          'Không thể đổi vai trò: Assistant đã có task, bài nộp, khiếu nại hoặc thu nhập.',
+        );
+      }
+
+      return;
     }
-    if (dto.role !== undefined) {
-      sets.push('role = ?');
-      params.push(dto.role);
+
+    if (currentRole === Role.TANTOU_EDITOR) {
+      const history = await tx.queryOne<{
+        assignments: number | string;
+      }>(
+        `SELECT COUNT(*) AS assignments
+         FROM \`Series_Tantou_Editor\`
+         WHERE editor_user_id = ?`,
+        [userId],
+      );
+
+      if (Number(history?.assignments ?? 0) > 0) {
+        throw new BadRequestException(
+          'Không thể đổi vai trò: biên tập viên đã có lịch sử phụ trách series.',
+        );
+      }
+
+      return;
     }
-    if (!sets.length) return { ok: true };
-    params.push(id);
-    await this.db.query(
-      `UPDATE \`User\` SET ${sets.join(', ')} WHERE user_id = ?`,
-      params,
+
+    if (currentRole === Role.EDITORIAL_BOARD) {
+      const history = await tx.queryOne<{
+        votes: number | string;
+        decisions: number | string;
+        schedules: number | string;
+        imports: number | string;
+        requests: number | string;
+        approvals: number | string;
+      }>(
+        `SELECT
+          (
+            SELECT COUNT(*)
+            FROM \`Vote\`
+            WHERE board_user_id = ?
+          ) AS votes,
+          (
+            SELECT COUNT(*)
+            FROM \`Decision\`
+            WHERE decided_by_user_id = ?
+          ) AS decisions,
+          (
+            SELECT COUNT(*)
+            FROM \`Publication_Schedule\`
+            WHERE scheduled_by_user_id = ?
+          ) AS schedules,
+          (
+            SELECT COUNT(*)
+            FROM \`Reader_Vote_Import\`
+            WHERE imported_by_user_id = ?
+          ) AS imports,
+          (
+            SELECT COUNT(*)
+            FROM \`Reader_Vote_Import_Delete_Request\`
+            WHERE requested_by_user_id = ?
+          ) AS requests,
+          (
+            SELECT COUNT(*)
+            FROM \`Reader_Vote_Import_Delete_Approval\`
+            WHERE board_user_id = ?
+          ) AS approvals`,
+        [userId, userId, userId, userId, userId, userId],
+      );
+
+      if (
+        Number(history?.votes ?? 0) > 0 ||
+        Number(history?.decisions ?? 0) > 0 ||
+        Number(history?.schedules ?? 0) > 0 ||
+        Number(history?.imports ?? 0) > 0 ||
+        Number(history?.requests ?? 0) > 0 ||
+        Number(history?.approvals ?? 0) > 0
+      ) {
+        throw new BadRequestException(
+          'Không thể đổi vai trò: thành viên hội đồng đã có dữ liệu nghiệp vụ.',
+        );
+      }
+    }
+  }
+
+  private async deleteRoleProfile(
+    tx: ITransactionContext,
+    userId: number,
+    role: Role,
+  ): Promise<void> {
+    const table = this.profileTable(role);
+
+    if (!table) {
+      return;
+    }
+
+    await tx.query(
+      `DELETE FROM \`${table}\`
+       WHERE user_id = ?`,
+      [userId],
     );
-    return { ok: true };
+  }
+
+  private profileTable(role: Role): string | null {
+    switch (role) {
+      case Role.MANGAKA:
+        return 'Mangaka_Profile';
+
+      case Role.ASSISTANT:
+        return 'Assistant_Profile';
+
+      case Role.TANTOU_EDITOR:
+        return 'Tantou_Editor_Profile';
+
+      case Role.EDITORIAL_BOARD:
+        return 'Editorial_Board_Profile';
+
+      default:
+        return null;
+    }
   }
 
   private async createDefaultProfile(
