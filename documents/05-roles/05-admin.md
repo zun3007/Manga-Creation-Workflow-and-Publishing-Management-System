@@ -233,12 +233,17 @@ REJECTED → [] (terminal)
 - The User and matching role profile are created in one database transaction.
 - If profile creation fails, the entire account creation operation is rolled back.
 
-**Activation gate (`is_activated`):**
+**Account provisioning and activation policy (`is_activated`):**
 
-- New users (registered via login or seeded in bulk) default to `is_activated = 0` (deactivated).
-- Deactivated users cannot log in (JWT issuance fails if user is not activated).
-- Admin must manually activate users before they can access the platform.
-- Action: Console screen → User row → Status toggle "Mở khoá" (if currently locked) → confirm → saves via PATCH `/api/admin/users/:id` with `{isActivated: true}`.
+- The system has no public LOCAL email-and-password registration endpoint.
+- Internal LOCAL accounts are created by Admin through `POST /api/admin/users`.
+- An Admin-created internal account is active immediately (`is_activated = 1`).
+- A first-time Google OAuth account is active immediately and starts with the MANGAKA role.
+- Admin can deactivate or reactivate an existing account through `PATCH /api/admin/users/:id`.
+- A deactivated account cannot complete local login, Google login, or 2FA token issuance.
+- Previously issued JWTs stop working because JWT validation reloads the current User record from the database.
+- Deactivating or demoting the final active ADMIN remains prohibited by the last-admin guard.
+- Action: Console → User row → Status toggle → confirm → submit `{isActivated: true|false}`.
 
 **Role assignment:**
 
@@ -281,21 +286,26 @@ REJECTED → [] (terminal)
 
 ---
 
-### Workflow B: Activate a Newly Seeded or Registered User & Assign Role
+### Workflow B: Deactivate or Reactivate an Existing Account
 
-**Scenario:** A new user has registered via email or been bulk-seeded in the database. They cannot log in yet because `is_activated=0`. Admin needs to onboard them.
+**Scenario:** Admin needs to suspend access for an existing user or restore access to a previously deactivated user.
 
 **Steps:**
 
-1. **Navigate to Console** — `/admin`
-2. **Locate the user** in the User list table (search/scroll; list shows all users unsorted by default in the code, but is sorted by role + name in the query).
-3. **Activate** — Click the Status toggle ("Mở khoá" if locked) → confirm dialog → saves `is_activated=1` → button now shows "Khoá".
-4. **Assign role** — Click the Role dropdown → select desired role (e.g., ASSISTANT) → saves immediately.
-5. **Notify user** (out of platform) — Send login credentials and confirmation to the user's email.
+1. Navigate to the Admin Console at `/admin`.
+2. Locate the user in the user-management table.
+3. Review the current activation status and role.
+4. Toggle the account status.
+5. Confirm the action.
+6. The frontend calls `PATCH /api/admin/users/:id` with `{isActivated: false}` or `{isActivated: true}`.
+7. When deactivated, new authentication attempts and previously issued JWTs are rejected.
+8. When reactivated, the user may authenticate again with their existing login method.
+9. The final active ADMIN cannot be deactivated or demoted.
 
 **Related endpoints:**
-- GET `/api/admin/users` (fetch list)
-- PATCH `/api/admin/users/:id` (activate + set role)
+
+- GET `/api/admin/users` — list users and activation status.
+- PATCH `/api/admin/users/:id` — activate, reactivate, or deactivate a user.
 
 ---
 
