@@ -221,6 +221,7 @@ Grouped by module, each requirement maps to an endpoint and/or web page. All end
 | FR-ADM-3 | Admin shall change a user's role. | Admin | `PATCH /admin/users/:id` with role; web: role dropdown |
 | FR-ADM-4 | System shall enforce last-admin guard: prevent demotion/deactivation of last ADMIN. | System | Guard in `PATCH /admin/users/:id`; rejects if would leave zero admins |
 | FR-ADM-5 | Admin shall view system overview (total users, total series, total earnings distributed). | Admin | `GET /admin/overview`; web: `/admin` overview cards |
+| FR-ADM-6 | Admin shall create an internal account for MANGAKA, ASSISTANT, TANTOU_EDITOR, or EDITORIAL_BOARD using full name, email, initial password, and role. The system shall create the matching role profile in the same transaction. | Admin | `POST /admin/users`; web: `/admin` internal-account form |
 
 ### FR-18: File Uploads
 
