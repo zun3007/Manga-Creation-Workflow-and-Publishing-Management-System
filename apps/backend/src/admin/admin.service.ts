@@ -78,12 +78,6 @@ export class AdminService {
 
       const roleChanging = dto.role !== undefined && dto.role !== user.role;
 
-      if (roleChanging && dto.role === Role.ADMIN) {
-        throw new BadRequestException(
-          'Hệ thống chỉ có một admin, không thể gán thêm ADMIN',
-        );
-      }
-
       const losingAdmin =
         user.role === Role.ADMIN &&
         Boolean(user.is_activated) &&
