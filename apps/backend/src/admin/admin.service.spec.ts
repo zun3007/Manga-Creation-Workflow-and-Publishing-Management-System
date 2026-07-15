@@ -93,6 +93,71 @@ describe('AdminService.updateUser', () => {
     );
   });
 
+  it('allows promoting a user to admin', async () => {
+    const tx = {
+      queryOne: jest
+        .fn()
+        .mockResolvedValueOnce({
+          role: Role.ASSISTANT,
+          is_activated: 1,
+          full_name: 'Future Admin',
+        })
+        .mockResolvedValueOnce({
+          tasks: 0,
+          submissions: 0,
+          disputes: 0,
+          earnings: 0,
+        }),
+      query: jest.fn().mockResolvedValue([]),
+      insert: jest.fn(),
+    };
+
+    const db: any = createDbMock(tx);
+    const service = new AdminService(db);
+
+    await service.updateUser(7, {
+      role: Role.ADMIN,
+    });
+
+    expect(tx.query).toHaveBeenCalledWith(
+      expect.stringContaining('DELETE FROM `Assistant_Profile`'),
+      [7],
+    );
+
+    expect(tx.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE `User`'),
+      [Role.ADMIN, 7],
+    );
+  });
+
+  it('refuses to demote the last active admin', async () => {
+    const tx = {
+      queryOne: jest
+        .fn()
+        .mockResolvedValueOnce({
+          role: Role.ADMIN,
+          is_activated: 1,
+          full_name: 'Last Admin',
+        })
+        .mockResolvedValueOnce({
+          n: 1,
+        }),
+      query: jest.fn(),
+      insert: jest.fn(),
+    };
+
+    const db: any = createDbMock(tx);
+    const service = new AdminService(db);
+
+    await expect(
+      service.updateUser(7, {
+        role: Role.ASSISTANT,
+      }),
+    ).rejects.toThrow('Cannot deactivate/demote the last active admin');
+
+    expect(tx.query).not.toHaveBeenCalled();
+  });
+
   it('converts the role profile in the same transaction', async () => {
     const tx = {
       queryOne: jest
