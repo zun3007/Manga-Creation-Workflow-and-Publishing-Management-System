@@ -365,7 +365,7 @@ export class SeriesService implements OnModuleInit {
   private async assertActiveEditorForSeries(
     seriesId: number,
     editorUserId: number,
-    requireCancelled = false,
+    requireHiatus = false,
   ) {
     const series = await this.db.queryOne<{
       id: number;
@@ -391,9 +391,9 @@ export class SeriesService implements OnModuleInit {
       );
     }
 
-    if (requireCancelled && series.status !== SeriesStatus.CANCELLED) {
+    if (requireHiatus && series.status !== SeriesStatus.HIATUS) {
       throw new BadRequestException(
-        'Chỉ series đã bị Hội đồng hủy mới có hồ sơ bảo vệ',
+        'Hồ sơ bảo vệ chỉ khả dụng khi series đang tạm dừng (HIATUS)',
       );
     }
 
@@ -421,9 +421,9 @@ export class SeriesService implements OnModuleInit {
       throw new NotFoundException('Series not found');
     }
 
-    if (series.status !== SeriesStatus.CANCELLED) {
+    if (series.status !== SeriesStatus.HIATUS) {
       throw new BadRequestException(
-        'Chỉ series đã bị Hội đồng hủy mới có hồ sơ bảo vệ',
+        'Hồ sơ bảo vệ chỉ khả dụng khi series đang tạm dừng (HIATUS)',
       );
     }
 

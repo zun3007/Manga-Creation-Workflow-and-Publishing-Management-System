@@ -127,7 +127,7 @@ export default function ManagedSeriesPage() {
                     <td className="px-4 py-5">{date(row.nextDeadline)}</td>
                     <td className="px-4 py-5">{date(row.assignedAt)}</td>
                     <td className="px-4 py-5">
-                      {row.status === "CANCELLED" ? (
+                      {row.status === "HIATUS" ? (
                         <Link
                           to={`/editor/series/${row.id}/dossier`}
                           className="inline-flex whitespace-nowrap rounded-[calc(var(--app-radius)*0.66)] border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink transition hover:bg-bg"

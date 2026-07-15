@@ -795,7 +795,7 @@ export default function ReaderVoteImport() {
                       />
                     </dd>
                   </div>
-                  {selectedSeries.status === "CANCELLED" && (
+                  {selectedSeries.status === "HIATUS" && (
                     <div className="pt-2">
                       <Link
                         to={`/board/series/${selectedSeries.seriesId}/dossier`}

@@ -181,7 +181,7 @@ export default function BoardSeries() {
                     </td>
                     <td className="p-4 text-ink">{row.chapters}</td>
                     <td className="p-4">
-                      {row.status === "CANCELLED" ? (
+                      {row.status === "HIATUS" ? (
                         <Link
                           to={`/board/series/${row.id}/dossier`}
                           className="inline-flex rounded-lg border border-line bg-surface px-3 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:text-accent"

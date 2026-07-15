@@ -200,14 +200,14 @@ export default function SeriesDossierPage() {
     );
   }
 
-  if (!dossier || dossier.series.status !== "CANCELLED") {
+  if (!dossier || dossier.series.status !== "HIATUS") {
     return (
       <div className="space-y-4 p-8">
         <Link to="/editor/series" className="text-sm text-muted hover:text-accent">
           ← Quay lại series quản lý
         </Link>
         <Panel className="p-6 text-center text-muted">
-          Hồ sơ bảo vệ chỉ khả dụng cho series đã bị huỷ (CANCELLED).
+          Hồ sơ bảo vệ chỉ khả dụng khi series đang tạm dừng (HIATUS).
         </Panel>
       </div>
     );
@@ -233,10 +233,10 @@ export default function SeriesDossierPage() {
           </p>
           <div className="mt-2 flex items-center gap-3">
             <h1 className="text-3xl text-ink">{dossier.series.title}</h1>
-            <Stamp status="CANCELLED" />
+            <Stamp status="HIATUS" />
           </div>
           <p className="mt-2 text-sm text-muted">
-            Hồ sơ số liệu và báo cáo bảo vệ sau khi Hội đồng đã hủy series.
+            Hồ sơ số liệu và báo cáo bảo vệ khi series đang tạm dừng.
           </p>
         </div>
         <Panel className="px-4 py-3">
@@ -399,8 +399,8 @@ export default function SeriesDossierPage() {
                 >
                   <option value="CONTINUE">Tiếp tục</option>
                   <option value="CHANGE_FREQUENCY">Đổi tần suất</option>
-                  <option value="HIATUS">Tạm dừng</option>
-                  <option value="CANCEL">Giữ hủy</option>
+                  <option value="HIATUS">Giữ tạm dừng</option>
+                  <option value="CANCEL">Hủy series</option>
                 </select>
                 <select
                   value={newFrequency}
