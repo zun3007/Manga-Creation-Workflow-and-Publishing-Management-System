@@ -268,7 +268,6 @@ flowchart LR
         UC5(["View Open<br/>Disputes"])
         UC6(["Review & Resolve<br/>Dispute"])
         UC7(["Adjust Payment<br/>Amount"])
-        UC8(["Create Internal<br/>Account"])
     end
     
     AD --> UC1
@@ -278,13 +277,11 @@ flowchart LR
     AD --> UC5
     AD --> UC6
     AD --> UC7
-    AD --> UC8
 ```
 
 | Use Case | Realizing Endpoints & Pages |
 |----------|---------------------------|
 | View System Overview | `GET /api/admin/overview`, Route: `/admin` (Console) |
-| Create Internal Account | `POST /api/admin/users` (creates User and matching role profile), Route: `/admin` |
 | List & Activate Users | `GET /api/admin/users`, Route: `/admin` |
 | Change User Roles | `PATCH /api/admin/users/:id` (activate/role), Route: `/admin` |
 | Last-Admin Guard | `PATCH /api/admin/users/:id` (last-admin guard prevents final admin demotion), Route: `/admin` |
