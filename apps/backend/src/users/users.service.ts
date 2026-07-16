@@ -12,10 +12,11 @@ export interface UserRow {
   auth_provider: string;
   google_id: string | null;
   is_activated: number;
+  must_change_password: number;
 }
 
 const BASE_COLS =
-  'user_id, email, password_hash, full_name, avatar_url, role, auth_provider, google_id, is_activated';
+  'user_id, email, password_hash, full_name, avatar_url, role, auth_provider, google_id, is_activated, must_change_password';
 
 @Injectable()
 export class UsersService {
@@ -37,7 +38,9 @@ export class UsersService {
 
   async updatePassword(userId: number, passwordHash: string): Promise<void> {
     await this.db.query(
-      `UPDATE \`User\` SET password_hash = ? WHERE user_id = ?`,
+      `UPDATE \`User\`
+       SET password_hash = ?, must_change_password = 0
+       WHERE user_id = ?`,
       [passwordHash, userId],
     );
   }
@@ -56,8 +59,8 @@ export class UsersService {
     googleId: string,
   ): Promise<UserRow> {
     await this.db.query(
-      `INSERT INTO \`User\` (email, password_hash, full_name, avatar_url, role, auth_provider, google_id, is_activated)
-       VALUES (?, NULL, ?, ?, 'MANGAKA', 'GOOGLE', ?, 1)`,
+      `INSERT INTO \`User\` (email, password_hash, full_name, avatar_url, role, auth_provider, google_id, is_activated, must_change_password)
+       VALUES (?, NULL, ?, ?, 'MANGAKA', 'GOOGLE', ?, 1, 0)`,
       [email, fullName, avatarUrl, googleId],
     );
     const user = await this.findByEmail(email);
@@ -67,9 +70,7 @@ export class UsersService {
     return user;
   }
 
-  async getProfile(
-    userId: number,
-  ): Promise<{
+  async getProfile(userId: number): Promise<{
     id: number;
     email: string;
     fullName: string;

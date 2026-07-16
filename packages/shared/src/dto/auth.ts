@@ -1,6 +1,9 @@
 import { Role } from "../enums/role";
 
-export interface LoginDto { email: string; password: string; }
+export interface LoginDto {
+  email: string;
+  password: string;
+}
 
 export interface AuthUser {
   id: number;
@@ -11,7 +14,12 @@ export interface AuthUser {
 }
 
 /** Shape of the signed JWT payload. */
-export interface JwtPayload { sub: number; email: string; name: string; role: Role; }
+export interface JwtPayload {
+  sub: number;
+  email: string;
+  name: string;
+  role: Role;
+}
 
 /** Successful login — the access token + the public user. */
 export interface AuthSuccess {
@@ -36,7 +44,19 @@ export interface TwoFactorRequired {
 }
 
 /** POST /auth/login returns one of these. */
-export type LoginResponse = AuthSuccess | TwoFactorRequired;
+/**
+ * Returned when an Admin-created LOCAL account must replace its
+ * temporary password before an access token can be issued.
+ */
+export interface PasswordChangeRequired {
+  passwordChangeRequired: true;
+  challengeToken: string;
+  expiresIn: number;
+}
+
+/** POST /auth/login returns one of these authentication states. */
+export type LoginResponse =
+  AuthSuccess | TwoFactorRequired | PasswordChangeRequired;
 
 /** Type guard for the 2FA branch of a login response. */
 export function isTwoFactorRequired(
@@ -45,6 +65,22 @@ export function isTwoFactorRequired(
   return (res as TwoFactorRequired).twoFactorRequired === true;
 }
 
-export interface Verify2faRequest { challengeToken: string; code: string; }
-export interface Resend2faRequest { challengeToken: string; }
-export interface ResendResult { ok: true; cooldownSeconds: number; devCode?: string; }
+/** Type guard for the initial-password-change branch. */
+export function isPasswordChangeRequired(
+  res: LoginResponse,
+): res is PasswordChangeRequired {
+  return (res as PasswordChangeRequired).passwordChangeRequired === true;
+}
+
+export interface Verify2faRequest {
+  challengeToken: string;
+  code: string;
+}
+export interface Resend2faRequest {
+  challengeToken: string;
+}
+export interface ResendResult {
+  ok: true;
+  cooldownSeconds: number;
+  devCode?: string;
+}

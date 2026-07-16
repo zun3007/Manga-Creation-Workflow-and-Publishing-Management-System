@@ -17,10 +17,15 @@ const baseUser = async () => ({
   auth_provider: 'LOCAL',
   google_id: null,
   is_activated: 1,
+  must_change_password: 0,
 });
 
 const deps = (over: Partial<Record<string, any>> = {}) => {
-  const users = { findByEmail: jest.fn(), findById: jest.fn() };
+  const users = {
+    findByEmail: jest.fn(),
+    findById: jest.fn(),
+    updatePassword: jest.fn().mockResolvedValue(undefined),
+  };
   const jwt = {
     sign: jest.fn(() => 'signed.jwt'),
     verify: jest.fn(() => ({ sub: 1, typ: '2fa' })),
@@ -88,6 +93,126 @@ describe('AuthService.validateLocal', () => {
   });
 });
 
+describe('AuthService initial password change', () => {
+  it('returns a password-change challenge instead of an access token', async () => {
+    const { svc, users, jwt, otp } = deps();
+    const user = await baseUser();
+    user.must_change_password = 1;
+
+    users.findByEmail.mockResolvedValue(user);
+
+    const res: any = await svc.validateLocal('dung@example.com', 'pw123456');
+
+    expect(res).toMatchObject({
+      passwordChangeRequired: true,
+      challengeToken: 'signed.jwt',
+      expiresIn: 900,
+    });
+
+    expect(res.accessToken).toBeUndefined();
+    expect(otp.issue).not.toHaveBeenCalled();
+
+    expect(jwt.sign).toHaveBeenCalledWith(
+      {
+        sub: 1,
+        typ: 'password-change',
+      },
+      expect.objectContaining({
+        expiresIn: '15m',
+      }),
+    );
+  });
+
+  it('changes the initial password and issues a token when 2FA is disabled', async () => {
+    const { svc, users, jwt, otp } = deps({
+      env: {
+        AUTH_2FA_ENABLED: 'false',
+      },
+    });
+
+    const initialUser = await baseUser();
+    initialUser.must_change_password = 1;
+
+    jwt.verify.mockReturnValue({
+      sub: 1,
+      typ: 'password-change',
+    });
+
+    users.findById.mockResolvedValueOnce(initialUser).mockResolvedValueOnce({
+      ...initialUser,
+      must_change_password: 0,
+    });
+
+    const res: any = await svc.completeInitialPasswordChange(
+      'password-change.jwt',
+      'NewPassword123!',
+    );
+
+    expect(users.updatePassword).toHaveBeenCalledTimes(1);
+    expect(users.updatePassword).toHaveBeenCalledWith(1, expect.any(String));
+
+    const savedHash = users.updatePassword.mock.calls[0][1];
+
+    expect(await bcrypt.compare('NewPassword123!', savedHash)).toBe(true);
+
+    expect(res.accessToken).toBe('signed.jwt');
+    expect(res.user.id).toBe(1);
+    expect(otp.issue).not.toHaveBeenCalled();
+  });
+
+  it('continues to 2FA after the initial password is changed', async () => {
+    const { svc, users, jwt, otp, mail } = deps({
+      env: {
+        SMTP_HOST: 'smtp.example.com',
+        SMTP_USER: 'user',
+        SMTP_PASS: 'password',
+      },
+    });
+
+    const initialUser = await baseUser();
+    initialUser.must_change_password = 1;
+
+    jwt.verify.mockReturnValue({
+      sub: 1,
+      typ: 'password-change',
+    });
+
+    users.findById.mockResolvedValueOnce(initialUser).mockResolvedValueOnce({
+      ...initialUser,
+      must_change_password: 0,
+    });
+
+    const res: any = await svc.completeInitialPasswordChange(
+      'password-change.jwt',
+      'NewPassword123!',
+    );
+
+    expect(res.twoFactorRequired).toBe(true);
+    expect(res.challengeToken).toBe('signed.jwt');
+    expect(otp.issue).toHaveBeenCalledWith(1, 10);
+    expect(mail.sendOtp).toHaveBeenCalled();
+  });
+
+  it('rejects reuse of the temporary password', async () => {
+    const { svc, users, jwt } = deps();
+    const initialUser = await baseUser();
+    initialUser.must_change_password = 1;
+
+    jwt.verify.mockReturnValue({
+      sub: 1,
+      typ: 'password-change',
+    });
+
+    users.findById.mockResolvedValue(initialUser);
+
+    await expect(
+      svc.completeInitialPasswordChange('password-change.jwt', 'pw123456'),
+    ).rejects.toThrow(/khác mật khẩu ban đầu/i);
+
+    expect(users.updatePassword).not.toHaveBeenCalled();
+  });
+});
+
 describe('AuthService.verifyTwoFactor', () => {
   it('verifies the OTP and issues an access token', async () => {
     const { svc, users, otp } = deps();
@@ -103,18 +228,18 @@ describe('AuthService.verifyTwoFactor', () => {
     jwt.verify.mockImplementation(() => {
       throw new Error('jwt expired');
     });
-    await expect(
-      svc.verifyTwoFactor('bad.jwt', '123456'),
-    ).rejects.toThrow(/hết hạn|đăng nhập lại/i);
+    await expect(svc.verifyTwoFactor('bad.jwt', '123456')).rejects.toThrow(
+      /hết hạn|đăng nhập lại/i,
+    );
     expect(otp.verify).not.toHaveBeenCalled();
   });
 
   it('rejects a challenge token that is not typed as 2fa', async () => {
     const { svc, jwt } = deps();
     jwt.verify.mockReturnValue({ sub: 1 }); // missing typ:'2fa'
-    await expect(
-      svc.verifyTwoFactor('access.jwt', '123456'),
-    ).rejects.toThrow(/không hợp lệ/i);
+    await expect(svc.verifyTwoFactor('access.jwt', '123456')).rejects.toThrow(
+      /không hợp lệ/i,
+    );
   });
 });
 

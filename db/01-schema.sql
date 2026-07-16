@@ -32,6 +32,7 @@ CREATE TABLE `User` (
     `auth_provider` ENUM('LOCAL','GOOGLE') NOT NULL DEFAULT 'LOCAL',  -- demo: support Google OAuth + local
     `google_id` VARCHAR(255),                           -- Google "sub" id, linked on first Google login
     `is_activated` BOOLEAN NOT NULL DEFAULT false,
+    `must_change_password` BOOLEAN NOT NULL DEFAULT false,
     `created_at` DATETIME NOT NULL DEFAULT current_timestamp,
     `updated_at` DATETIME NOT NULL DEFAULT current_timestamp ON UPDATE current_timestamp,
 
