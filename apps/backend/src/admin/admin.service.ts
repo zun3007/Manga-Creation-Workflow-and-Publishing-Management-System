@@ -16,7 +16,7 @@ export class AdminService {
 
   listUsers() {
     return this.db.query(
-      `SELECT user_id AS id, email, full_name AS name, role, is_activated AS isActivated, auth_provider AS authProvider, created_at AS createdAt
+      `SELECT user_id AS id, email, full_name AS name, role, is_activated AS isActivated, must_change_password AS mustChangePassword, auth_provider AS authProvider, created_at AS createdAt
        FROM \`User\` ORDER BY role, full_name`,
       [],
     );
@@ -41,8 +41,8 @@ export class AdminService {
     const passwordHash = await bcrypt.hash(dto.password, 10);
     const userId = await this.db.transaction(async (tx) => {
       const id = await tx.insert(
-        `INSERT INTO \`User\` (email, password_hash, full_name, avatar_url, role, auth_provider, google_id, is_activated)
-         VALUES (?, ?, ?, NULL, ?, 'LOCAL', NULL, 1)`,
+        `INSERT INTO \`User\` (email, password_hash, full_name, avatar_url, role, auth_provider, google_id, is_activated, must_change_password)
+         VALUES (?, ?, ?, NULL, ?, 'LOCAL', NULL, 1, 1)`,
         [email, passwordHash, fullName, dto.role],
       );
       await this.createDefaultProfile(tx, id, dto.role, fullName);
@@ -50,7 +50,7 @@ export class AdminService {
     });
 
     const user = await this.db.queryOne(
-      `SELECT user_id AS id, email, full_name AS name, role, is_activated AS isActivated, auth_provider AS authProvider, created_at AS createdAt
+      `SELECT user_id AS id, email, full_name AS name, role, is_activated AS isActivated, must_change_password AS mustChangePassword, auth_provider AS authProvider, created_at AS createdAt
        FROM \`User\` WHERE user_id = ?`,
       [userId],
     );

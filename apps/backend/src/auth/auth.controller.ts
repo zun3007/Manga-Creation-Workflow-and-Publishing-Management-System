@@ -14,6 +14,7 @@ import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { CompleteInitialPasswordDto } from './dto/complete-initial-password.dto';
 import { Verify2faDto } from './dto/verify-2fa.dto';
 import { Resend2faDto } from './dto/resend-2fa.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -31,6 +32,15 @@ export class AuthController {
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.auth.validateLocal(dto.email, dto.password);
+  }
+
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @Post('password/initial')
+  completeInitialPassword(@Body() dto: CompleteInitialPasswordDto) {
+    return this.auth.completeInitialPasswordChange(
+      dto.challengeToken,
+      dto.newPassword,
+    );
   }
 
   // Exchange the OTP for an access token. Tighter limit than login: this is the
@@ -63,7 +73,11 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Patch('password')
   changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
-    return this.auth.changePassword(req.user.id, dto.currentPassword, dto.newPassword);
+    return this.auth.changePassword(
+      req.user.id,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 
   @UseGuards(GoogleOauthGuard)
@@ -76,7 +90,10 @@ export class AuthController {
   @Get('google/callback')
   async googleCallback(@Req() req: any, @Res() res: Response) {
     const { accessToken } = await this.auth.validateGoogle(req.user);
-    const client = this.config.get<string>('CLIENT_URL', 'http://localhost:5173');
+    const client = this.config.get<string>(
+      'CLIENT_URL',
+      'http://localhost:5173',
+    );
     res.redirect(`${client}/auth/callback?token=${accessToken}`);
   }
 }

@@ -7,6 +7,7 @@ import {
 } from "react";
 import { api, getToken, setToken, clearToken } from "./api";
 import {
+  isPasswordChangeRequired,
   isTwoFactorRequired,
   type AuthUser,
   type AuthSuccess,
@@ -23,6 +24,10 @@ interface AuthContextValue {
    * verifyTwoFactor).
    */
   login: (email: string, password: string) => Promise<LoginResponse>;
+  completeInitialPassword: (
+    challengeToken: string,
+    newPassword: string,
+  ) => Promise<LoginResponse>;
   verifyTwoFactor: (challengeToken: string, code: string) => Promise<void>;
   resendOtp: (challengeToken: string) => Promise<ResendResult>;
   loginWithToken: (token: string) => Promise<void>;
@@ -64,13 +69,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
   }
 
-  async function login(email: string, password: string): Promise<LoginResponse> {
+  async function login(
+    email: string,
+    password: string,
+  ): Promise<LoginResponse> {
     const { data } = await api.post<LoginResponse>("/auth/login", {
       email,
       password,
     });
-    // Only an access-token response opens a session; a 2FA challenge does not.
-    if (!isTwoFactorRequired(data)) applySession(data);
+
+    if (!isTwoFactorRequired(data) && !isPasswordChangeRequired(data)) {
+      applySession(data);
+    }
+
+    return data;
+  }
+
+  async function completeInitialPassword(
+    challengeToken: string,
+    newPassword: string,
+  ): Promise<LoginResponse> {
+    const { data } = await api.post<LoginResponse>("/auth/password/initial", {
+      challengeToken,
+      newPassword,
+    });
+
+    if (!isTwoFactorRequired(data) && !isPasswordChangeRequired(data)) {
+      applySession(data);
+    }
+
     return data;
   }
 
@@ -105,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         loading,
         login,
+        completeInitialPassword,
         verifyTwoFactor,
         resendOtp,
         loginWithToken,

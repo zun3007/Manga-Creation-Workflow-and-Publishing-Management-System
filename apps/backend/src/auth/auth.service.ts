@@ -12,6 +12,7 @@ import {
   AuthSuccess,
   LoginResponse,
   TwoFactorRequired,
+  PasswordChangeRequired,
   ResendResult,
 } from '@manga/shared';
 import { UsersService, UserRow } from '../users/users.service';
@@ -23,6 +24,11 @@ import { OtpService } from './otp.service';
 interface ChallengePayload {
   sub: number;
   typ: '2fa';
+}
+
+interface PasswordChangeChallengePayload {
+  sub: number;
+  typ: 'password-change';
 }
 
 @Injectable()
@@ -47,8 +53,8 @@ export class AuthService {
   private get devEcho(): boolean {
     const smtpConfigured = Boolean(
       this.config.get<string>('SMTP_HOST') &&
-        this.config.get<string>('SMTP_USER') &&
-        this.config.get<string>('SMTP_PASS'),
+      this.config.get<string>('SMTP_USER') &&
+      this.config.get<string>('SMTP_PASS'),
     );
     return (
       this.config.get<string>('NODE_ENV') !== 'production' &&
@@ -58,6 +64,16 @@ export class AuthService {
   /** Separate secret so a challenge token can never be used as an access token. */
   private get challengeSecret(): string {
     return `${this.config.get<string>('JWT_SECRET', 'dev-secret')}::2fa-challenge`;
+  }
+
+  private get passwordChangeTtlMinutes(): number {
+    return Number(
+      this.config.get<string>('INITIAL_PASSWORD_CHANGE_TTL_MINUTES', '15'),
+    );
+  }
+
+  private get passwordChangeSecret(): string {
+    return `${this.config.get<string>('JWT_SECRET', 'dev-secret')}::password-change-challenge`;
   }
 
   // ── login ────────────────────────────────────────────────────────────────
@@ -71,9 +87,15 @@ export class AuthService {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
     this.assertActive(user);
+
+    if (user.must_change_password) {
+      return this.beginInitialPasswordChange(user);
+    }
+
     if (!this.twoFactorEnabled) {
       return this.issue(user);
     }
+
     return this.beginTwoFactor(user);
   }
 
@@ -96,6 +118,98 @@ export class AuthService {
       );
     }
     return this.issue(user);
+  }
+
+  // ── initial password change ────────────────────────────────────────────────
+  private beginInitialPasswordChange(user: UserRow): PasswordChangeRequired {
+    const ttl = this.passwordChangeTtlMinutes;
+
+    const challengeToken = this.jwt.sign(
+      {
+        sub: user.user_id,
+        typ: 'password-change',
+      } satisfies PasswordChangeChallengePayload,
+      {
+        secret: this.passwordChangeSecret,
+        expiresIn: `${ttl}m`,
+      },
+    );
+
+    return {
+      passwordChangeRequired: true,
+      challengeToken,
+      expiresIn: ttl * 60,
+    };
+  }
+
+  async completeInitialPasswordChange(
+    challengeToken: string,
+    newPassword: string,
+  ): Promise<LoginResponse> {
+    const userId = this.decodePasswordChangeChallenge(challengeToken);
+
+    const user = await this.users.findById(userId);
+
+    if (!user) {
+      throw new UnauthorizedException('Không tìm thấy người dùng');
+    }
+
+    this.assertActive(user);
+
+    if (user.auth_provider !== 'LOCAL' || !user.password_hash) {
+      throw new BadRequestException(
+        'Tài khoản này không sử dụng mật khẩu nội bộ',
+      );
+    }
+
+    if (!user.must_change_password) {
+      throw new BadRequestException('Mật khẩu ban đầu đã được thay đổi');
+    }
+
+    const reusedPassword = await bcrypt.compare(
+      newPassword,
+      user.password_hash,
+    );
+
+    if (reusedPassword) {
+      throw new BadRequestException('Mật khẩu mới phải khác mật khẩu ban đầu');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await this.users.updatePassword(user.user_id, passwordHash);
+
+    const updatedUser = await this.users.findById(user.user_id);
+
+    if (!updatedUser) {
+      throw new UnauthorizedException('Không tìm thấy người dùng');
+    }
+
+    if (!this.twoFactorEnabled) {
+      return this.issue(updatedUser);
+    }
+
+    return this.beginTwoFactor(updatedUser);
+  }
+
+  private decodePasswordChangeChallenge(token: string): number {
+    let payload: PasswordChangeChallengePayload;
+
+    try {
+      payload = this.jwt.verify<PasswordChangeChallengePayload>(token, {
+        secret: this.passwordChangeSecret,
+      });
+    } catch {
+      throw new UnauthorizedException(
+        'Phiên đổi mật khẩu đã hết hạn. Vui lòng đăng nhập lại.',
+      );
+    }
+
+    if (payload.typ !== 'password-change' || !payload.sub) {
+      throw new UnauthorizedException('Token đổi mật khẩu không hợp lệ');
+    }
+
+    return payload.sub;
   }
 
   // ── 2FA ────────────────────────────────────────────────────────────────────
