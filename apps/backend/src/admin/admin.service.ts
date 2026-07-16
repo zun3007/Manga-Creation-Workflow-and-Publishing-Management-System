@@ -78,28 +78,24 @@ export class AdminService {
 
       const roleChanging = dto.role !== undefined && dto.role !== user.role;
 
-      const losingAdmin =
-        user.role === Role.ADMIN &&
-        Boolean(user.is_activated) &&
-        (dto.isActivated === false ||
-          (roleChanging && dto.role !== Role.ADMIN));
-
-      if (losingAdmin) {
-        const count = await tx.queryOne<{
-          n: number | string;
-        }>(
-          `SELECT COUNT(*) AS n
-           FROM \`User\`
-           WHERE role = 'ADMIN'
-             AND is_activated = 1`,
-          [],
-        );
-
-        if (Number(count?.n ?? 0) <= 1) {
+      if (user.role === Role.ADMIN) {
+        if (dto.isActivated === false) {
           throw new BadRequestException(
-            'Cannot deactivate/demote the last active admin',
+            'Không thể khóa tài khoản Admin mặc định.',
           );
         }
+
+        if (roleChanging) {
+          throw new BadRequestException(
+            'Không thể thay đổi vai trò của Admin mặc định.',
+          );
+        }
+      }
+
+      if (user.role !== Role.ADMIN && dto.role === Role.ADMIN) {
+        throw new BadRequestException(
+          'Hệ thống chỉ có một Admin mặc định, không thể thăng cấp thêm Admin.',
+        );
       }
 
       if (roleChanging && dto.role) {
