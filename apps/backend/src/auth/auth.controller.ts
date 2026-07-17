@@ -6,6 +6,7 @@ import {
   Post,
   Req,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -89,11 +90,19 @@ export class AuthController {
   @UseGuards(GoogleOauthGuard)
   @Get('google/callback')
   async googleCallback(@Req() req: any, @Res() res: Response) {
-    const { accessToken } = await this.auth.validateGoogle(req.user);
     const client = this.config.get<string>(
       'CLIENT_URL',
       'http://localhost:5173',
     );
-    res.redirect(`${client}/auth/callback?token=${accessToken}`);
+    try {
+      const { accessToken } = await this.auth.validateGoogle(req.user);
+      res.redirect(`${client}/auth/callback?token=${accessToken}`);
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        res.redirect(`${client}/login?error=google_access_denied`);
+        return;
+      }
+      throw error;
+    }
   }
 }

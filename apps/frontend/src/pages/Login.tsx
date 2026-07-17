@@ -73,6 +73,10 @@ export default function Login() {
       setError(
         "Google OAuth chưa cấu hình — xem dev/README.md để thêm credentials.",
       );
+    } else if (errorParam === "google_access_denied") {
+      setError(
+        "Email Google này chưa được quản trị viên cấp tài khoản hoặc tài khoản đã bị vô hiệu hóa.",
+      );
     }
   }, [params]);
 

@@ -238,7 +238,7 @@ REJECTED → [] (terminal)
 - The system has no public LOCAL email-and-password registration endpoint.
 - Internal LOCAL accounts are created by Admin through `POST /api/admin/users`.
 - An Admin-created internal account is active immediately (`is_activated = 1`).
-- A first-time Google OAuth account is active immediately and starts with the MANGAKA role.
+- Google OAuth does not create accounts. Users may sign in with Google only when Admin has already provisioned an active account with the same email.
 - Admin can deactivate or reactivate an existing account through `PATCH /api/admin/users/:id`.
 - A deactivated account cannot complete local login, Google login, or 2FA token issuance.
 - Previously issued JWTs stop working because JWT validation reloads the current User record from the database.

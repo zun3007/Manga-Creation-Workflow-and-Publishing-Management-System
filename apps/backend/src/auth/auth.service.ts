@@ -101,20 +101,24 @@ export class AuthService {
 
   /** Google OAuth login is exempt from email 2FA (identity already federated). */
   async validateGoogle(profile: GoogleUser): Promise<AuthSuccess> {
-    if (!profile.email) {
+    const email = profile.email.trim().toLowerCase();
+    if (!email || !profile.googleId) {
       throw new UnauthorizedException('Google account has no email');
     }
-    let user = await this.users.findByEmail(profile.email);
+    let user = await this.users.findByEmail(email);
     if (user) {
+      this.assertActive(user);
+      if (user.google_id && user.google_id !== profile.googleId) {
+        throw new UnauthorizedException(
+          'Tài khoản Google không khớp với tài khoản đã liên kết.',
+        );
+      }
       if (!user.google_id) {
         await this.users.linkGoogle(user.user_id, profile.googleId);
       }
     } else {
-      user = await this.users.createGoogleUser(
-        profile.email,
-        profile.name,
-        profile.avatar,
-        profile.googleId,
+      throw new UnauthorizedException(
+        'Tài khoản chưa được quản trị viên cấp quyền truy cập.',
       );
     }
     return this.issue(user);

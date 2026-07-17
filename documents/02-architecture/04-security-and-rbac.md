@@ -41,7 +41,7 @@ The platform supports two authentication methods:
 - The platform has no public LOCAL email-and-password registration endpoint.
 - Admin creates internal LOCAL accounts through `POST /api/admin/users`.
 - Admin-created internal accounts are active immediately (`is_activated = 1`).
-- First-time Google OAuth accounts are active immediately and receive the MANGAKA role by default.
+- Google OAuth never creates an account. The verified Google email must match an active account previously provisioned by Admin.
 - Admin can deactivate or reactivate existing accounts through `PATCH /api/admin/users/:id`.
 - Deactivated users cannot complete local login, Google login, or post-2FA token issuance.
 - `JwtStrategy` reloads the current User record from the database for every authenticated request.
@@ -113,18 +113,17 @@ sequenceDiagram
   Google-->>API: {sub, email, name, picture}
   
   API->>DB: findByEmail(email)
-  alt user exists
+  alt active Admin-provisioned user exists
     DB-->>API: User row
-    API->>DB: Update google_id if not already set
-  else new user
-    API->>DB: createGoogleUser(email, name, avatar, googleId) → new User row with role=MANGAKA (default)
-    DB-->>API: User row with user_id
+    API->>API: Verify linked Google ID
+    API->>DB: Set google_id if not already linked
+    API->>API: JwtService.sign({sub, email, name, role}) → accessToken
+    API-->>Web: Redirect to {CLIENT_URL}/auth/callback?token={accessToken}
+    Web->>Web: Extract token and redirect to dashboard
+  else unknown, deactivated, or mismatched account
+    DB-->>API: No permitted User
+    API-->>Web: Redirect to /login?error=google_access_denied
   end
-  
-  API->>API: JwtService.sign({sub, email, name, role}) → accessToken
-  API-->>Web: Redirect to {CLIENT_URL}/auth/callback?token={accessToken}
-  Web->>Web: Extract token from URL and store in localStorage
-  Web->>Web: Redirect to dashboard
 ```
 
 ---

@@ -390,11 +390,12 @@ Grouped by module, each requirement maps to an endpoint and/or web page. All end
 
 ### UC-02: User Login (Google OAuth)
 
-**Actor:** New or Returning User  
+**Actor:** Admin-provisioned User
 **Goal:** Authenticate via Google without local password.  
 **Preconditions:**
 - Google OAuth app configured (CLIENT_ID, CLIENT_SECRET in env).
 - User has a Google account.
+- Admin has already created an active account with the same email address.
 
 **Main Flow:**
 1. User clicks "Sign in with Google" on `/login`.
@@ -404,20 +405,22 @@ Grouped by module, each requirement maps to an endpoint and/or web page. All end
 5. User grants permission.
 6. Google redirects to `/auth/google/callback` with auth code.
 7. System exchanges code for Google profile (email, name, picture).
-8. System checks if User record exists by google_id.
-9. If exists, system issues JWT.
-10. If not exists, system creates new User (email, full_name=googleName, avatar_url=picture, auth_provider='GOOGLE', is_activated=false).
-11. System redirects to `/auth/callback` route with token in URL or cookie.
-12. Client stores token and redirects to `/` if activated; else to "Awaiting Admin Activation" page.
+8. System normalizes the Google email and finds the existing User record by email.
+9. System rejects the request if the account does not exist, is deactivated, or is linked to another Google identity.
+10. On first successful Google login, system stores the Google ID without changing the Admin-assigned role/profile or removing LOCAL login.
+11. System issues a JWT and redirects to `/auth/callback` with the token.
+12. Client stores the token and redirects to the role-appropriate dashboard.
 
 **Alternate/Exception Flows:**
 - **A1:** OAuth consent denied → user returns to `/login` with error message.
-- **A2:** New user created but not yet activated → user sees "Awaiting Admin Activation" and is notified to admin.
+- **A2:** Google email has not been provisioned by Admin → access is denied and no User record is created.
+- **A3:** Existing account is deactivated or linked to another Google identity → access is denied.
 
 **Postconditions:**
 - JWT token stored in client.
-- User record created/updated with Google profile data.
-- User redirected to Dashboard (if activated) or activation notice (if pending).
+- Existing User may be linked to the verified Google ID.
+- No account, role, or role profile is created by Google OAuth.
+- User is redirected to the dashboard assigned to the existing account role.
 
 **Related FRs:** FR-AUTH-1, FR-AUTH-2, NFR-SEC-4, NFR-SEC-5
 
@@ -985,7 +988,7 @@ Grouped by module, each requirement maps to an endpoint and/or web page. All end
 **Goal:** Activate newly registered users and assign/modify roles safely.  
 **Preconditions:**
 - Admin is authenticated.
-- User exists (e.g., created via Google OAuth but not yet activated).
+- User already exists as an Admin-provisioned internal account.
 
 **Main Flow:**
 1. Admin navigates to `/admin`.

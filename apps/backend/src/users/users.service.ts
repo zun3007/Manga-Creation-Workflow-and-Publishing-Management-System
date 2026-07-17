@@ -47,27 +47,9 @@ export class UsersService {
 
   async linkGoogle(userId: number, googleId: string): Promise<void> {
     await this.db.query(
-      `UPDATE \`User\` SET google_id = ?, auth_provider = 'GOOGLE' WHERE user_id = ? AND google_id IS NULL`,
+      `UPDATE \`User\` SET google_id = ? WHERE user_id = ? AND google_id IS NULL`,
       [googleId, userId],
     );
-  }
-
-  async createGoogleUser(
-    email: string,
-    fullName: string,
-    avatarUrl: string | null,
-    googleId: string,
-  ): Promise<UserRow> {
-    await this.db.query(
-      `INSERT INTO \`User\` (email, password_hash, full_name, avatar_url, role, auth_provider, google_id, is_activated, must_change_password)
-       VALUES (?, NULL, ?, ?, 'MANGAKA', 'GOOGLE', ?, 1, 0)`,
-      [email, fullName, avatarUrl, googleId],
-    );
-    const user = await this.findByEmail(email);
-    if (!user) {
-      throw new Error(`Failed to retrieve created user with email ${email}`);
-    }
-    return user;
   }
 
   async getProfile(userId: number): Promise<{

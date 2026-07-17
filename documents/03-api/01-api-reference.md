@@ -172,7 +172,7 @@ Public endpoints for login and OAuth. All other endpoints require `Authorization
 |------|------|----------|-------------|
 | code | string | yes | OAuth authorization code from Google |
 
-**Notes:** Passport validates the Google identity and links an existing account or creates a new active MANGAKA account. A deactivated existing account is denied access-token issuance. On success, the API redirects to `{CLIENT_URL}/auth/callback?token={accessToken}`.
+**Notes:** Passport validates the Google identity, normalizes its email, and links it only to an active account previously provisioned by Admin. Unknown emails, deactivated accounts, and mismatched Google identities are denied; Google OAuth never creates a User or role profile. On success, the API redirects to `{CLIENT_URL}/auth/callback?token={accessToken}`.
 
 ---
 

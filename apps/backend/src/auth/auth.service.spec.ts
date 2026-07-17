@@ -24,6 +24,7 @@ const deps = (over: Partial<Record<string, any>> = {}) => {
   const users = {
     findByEmail: jest.fn(),
     findById: jest.fn(),
+    linkGoogle: jest.fn().mockResolvedValue(undefined),
     updatePassword: jest.fn().mockResolvedValue(undefined),
   };
   const jwt = {
@@ -46,6 +47,64 @@ const deps = (over: Partial<Record<string, any>> = {}) => {
   );
   return { svc, users, jwt, mail, otp };
 };
+
+describe('AuthService.validateGoogle', () => {
+  const googleProfile = {
+    googleId: 'google-user-123',
+    email: 'DUNG@EXAMPLE.COM',
+    name: 'Dung Google',
+    avatar: null,
+  };
+
+  it('links an Admin-created account by normalized email and keeps its role', async () => {
+    const { svc, users } = deps();
+    users.findByEmail.mockResolvedValue(await baseUser());
+
+    const result = await svc.validateGoogle(googleProfile);
+
+    expect(users.findByEmail).toHaveBeenCalledWith('dung@example.com');
+    expect(users.linkGoogle).toHaveBeenCalledWith(1, 'google-user-123');
+    expect(result.user.role).toBe('ADMIN');
+    expect(result.accessToken).toBe('signed.jwt');
+  });
+
+  it('rejects a different Google identity after the account was linked', async () => {
+    const { svc, users } = deps();
+    users.findByEmail.mockResolvedValue({
+      ...(await baseUser()),
+      google_id: 'another-google-user',
+    });
+
+    await expect(svc.validateGoogle(googleProfile)).rejects.toThrow(
+      /Google không khớp/i,
+    );
+    expect(users.linkGoogle).not.toHaveBeenCalled();
+  });
+
+  it('does not link Google to a deactivated account', async () => {
+    const { svc, users } = deps();
+    users.findByEmail.mockResolvedValue({
+      ...(await baseUser()),
+      is_activated: 0,
+    });
+
+    await expect(svc.validateGoogle(googleProfile)).rejects.toThrow(
+      /vô hiệu hoá/i,
+    );
+    expect(users.linkGoogle).not.toHaveBeenCalled();
+  });
+
+  it('rejects a Google email that was not provisioned by Admin', async () => {
+    const { svc, users, jwt } = deps();
+    users.findByEmail.mockResolvedValue(null);
+
+    await expect(svc.validateGoogle(googleProfile)).rejects.toThrow(
+      /chưa được quản trị viên cấp/i,
+    );
+    expect(users.linkGoogle).not.toHaveBeenCalled();
+    expect(jwt.sign).not.toHaveBeenCalled();
+  });
+});
 
 describe('AuthService.validateLocal', () => {
   it('triggers an email OTP challenge on a correct password (2FA on by default)', async () => {
