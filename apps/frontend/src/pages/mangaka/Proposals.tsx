@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ExternalLink, FileText, Upload } from "lucide-react";
+import { FileText, Upload, X } from "lucide-react";
 import { api, apiErrorMessage } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useToast } from "../../components/ui/Toast";
@@ -7,6 +7,7 @@ import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Stamp } from "../../components/ui/Stamp";
+import { Modal } from "../../components/ui/Modal";
 import type { Proposal } from "../../types";
 
 interface Genre {
@@ -33,6 +34,7 @@ export default function Proposals() {
   const [sampleConfig, setSampleConfig] = useState<SampleManuscriptConfig | null>(null);
   const [sampleFile, setSampleFile] = useState<File | null>(null);
   const [uploadingProposalId, setUploadingProposalId] = useState<number | null>(null);
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -329,16 +331,19 @@ export default function Proposals() {
                   )}
                   <div className="flex gap-2 flex-wrap">
                     {proposal.sampleManuscriptUrl ? (
-                      <a
-                        href={proposal.sampleManuscriptUrl}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreview({
+                            url: proposal.sampleManuscriptUrl!,
+                            name: proposal.sampleManuscriptName || "Bản thảo mẫu",
+                          })
+                        }
                         className="inline-flex items-center gap-1 text-xs bg-accent/10 text-accent px-2 py-1 rounded border border-accent/20"
                       >
                         <FileText size={13} />
                         {proposal.sampleManuscriptName || "Bản thảo mẫu"}
-                        <ExternalLink size={12} />
-                      </a>
+                      </button>
                     ) : (
                       <span className="text-xs bg-danger/10 text-danger px-2 py-1 rounded border border-danger/20">
                         Chưa có bản thảo mẫu
@@ -390,6 +395,50 @@ export default function Proposals() {
           </div>
         )}
       </div>
+
+      <Modal
+        open={preview !== null}
+        onClose={() => setPreview(null)}
+        title={preview?.name || "Xem bản thảo mẫu"}
+        className="w-[min(92vw,1100px)] !overflow-hidden !border-line !bg-surface p-4 text-ink shadow-2xl shadow-black/20"
+      >
+        {preview && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-4 border-b border-line pb-3">
+              <div className="min-w-0">
+                <p className="font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft">
+                  Bản thảo mẫu
+                </p>
+                <h2 className="truncate text-lg font-semibold text-ink">{preview.name}</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreview(null)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-soft transition hover:bg-bg hover:text-ink focus:outline-none focus:ring-2 focus:ring-accent/30"
+                aria-label="Đóng bản xem trước"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {preview.name.toLowerCase().endsWith(".pdf") ? (
+              <iframe
+                src={preview.url}
+                title={preview.name}
+                className="h-[75vh] w-full rounded-lg border border-line bg-bg"
+              />
+            ) : (
+              <div className="grid max-h-[75vh] place-items-center overflow-hidden rounded-lg bg-bg p-2">
+                <img
+                  src={preview.url}
+                  alt={`Bản thảo mẫu ${preview.name}`}
+                  className="max-h-[72vh] max-w-full object-contain"
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
