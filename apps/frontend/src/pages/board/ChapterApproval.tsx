@@ -184,7 +184,7 @@ export default function ChapterApproval() {
   return (
     <div className="space-y-6 p-4 sm:p-8">
       <div>
-        <h1 className="font-display text-3xl font-bold text-ink">
+        <h1 className="text-3xl text-ink">
           Phê duyệt chương
         </h1>
 

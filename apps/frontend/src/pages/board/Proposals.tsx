@@ -109,7 +109,7 @@ export default function BoardProposals() {
   if (loading) {
     return (
       <div className="p-8">
-        <h1 className="text-2xl font-bold text-ink">Duyệt Đề xuất</h1>
+        <h1 className="text-3xl text-ink">Duyệt Đề xuất</h1>
         <Panel className="mt-4 p-6 text-ink-soft">Đang tải...</Panel>
       </div>
     );
@@ -117,7 +117,7 @@ export default function BoardProposals() {
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold text-ink">Duyệt Đề xuất</h1>
+      <h1 className="text-3xl text-ink">Duyệt Đề xuất</h1>
 
       {error && (
         <Panel className="mt-4 bg-danger/10 border-danger/20 text-danger p-4">

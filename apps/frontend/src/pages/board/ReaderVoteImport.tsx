@@ -528,14 +528,12 @@ export default function ReaderVoteImport() {
       <div className="space-y-4">
         <BoardRankingTabs />
         <div>
-          <div className="rounded-2xl border border-line bg-gradient-to-br from-accent/12 via-surface to-bg p-6 shadow-sm">
-            <p className="mb-2 font-mono text-xs uppercase tracking-wider text-accent">
-              Reader vote import
-            </p>
-            <h1 className="font-display text-3xl font-bold text-ink">
-              Nhập dữ liệu vote độc giả
-            </h1>
-          </div>
+          <p className="mb-2 font-mono text-xs uppercase tracking-wider text-accent">
+            Reader vote import
+          </p>
+          <h1 className="text-3xl text-ink">
+            Nhập dữ liệu vote độc giả
+          </h1>
         </div>
       </div>
 

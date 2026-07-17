@@ -137,7 +137,7 @@ export default function PublicationSchedule() {
   return (
     <div className="space-y-6 p-8">
       <div>
-        <h1 className="font-display text-3xl font-bold text-ink">
+        <h1 className="text-3xl text-ink">
           Lịch xuất bản
         </h1>
       </div>
