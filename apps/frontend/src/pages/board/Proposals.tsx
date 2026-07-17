@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ExternalLink, FileText } from "lucide-react";
+import { FileText, X } from "lucide-react";
 import { Role } from "@manga/shared";
 import { api, apiErrorMessage } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -7,6 +7,7 @@ import { useToast } from "../../components/ui/Toast";
 import { Panel } from "../../components/ui/Panel";
 import { Button } from "../../components/ui/Button";
 import { Stamp } from "../../components/ui/Stamp";
+import { Modal } from "../../components/ui/Modal";
 
 interface ReviewProposal {
   id: number;
@@ -31,6 +32,7 @@ export default function BoardProposals() {
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [rejectNotes, setRejectNotes] = useState<Record<number, string>>({});
   const [reviewNotes, setReviewNotes] = useState<Record<number, string>>({});
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
 
   useEffect(() => {
     loadProposals();
@@ -174,12 +176,16 @@ export default function BoardProposals() {
                         <Button
                           type="button"
                           variant="soft"
-                          onClick={() => window.open(proposal.sampleManuscriptUrl!, "_blank", "noopener,noreferrer")}
+                          onClick={() =>
+                            setPreview({
+                              url: proposal.sampleManuscriptUrl!,
+                              name: proposal.sampleManuscriptName || "Bản thảo mẫu",
+                            })
+                          }
                           className="inline-flex items-center gap-2"
                         >
                           <FileText size={16} />
                           Xem bản thảo
-                          <ExternalLink size={14} />
                         </Button>
                       ) : (
                         <p className="text-sm text-ink-soft">Không có bản thảo đính kèm</p>
@@ -264,6 +270,50 @@ export default function BoardProposals() {
           </div>
         )}
       </div>
+
+      <Modal
+        open={preview !== null}
+        onClose={() => setPreview(null)}
+        title={preview?.name || "Xem bản thảo mẫu"}
+        className="w-[min(92vw,1100px)] !overflow-hidden !border-line !bg-surface p-4 text-ink shadow-2xl shadow-black/20"
+      >
+        {preview && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-4 border-b border-line pb-3">
+              <div className="min-w-0">
+                <p className="font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft">
+                  Bản thảo mẫu
+                </p>
+                <h2 className="truncate text-lg font-semibold text-ink">{preview.name}</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreview(null)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-soft transition hover:bg-bg hover:text-ink focus:outline-none focus:ring-2 focus:ring-accent/30"
+                aria-label="Đóng bản xem trước"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {preview.name.toLowerCase().endsWith(".pdf") ? (
+              <iframe
+                src={preview.url}
+                title={preview.name}
+                className="h-[75vh] w-full rounded-lg border border-line bg-bg"
+              />
+            ) : (
+              <div className="grid max-h-[75vh] place-items-center overflow-hidden rounded-lg bg-bg p-2">
+                <img
+                  src={preview.url}
+                  alt={`Bản thảo mẫu ${preview.name}`}
+                  className="max-h-[72vh] max-w-full object-contain"
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
