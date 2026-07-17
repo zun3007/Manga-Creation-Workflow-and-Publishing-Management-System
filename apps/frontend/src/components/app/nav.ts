@@ -35,7 +35,7 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   ],
   [Role.ADMIN]: [
     { label: "Tổng quan", to: "/", icon: LayoutDashboard },
-    { label: "Quản trị", to: "/admin", icon: Shield },
+    { label: "Quản trị", to: "/admin", icon: Shield, end: true },
     { label: "Khiếu nại", to: "/admin/disputes", icon: Scale },
     { label: "Hồ sơ", to: "/profile", icon: User },
   ],
