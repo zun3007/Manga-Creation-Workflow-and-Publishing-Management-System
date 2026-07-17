@@ -109,7 +109,7 @@ export default function Profile() {
 
   if (!profile) {
     return (
-      <div className="p-6">
+      <div className="p-8">
         <Panel className="p-6">
           <p className="text-ink-soft">Không tải được hồ sơ</p>
         </Panel>
@@ -120,9 +120,9 @@ export default function Profile() {
   const hasChanges = fullName !== profile.fullName || avatarUrl !== (profile.avatarUrl || "");
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-8">
       <div>
-        <h1 className="text-2xl font-bold text-ink">Hồ sơ</h1>
+        <h1 className="text-3xl text-ink">Hồ sơ</h1>
         <p className="mt-1 text-sm text-ink-soft">Quản lý thông tin cá nhân của bạn</p>
       </div>
 
