@@ -78,6 +78,10 @@ export default function SeriesDetail() {
       setSubmitError("Tiêu đề chương không được để trống");
       return;
     }
+    if (formDeadline && formDeadline < todayDate) {
+      setSubmitError("Hạn chót không được là ngày trong quá khứ");
+      return;
+    }
 
     setSubmitting(true);
     setSubmitError("");
@@ -103,6 +107,9 @@ export default function SeriesDetail() {
       setSubmitting(false);
     }
   }
+
+  const now = new Date();
+  const todayDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
   const handleSelectChapter = (chapterId: number) => {
     navigate(`/series/${seriesId}/chapters/${chapterId}`);
@@ -227,6 +234,7 @@ export default function SeriesDetail() {
                 </span>
                 <input
                   type="date"
+                  min={todayDate}
                   value={formDeadline}
                   onChange={(e) => setFormDeadline(e.target.value)}
                   disabled={submitting}

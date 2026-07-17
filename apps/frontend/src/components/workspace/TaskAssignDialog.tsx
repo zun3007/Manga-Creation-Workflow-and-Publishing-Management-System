@@ -152,8 +152,8 @@ export function TaskAssignDialog({
   }
 
   const fieldClass =
-    "w-full rounded-xl border border-[#4a3430] bg-[#211817] px-4 py-3 text-sm text-[#fff8f1] outline-none transition placeholder:text-[#9d8178] focus:border-accent focus:ring-2 focus:ring-accent/25 disabled:opacity-50";
-  const labelClass = "mb-2 block text-sm font-semibold text-[#ead7d0]";
+    "w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-ink outline-none transition placeholder:text-ink-soft/60 focus:border-accent focus:ring-2 focus:ring-accent/25 disabled:opacity-50";
+  const labelClass = "mb-2 block text-sm font-semibold text-ink";
   const selectedAssistant = assistants.find((a) => String(a.id) === selectedAssistantId);
   const money = (value: number | null) =>
     value === null ? "Chưa có giá" : `${value.toLocaleString("vi-VN")} ₫`;
@@ -164,20 +164,20 @@ export function TaskAssignDialog({
         open={true}
         onClose={onClose}
         title={`Chi tiết region - ${region.type}`}
-        className="w-full max-w-md !border-[#3a2725] !bg-[#161110] p-7 text-[#fff8f1] shadow-2xl shadow-black/45"
+        className="w-full max-w-md !border-line !bg-surface p-7 text-ink shadow-2xl shadow-black/15"
       >
         <div className="space-y-5">
           <div>
             <p className="font-mono text-[0.65rem] uppercase tracking-[0.28em] text-accent/80">
               Region đã phân công
             </p>
-            <h2 className="mt-2 font-[var(--font-display)] text-3xl text-[#fff8f1]">
+            <h2 className="mt-2 font-[var(--font-display)] text-3xl text-ink">
               {region.type}
             </h2>
           </div>
 
           <div className="rounded-2xl border border-accent/25 bg-accent/10 p-4">
-            <p className="mb-2 text-xs uppercase tracking-wider text-[#c6aaa1]">
+            <p className="mb-2 text-xs uppercase tracking-wider text-ink-soft">
               Assistant phụ trách
             </p>
             <div className="flex items-center gap-3">
@@ -185,10 +185,10 @@ export function TaskAssignDialog({
                 <UserRound size={20} aria-hidden="true" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold text-[#fff8f1]">
+                <p className="truncate font-semibold text-ink">
                   {region.assigneeName ?? "Không xác định"}
                 </p>
-                <p className="mt-1 text-xs text-[#c6aaa1]">
+                <p className="mt-1 text-xs text-ink-soft">
                   Task #{region.taskId}
                 </p>
               </div>
@@ -196,7 +196,7 @@ export function TaskAssignDialog({
             </div>
           </div>
 
-          <p className="text-sm text-[#c6aaa1]">
+          <p className="text-sm text-ink-soft">
             Region đã có task nên không thể giao lại hoặc hủy.
           </p>
 
@@ -217,17 +217,17 @@ export function TaskAssignDialog({
       open={true}
       onClose={onClose}
       title={`Giao việc - ${region.type}`}
-      className="w-full max-w-md !border-[#3a2725] !bg-[#161110] p-7 text-[#fff8f1] shadow-2xl shadow-black/45"
+      className="w-full max-w-md !border-line !bg-surface p-7 text-ink shadow-2xl shadow-black/15"
     >
       {payment !== null ? (
         <div className="text-center py-6">
-          <p className="text-[#c6aaa1] text-sm mb-2">Việc đã được giao!</p>
+          <p className="text-ink-soft text-sm mb-2">Việc đã được giao!</p>
           <p className="text-2xl font-bold text-accent">{payment.toLocaleString("vi-VN")} ₫</p>
         </div>
       ) : (
         <form onSubmit={handleAssignTask} className="space-y-5" noValidate>
           {loading ? (
-            <span className="font-mono text-xs uppercase tracking-wider animate-pulse text-[#c6aaa1]">
+            <span className="font-mono text-xs uppercase tracking-wider animate-pulse text-ink-soft">
               Đang tải…
             </span>
           ) : (
@@ -236,14 +236,14 @@ export function TaskAssignDialog({
                 <p className="font-mono text-[0.65rem] uppercase tracking-[0.28em] text-accent/80">
                   Assign Task
                 </p>
-                <h2 className="font-[var(--font-display)] text-3xl text-[#fff8f1]">
+                <h2 className="font-[var(--font-display)] text-3xl text-ink">
                   Giao việc - {region.type}
                 </h2>
               </div>
 
               <div className="rounded-2xl border border-accent/25 bg-accent/10 p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-2 text-sm font-semibold text-[#ead7d0]">
+                  <span className="flex items-center gap-2 text-sm font-semibold text-ink">
                     <Coins size={17} className="text-accent" aria-hidden="true" />
                     Tiền task dự kiến
                   </span>
@@ -254,7 +254,7 @@ export function TaskAssignDialog({
               <label className="block">
                 <span className={labelClass}>Người trợ giúp</span>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center overflow-hidden rounded-full border border-[#4a3430] bg-[#2a1d1b] text-accent">
+                  <span className="absolute left-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center overflow-hidden rounded-full border border-line bg-surface text-accent">
                     {selectedAssistant?.avatar ? (
                       <img
                         src={selectedAssistant.avatar}
@@ -269,7 +269,7 @@ export function TaskAssignDialog({
                     value={selectedAssistantId}
                     onChange={(e) => setSelectedAssistantId(e.target.value)}
                     disabled={submitting || assistants.length === 0}
-                    className={`${fieldClass} pl-12 [color-scheme:dark]`}
+                    className={`${fieldClass} pl-12 [color-scheme:light]`}
                   >
                     {assistants.length === 0 ? (
                       <option value="">Không có người trợ giúp đang hoạt động</option>
@@ -320,36 +320,36 @@ export function TaskAssignDialog({
                     value={deadline}
                     onChange={(e) => setDeadline(e.target.value)}
                     disabled={submitting}
-                    className={`${fieldClass} pl-12 [color-scheme:dark]`}
+                    className={`${fieldClass} pl-12 [color-scheme:light]`}
                   />
                 </div>
               </label>
 
               {error && (
-                <p className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-[#f0a39b]">
+                <p className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
                   {error}
                 </p>
               )}
 
               {assistants.length === 0 && !error && (
-                <p className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-[#f0a39b]">
+                <p className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
                   Không có Assistant đang hoạt động để giao việc.
                 </p>
               )}
 
               {confirmingDelete ? (
                 <div className="rounded-xl border border-danger/30 bg-danger/10 p-4">
-                  <p className="text-sm font-semibold text-[#fff8f1]">
+                  <p className="text-sm font-semibold text-ink">
                     Xác nhận hủy region này?
                   </p>
-                  <p className="mt-1 text-xs text-[#c6aaa1]">
+                  <p className="mt-1 text-xs text-ink-soft">
                     Region chưa được giao nên có thể xóa khỏi trang.
                   </p>
                   <div className="mt-3 flex gap-3">
                     <Button
                       type="button"
                       variant="ghost"
-                      className="flex-1 !text-[#ead7d0]"
+                      className="flex-1 !text-ink"
                       disabled={deleting}
                       onClick={() => setConfirmingDelete(false)}
                     >
@@ -369,7 +369,7 @@ export function TaskAssignDialog({
                 <Button
                   type="button"
                   variant="ghost"
-                  className="w-full border border-danger/40 !text-[#f0a39b] hover:!bg-danger/10"
+                  className="w-full border border-danger/40 !text-danger hover:!bg-danger/10"
                   disabled={submitting}
                   onClick={() => setConfirmingDelete(true)}
                 >
@@ -381,7 +381,7 @@ export function TaskAssignDialog({
                 <Button
                   variant="ghost"
                   type="button"
-                  className="flex-1 !bg-transparent !text-[#ead7d0] border border-[#4a3430] hover:!bg-white/10 hover:!text-white"
+                  className="flex-1 !bg-transparent !text-ink border border-line hover:!bg-bg hover:!text-ink"
                   onClick={onClose}
                   disabled={submitting}
                 >

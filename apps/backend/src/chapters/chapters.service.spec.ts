@@ -1,6 +1,24 @@
 import { ChaptersService } from './chapters.service';
 import { ChapterStatus } from '@manga/shared';
 
+describe('ChaptersService.create', () => {
+  it('rejects a chapter deadline in the past', async () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const deadline = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}T00:00:00.000Z`;
+    const db: any = {
+      queryOne: jest.fn().mockResolvedValueOnce({ series_id: 1 }),
+      insert: jest.fn(),
+    };
+    const service = new ChaptersService(db, {} as any);
+
+    await expect(
+      service.create(7, { seriesId: 1, title: 'Chapter 1', deadline }),
+    ).rejects.toThrow(/quá khứ/);
+    expect(db.insert).not.toHaveBeenCalled();
+  });
+});
+
 describe('ChaptersService.editorReview', () => {
   const mkDb = (chapter: any) => ({
     queryOne: jest

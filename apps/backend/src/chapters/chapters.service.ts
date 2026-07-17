@@ -49,6 +49,16 @@ export class ChaptersService {
     if (dto.deadline && !deadline) {
       throw new BadRequestException('Hạn chót không hợp lệ');
     }
+    if (deadline) {
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const deadlineDate = deadline.slice(0, 10);
+      if (deadlineDate < today) {
+        throw new BadRequestException(
+          'Hạn chót không được là ngày trong quá khứ',
+        );
+      }
+    }
     const chapterId = await this.db.insert(
       `INSERT INTO \`Chapter\` (series_id, chapter_number, chapter_title, deadline, chapter_status)
        VALUES (?, ?, ?, ?, ?)`,

@@ -6,7 +6,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 
 const field =
-  'w-full rounded-xl border border-[#4a3430] bg-[#211817] px-4 py-3 pr-12 text-sm text-[#fff8f1] outline-none transition placeholder:text-[#9d8178] focus:border-accent focus:ring-2 focus:ring-accent/25';
+  'w-full rounded-xl border border-line bg-bg px-4 py-3 pr-12 text-sm text-ink outline-none transition placeholder:text-ink-soft/60 focus:border-accent focus:ring-2 focus:ring-accent/25';
 
 type PasswordFieldProps = {
   id: string;
@@ -33,7 +33,7 @@ function PasswordField({
     <div className="space-y-2">
       <label
         htmlFor={id}
-        className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#d8bbb1]"
+        className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.06em] text-ink-soft"
       >
         <Lock size={14} className="text-accent" aria-hidden="true" />
         {label}
@@ -52,7 +52,7 @@ function PasswordField({
         <button
           type="button"
           onClick={onToggle}
-          className="absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-[#d8bbb1] transition hover:bg-white/10 hover:text-[#fff8f1] focus:outline-none focus:ring-2 focus:ring-accent/35"
+          className="absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-ink-soft transition hover:bg-surface hover:text-ink focus:outline-none focus:ring-2 focus:ring-accent/35"
           aria-label={show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
         >
           {show ? <EyeOff size={17} /> : <Eye size={17} />}
@@ -123,15 +123,15 @@ export function ChangePasswordModal({ open, onClose }: { open: boolean; onClose:
       open={open}
       onClose={close}
       title="Đổi mật khẩu"
-      className="w-full max-w-md !border-[#3a2725] !bg-[#161110] p-7 text-[#fff8f1] shadow-2xl shadow-black/45"
+      className="w-full max-w-md !border-line !bg-surface p-7 text-ink shadow-2xl shadow-black/15"
     >
       <form onSubmit={submit} className="space-y-6">
         <div className="space-y-2">
           <p className="font-mono text-[0.65rem] uppercase tracking-[0.28em] text-accent/80">
             Account Security
           </p>
-          <h2 className="font-[var(--font-display)] text-3xl text-[#fff8f1]">Đổi mật khẩu</h2>
-          <p className="text-sm leading-6 text-[#c6aaa1]">
+          <h2 className="font-[var(--font-display)] text-3xl text-ink">Đổi mật khẩu</h2>
+          <p className="text-sm leading-6 text-ink-soft">
             Cập nhật mật khẩu để bảo vệ tài khoản trong hệ thống xuất bản.
           </p>
         </div>
@@ -158,13 +158,13 @@ export function ChangePasswordModal({ open, onClose }: { open: boolean; onClose:
             minLength={8}
           />
           <div className="space-y-1.5" aria-live="polite">
-            <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+            <div className="h-1.5 overflow-hidden rounded-full bg-line">
               <div
                 className={`h-full rounded-full transition-all duration-300 ${strength.color}`}
                 style={{ width: strength.width }}
               />
             </div>
-            <p className="text-[0.7rem] text-[#b99d95]">Độ mạnh: {strength.label}</p>
+            <p className="text-[0.7rem] text-ink-soft">Độ mạnh: {strength.label}</p>
           </div>
         </div>
 
@@ -178,14 +178,14 @@ export function ChangePasswordModal({ open, onClose }: { open: boolean; onClose:
           onToggle={() => setShowConfirm((v) => !v)}
         />
 
-        {err && <p className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-[#f0a39b]">{err}</p>}
+        {err && <p className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{err}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <Button
             type="button"
             variant="ghost"
             onClick={close}
             disabled={busy}
-            className="!bg-transparent !text-[#ead7d0] border border-[#4a3430] px-5 hover:!bg-white/10 hover:!text-white"
+            className="!bg-transparent !text-ink border border-line px-5 hover:!bg-bg hover:!text-ink"
           >
             Huỷ
           </Button>
