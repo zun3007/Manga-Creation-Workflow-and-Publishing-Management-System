@@ -154,6 +154,67 @@ describe('AuthService.validateLocal', () => {
     const res: any = await svc.validateLocal('dung@example.com', 'pw123456');
     expect(res.devCode).toBe('123456');
   });
+
+  it('skips OTP when the same browser presents a valid trusted token', async () => {
+    const { svc, users, jwt, otp, mail } = deps();
+    const user = await baseUser();
+    users.findByEmail.mockResolvedValue(user);
+    jwt.verify.mockReturnValue({
+      sub: user.user_id,
+      typ: 'trusted-browser',
+      passwordVersion: createHash('sha256')
+        .update(user.password_hash)
+        .digest('hex'),
+    });
+
+    const result: any = await svc.validateLocal(
+      user.email,
+      'pw123456',
+      'trusted.jwt',
+    );
+
+    expect(result.accessToken).toBe('signed.jwt');
+    expect(otp.issue).not.toHaveBeenCalled();
+    expect(mail.sendOtp).not.toHaveBeenCalled();
+  });
+
+  it('requires OTP when the trusted-browser token is invalid', async () => {
+    const { svc, users, jwt, otp } = deps();
+    const user = await baseUser();
+    users.findByEmail.mockResolvedValue(user);
+    jwt.verify.mockImplementation(() => {
+      throw new Error('expired');
+    });
+
+    const result: any = await svc.validateLocal(
+      user.email,
+      'pw123456',
+      'expired.jwt',
+    );
+
+    expect(result.twoFactorRequired).toBe(true);
+    expect(otp.issue).toHaveBeenCalledWith(user.user_id, 10);
+  });
+
+  it('requires OTP after the password hash changes', async () => {
+    const { svc, users, jwt, otp } = deps();
+    const user = await baseUser();
+    users.findByEmail.mockResolvedValue(user);
+    jwt.verify.mockReturnValue({
+      sub: user.user_id,
+      typ: 'trusted-browser',
+      passwordVersion: createHash('sha256').update('old-hash').digest('hex'),
+    });
+
+    const result: any = await svc.validateLocal(
+      user.email,
+      'pw123456',
+      'trusted.jwt',
+    );
+
+    expect(result.twoFactorRequired).toBe(true);
+    expect(otp.issue).toHaveBeenCalled();
+  });
 });
 
 describe('AuthService initial password change', () => {
@@ -416,5 +477,25 @@ describe('AuthService forgot password', () => {
       svc.resetPassword('reset.jwt', 'pw123456'),
     ).rejects.toThrow(/khác mật khẩu hiện tại/i);
     expect(users.updatePassword).not.toHaveBeenCalled();
+  });
+
+  it('creates a 30-day trusted-browser token after OTP succeeds', async () => {
+    const { svc, users, jwt } = deps();
+    const user = await baseUser();
+    users.findById.mockResolvedValue(user);
+
+    const token = await svc.createTrustedBrowserToken(user.user_id);
+
+    expect(token).toBe('signed.jwt');
+    expect(jwt.sign).toHaveBeenCalledWith(
+      {
+        sub: user.user_id,
+        typ: 'trusted-browser',
+        passwordVersion: createHash('sha256')
+          .update(user.password_hash)
+          .digest('hex'),
+      },
+      expect.objectContaining({ expiresIn: '30d' }),
+    );
   });
 });

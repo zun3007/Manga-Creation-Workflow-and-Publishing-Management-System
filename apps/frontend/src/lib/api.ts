@@ -4,7 +4,7 @@ import { emitToast } from "./toastBus";
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 const TOKEN_KEY = "manga_token";
 
-export const api = axios.create({ baseURL: API_URL });
+export const api = axios.create({ baseURL: API_URL, withCredentials: true });
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const setToken = (t: string) => localStorage.setItem(TOKEN_KEY, t);

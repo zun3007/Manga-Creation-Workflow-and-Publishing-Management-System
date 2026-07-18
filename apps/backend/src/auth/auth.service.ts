@@ -43,6 +43,12 @@ interface PasswordResetGrantPayload {
   typ: 'password-reset';
 }
 
+interface TrustedBrowserPayload {
+  sub: number;
+  passwordVersion: string;
+  typ: 'trusted-browser';
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -100,8 +106,23 @@ export class AuthService {
     return Number(this.config.get<string>('PASSWORD_RESET_TTL_MINUTES', '15'));
   }
 
+  get trustedBrowserTtlDays(): number {
+    const configured = Number(
+      this.config.get<string>('TRUSTED_BROWSER_TTL_DAYS', '30'),
+    );
+    return Number.isFinite(configured) && configured > 0 ? configured : 30;
+  }
+
+  private get trustedBrowserSecret(): string {
+    return `${this.config.get<string>('JWT_SECRET', 'dev-secret')}::trusted-browser`;
+  }
+
   // ── login ────────────────────────────────────────────────────────────────
-  async validateLocal(email: string, password: string): Promise<LoginResponse> {
+  async validateLocal(
+    email: string,
+    password: string,
+    trustedBrowserToken?: string,
+  ): Promise<LoginResponse> {
     const user = await this.users.findByEmail(email);
     if (!user || !user.password_hash) {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
@@ -117,6 +138,10 @@ export class AuthService {
     }
 
     if (!this.twoFactorEnabled) {
+      return this.issue(user);
+    }
+
+    if (this.isTrustedBrowser(user, trustedBrowserToken)) {
       return this.issue(user);
     }
 
@@ -270,6 +295,43 @@ export class AuthService {
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException('Không tìm thấy người dùng');
     return this.issue(user);
+  }
+
+  async createTrustedBrowserToken(userId: number): Promise<string> {
+    const user = await this.users.findById(userId);
+    if (!user?.password_hash) {
+      throw new UnauthorizedException('Không thể ghi nhớ trình duyệt này');
+    }
+    this.assertActive(user);
+
+    return this.jwt.sign(
+      {
+        sub: user.user_id,
+        passwordVersion: this.passwordVersion(user.password_hash),
+        typ: 'trusted-browser',
+      } satisfies TrustedBrowserPayload,
+      {
+        secret: this.trustedBrowserSecret,
+        expiresIn: `${this.trustedBrowserTtlDays}d`,
+      },
+    );
+  }
+
+  private isTrustedBrowser(user: UserRow, token?: string): boolean {
+    if (!token || !user.password_hash) return false;
+
+    try {
+      const payload = this.jwt.verify<TrustedBrowserPayload>(token, {
+        secret: this.trustedBrowserSecret,
+      });
+      return (
+        payload.typ === 'trusted-browser' &&
+        payload.sub === user.user_id &&
+        payload.passwordVersion === this.passwordVersion(user.password_hash)
+      );
+    } catch {
+      return false;
+    }
   }
 
   async resendOtp(challengeToken: string): Promise<ResendResult> {

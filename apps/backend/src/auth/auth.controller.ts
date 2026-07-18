@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -27,6 +27,8 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
+  private static readonly TRUSTED_BROWSER_COOKIE = 'manga_trusted_browser';
+
   constructor(
     private readonly auth: AuthService,
     private readonly config: ConfigService,
@@ -35,8 +37,12 @@ export class AuthController {
   // 20/min per IP — blocks brute-force while tolerating shared NAT, demos, and smoke runs.
   @Throttle({ default: { ttl: 60000, limit: 20 } })
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.auth.validateLocal(dto.email, dto.password);
+  login(@Body() dto: LoginDto, @Req() req: Request) {
+    return this.auth.validateLocal(
+      dto.email,
+      dto.password,
+      this.readCookie(req, AuthController.TRUSTED_BROWSER_COOKIE),
+    );
   }
 
   @Throttle({ default: { ttl: 60000, limit: 10 } })
@@ -52,8 +58,30 @@ export class AuthController {
   // brute-force surface for the 6-digit code (per-code attempts are also capped at 5).
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @Post('2fa/verify')
-  verifyTwoFactor(@Body() dto: Verify2faDto) {
-    return this.auth.verifyTwoFactor(dto.challengeToken, dto.code);
+  async verifyTwoFactor(
+    @Body() dto: Verify2faDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.auth.verifyTwoFactor(
+      dto.challengeToken,
+      dto.code,
+    );
+    const trustedBrowserToken = await this.auth.createTrustedBrowserToken(
+      result.user.id,
+    );
+
+    res.cookie(
+      AuthController.TRUSTED_BROWSER_COOKIE,
+      trustedBrowserToken,
+      {
+        httpOnly: true,
+        secure: this.config.get<string>('NODE_ENV') === 'production',
+        sameSite: 'lax',
+        path: '/api/auth',
+        maxAge: this.auth.trustedBrowserTtlDays * 24 * 60 * 60 * 1000,
+      },
+    );
+    return result;
   }
 
   // Re-send the OTP. 60s cooldown + max-codes enforced in OtpService; this caps abuse.
@@ -132,5 +160,24 @@ export class AuthController {
       }
       throw error;
     }
+  }
+
+  private readCookie(req: Request, name: string): string | undefined {
+    const cookieHeader = req.headers.cookie;
+    if (!cookieHeader) return undefined;
+
+    for (const part of cookieHeader.split(';')) {
+      const separator = part.indexOf('=');
+      if (separator < 0) continue;
+      const key = part.slice(0, separator).trim();
+      if (key !== name) continue;
+      const value = part.slice(separator + 1).trim();
+      try {
+        return decodeURIComponent(value);
+      } catch {
+        return value;
+      }
+    }
+    return undefined;
   }
 }
