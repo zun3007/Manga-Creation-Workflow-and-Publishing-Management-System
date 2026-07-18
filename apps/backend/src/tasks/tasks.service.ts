@@ -105,6 +105,18 @@ export class TasksService {
       throw new BadRequestException('Deadline task không hợp lệ');
     }
 
+    if (deadline) {
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const taskDeadline = this.toDateOnly(deadline);
+
+      if (taskDeadline < today) {
+        throw new BadRequestException(
+          'Deadline task không được là ngày trong quá khứ',
+        );
+      }
+    }
+
     if (deadline && region.chapter_deadline) {
       const taskDeadline = this.toDateOnly(deadline);
       const chapterDeadline = this.toDateOnly(region.chapter_deadline);
