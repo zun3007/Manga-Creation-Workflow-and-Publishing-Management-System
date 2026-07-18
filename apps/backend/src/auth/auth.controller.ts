@@ -20,6 +20,10 @@ import { Verify2faDto } from './dto/verify-2fa.dto';
 import { Resend2faDto } from './dto/resend-2fa.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { GoogleOauthGuard } from './google-oauth.guard';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { VerifyPasswordResetOtpDto } from './dto/verify-password-reset-otp.dto';
+import { ResendPasswordResetOtpDto } from './dto/resend-password-reset-otp.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -57,6 +61,30 @@ export class AuthController {
   @Post('2fa/resend')
   resendOtp(@Body() dto: Resend2faDto) {
     return this.auth.resendOtp(dto.challengeToken);
+  }
+
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @Post('password/forgot')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.auth.beginForgotPassword(dto.email);
+  }
+
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @Post('password/forgot/resend')
+  resendPasswordResetOtp(@Body() dto: ResendPasswordResetOtpDto) {
+    return this.auth.resendPasswordResetOtp(dto.challengeToken);
+  }
+
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @Post('password/forgot/verify')
+  verifyPasswordResetOtp(@Body() dto: VerifyPasswordResetOtpDto) {
+    return this.auth.verifyPasswordResetOtp(dto.challengeToken, dto.code);
+  }
+
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @Post('password/reset')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto.resetToken, dto.newPassword);
   }
 
   @UseGuards(JwtAuthGuard)

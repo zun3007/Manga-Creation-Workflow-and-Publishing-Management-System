@@ -58,36 +58,46 @@ export class OtpService implements OnModuleInit {
    * Generate a fresh 6-digit code, invalidate any prior live codes for the user,
    * and persist a bcrypt hash. Returns the plaintext code (to be mailed).
    */
-  async issue(userId: number, ttlMinutes: number): Promise<string> {
+  async issue(
+    userId: number,
+    ttlMinutes: number,
+    purpose = 'login',
+  ): Promise<string> {
     const code =
       process.env.NODE_ENV === 'test'
         ? '123456'
         : String(randomInt(0, 1_000_000)).padStart(6, '0');
     const hash = await bcrypt.hash(code, 10);
     await this.db.query(
-      `UPDATE \`Email_Otp\` SET consumed_at = NOW() WHERE user_id = ? AND consumed_at IS NULL`,
-      [userId],
+      `UPDATE \`Email_Otp\` SET consumed_at = NOW()
+       WHERE user_id = ? AND purpose = ? AND consumed_at IS NULL`,
+      [userId, purpose],
     );
     await this.db.insert(
       `INSERT INTO \`Email_Otp\` (user_id, code_hash, purpose, expires_at)
-       VALUES (?, ?, 'login', DATE_ADD(NOW(), INTERVAL ? MINUTE))`,
-      [userId, hash, ttlMinutes],
+       VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE))`,
+      [userId, hash, purpose, ttlMinutes],
     );
     return code;
   }
 
   /** Throws 429 on cooldown / too-many-requests. Call before issue() on a resend. */
-  async assertCanResend(userId: number, ttlMinutes: number): Promise<void> {
+  async assertCanResend(
+    userId: number,
+    ttlMinutes: number,
+    purpose = 'login',
+  ): Promise<void> {
     const row = await this.db.queryOne<{
       age: number | null;
       recent: number;
     }>(
       `SELECT
          (SELECT TIMESTAMPDIFF(SECOND, created_at, NOW()) FROM \`Email_Otp\`
-            WHERE user_id = ? ORDER BY otp_id DESC LIMIT 1) AS age,
+            WHERE user_id = ? AND purpose = ? ORDER BY otp_id DESC LIMIT 1) AS age,
          (SELECT COUNT(*) FROM \`Email_Otp\`
-            WHERE user_id = ? AND created_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)) AS recent`,
-      [userId, userId, ttlMinutes],
+            WHERE user_id = ? AND purpose = ?
+              AND created_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)) AS recent`,
+      [userId, purpose, userId, purpose, ttlMinutes],
     );
 
     const age = row?.age;
@@ -119,16 +129,16 @@ export class OtpService implements OnModuleInit {
    * Verify a code for a user. Marks the code consumed on success.
    * Throws UnauthorizedException (expired / locked) or BadRequestException (wrong).
    */
-  async verify(userId: number, code: string): Promise<void> {
+  async verify(userId: number, code: string, purpose = 'login'): Promise<void> {
     const row = await this.db.queryOne<{
       otp_id: number;
       code_hash: string;
       attempts: number;
     }>(
       `SELECT otp_id, code_hash, attempts FROM \`Email_Otp\`
-        WHERE user_id = ? AND consumed_at IS NULL AND expires_at > NOW()
+        WHERE user_id = ? AND purpose = ? AND consumed_at IS NULL AND expires_at > NOW()
         ORDER BY otp_id DESC LIMIT 1`,
-      [userId],
+      [userId, purpose],
     );
 
     if (!row) {

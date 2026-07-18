@@ -15,7 +15,7 @@ describe('OtpService', () => {
       // first call invalidates prior codes
       expect(db.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE `Email_Otp` SET consumed_at = NOW()'),
-        [7],
+        [7, 'login'],
       );
       // insert persists a bcrypt hash (not the plaintext) with a SQL-computed expiry
       const [sql, params] = db.insert.mock.calls[0];
@@ -24,7 +24,8 @@ describe('OtpService', () => {
       expect(params[0]).toBe(7);
       expect(params[1]).not.toBe(code); // hashed
       expect(await bcrypt.compare(code, params[1])).toBe(true);
-      expect(params[2]).toBe(10);
+      expect(params[2]).toBe('login');
+      expect(params[3]).toBe(10);
     });
   });
 

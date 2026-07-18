@@ -16,6 +16,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { TwoFactorChallenge } from "../components/auth/TwoFactorChallenge";
 import { InitialPasswordChallenge } from "../components/auth/InitialPasswordChallenge";
+import { ForgotPasswordFlow } from "../components/auth/ForgotPasswordFlow";
 
 function GoogleG() {
   return (
@@ -60,6 +61,7 @@ export default function Login() {
   const [challenge, setChallenge] = useState<TwoFactorRequired | null>(null);
   const [passwordChallenge, setPasswordChallenge] =
     useState<PasswordChangeRequired | null>(null);
+  const [forgotPassword, setForgotPassword] = useState(false);
 
   useEffect(() => {
     if (user) navigate("/", { replace: true });
@@ -177,7 +179,15 @@ export default function Login() {
 
         {/* RIGHT — access form / OTP challenge */}
         <section className="flex items-center justify-center bg-bg px-6 py-12">
-          {passwordChallenge ? (
+          {forgotPassword ? (
+            <ForgotPasswordFlow
+              initialEmail={email}
+              onBack={() => {
+                setForgotPassword(false);
+                setError("");
+              }}
+            />
+          ) : passwordChallenge ? (
             <InitialPasswordChallenge
               challenge={passwordChallenge}
               onCompleted={(result: LoginResponse) => {
@@ -291,6 +301,20 @@ export default function Login() {
                   {passwordError && (
                     <p className="mt-1 text-sm text-danger">{passwordError}</p>
                   )}
+                  <div className="mt-2 text-right">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotPassword(true);
+                        setError("");
+                        setEmailError("");
+                        setPasswordError("");
+                      }}
+                      className="cursor-pointer text-sm font-medium text-accent transition hover:brightness-90"
+                    >
+                      Quên mật khẩu?
+                    </button>
+                  </div>
                 </div>
 
                 <Button type="submit" loading={busy} className="w-full">

@@ -55,18 +55,37 @@ export class MailService {
     return this.transporter;
   }
 
-  /** Send a login OTP. Throws ServiceUnavailableException on misconfig/failure in prod. */
+  /** Send an OTP. Throws ServiceUnavailableException on misconfig/failure in prod. */
   async sendOtp(to: string, code: string, ttlMinutes: number): Promise<void> {
+    return this.sendOtpMessage(to, code, ttlMinutes, 'login');
+  }
+
+  async sendPasswordResetOtp(
+    to: string,
+    code: string,
+    ttlMinutes: number,
+  ): Promise<void> {
+    return this.sendOtpMessage(to, code, ttlMinutes, 'password-reset');
+  }
+
+  private async sendOtpMessage(
+    to: string,
+    code: string,
+    ttlMinutes: number,
+    purpose: 'login' | 'password-reset',
+  ): Promise<void> {
     const from = this.config.get<string>(
       'MAIL_FROM',
       'Manga Studio <no-reply@manga.local>',
     );
-    const subject = `Mã xác thực đăng nhập: ${code}`;
+    const resettingPassword = purpose === 'password-reset';
+    const action = resettingPassword ? 'đặt lại mật khẩu' : 'đăng nhập';
+    const subject = `Mã xác thực ${action}: ${code}`;
     const text =
       `Mã xác thực (OTP) của bạn là ${code}.\n` +
       `Mã có hiệu lực trong ${ttlMinutes} phút.\n\n` +
-      `Nếu bạn không yêu cầu đăng nhập, hãy bỏ qua email này.`;
-    const html = this.renderOtpHtml(code, ttlMinutes);
+      `Nếu bạn không yêu cầu ${action}, hãy bỏ qua email này.`;
+    const html = this.renderOtpHtml(code, ttlMinutes, action);
 
     const tx = this.getTransporter();
     if (!tx) {
@@ -94,10 +113,14 @@ export class MailService {
     }
   }
 
-  private renderOtpHtml(code: string, ttlMinutes: number): string {
+  private renderOtpHtml(
+    code: string,
+    ttlMinutes: number,
+    action: string,
+  ): string {
     return `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:440px;margin:0 auto;padding:24px;color:#1f2430">
-  <h2 style="margin:0 0 8px;font-size:18px;color:#6d5dd3">Mã xác thực đăng nhập</h2>
-  <p style="margin:0 0 16px;font-size:14px;color:#5a6072">Nhập mã sau để hoàn tất đăng nhập:</p>
+  <h2 style="margin:0 0 8px;font-size:18px;color:#6d5dd3">Mã xác thực ${action}</h2>
+  <p style="margin:0 0 16px;font-size:14px;color:#5a6072">Nhập mã sau để hoàn tất ${action}:</p>
   <div style="font-size:32px;font-weight:700;letter-spacing:8px;text-align:center;padding:16px;background:#f4f1fd;border-radius:12px;color:#3a3550">${code}</div>
   <p style="margin:16px 0 0;font-size:13px;color:#8a90a2">Mã có hiệu lực trong <strong>${ttlMinutes} phút</strong>. Nếu bạn không yêu cầu, hãy bỏ qua email này.</p>
 </div>`;

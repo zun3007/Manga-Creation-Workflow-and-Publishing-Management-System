@@ -6,6 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
+import { createHash } from 'crypto';
 import {
   AuthUser,
   JwtPayload,
@@ -29,6 +30,17 @@ interface ChallengePayload {
 interface PasswordChangeChallengePayload {
   sub: number;
   typ: 'password-change';
+}
+
+interface PasswordResetChallengePayload {
+  email: string;
+  typ: 'password-reset-otp';
+}
+
+interface PasswordResetGrantPayload {
+  sub: number;
+  passwordVersion: string;
+  typ: 'password-reset';
 }
 
 @Injectable()
@@ -74,6 +86,18 @@ export class AuthService {
 
   private get passwordChangeSecret(): string {
     return `${this.config.get<string>('JWT_SECRET', 'dev-secret')}::password-change-challenge`;
+  }
+
+  private get passwordResetChallengeSecret(): string {
+    return `${this.config.get<string>('JWT_SECRET', 'dev-secret')}::password-reset-otp`;
+  }
+
+  private get passwordResetSecret(): string {
+    return `${this.config.get<string>('JWT_SECRET', 'dev-secret')}::password-reset`;
+  }
+
+  private get passwordResetTtlMinutes(): number {
+    return Number(this.config.get<string>('PASSWORD_RESET_TTL_MINUTES', '15'));
   }
 
   // ── login ────────────────────────────────────────────────────────────────
@@ -287,6 +311,179 @@ export class AuthService {
     const domain = email.slice(at + 1);
     const head = local.slice(0, 1);
     return `${head}${'•'.repeat(Math.max(1, local.length - 1))}@${domain}`;
+  }
+
+  // ── forgot password ───────────────────────────────────────────────────────
+  async beginForgotPassword(email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await this.users.findByEmail(normalizedEmail);
+    const eligible = this.isPasswordResetEligible(user);
+    const ttl = this.ttlMinutes;
+    let devCode: string | undefined;
+
+    if (eligible && user) {
+      const code = await this.otp.issue(
+        user.user_id,
+        ttl,
+        'password-reset',
+      );
+      await this.mail.sendPasswordResetOtp(user.email, code, ttl);
+      if (this.devEcho) devCode = code;
+    }
+
+    const challengeToken = this.jwt.sign(
+      {
+        email: normalizedEmail,
+        typ: 'password-reset-otp',
+      } satisfies PasswordResetChallengePayload,
+      {
+        secret: this.passwordResetChallengeSecret,
+        expiresIn: `${ttl}m`,
+      },
+    );
+
+    return {
+      ok: true as const,
+      message:
+        'Nếu email thuộc tài khoản hợp lệ, mã OTP đã được gửi đến hộp thư.',
+      challengeToken,
+      emailMasked: this.maskEmail(normalizedEmail),
+      expiresIn: ttl * 60,
+      ...(devCode ? { devCode } : {}),
+    };
+  }
+
+  async verifyPasswordResetOtp(challengeToken: string, code: string) {
+    const email = this.decodePasswordResetChallenge(challengeToken);
+    const user = await this.users.findByEmail(email);
+
+    if (!this.isPasswordResetEligible(user) || !user?.password_hash) {
+      throw new UnauthorizedException('Mã xác thực không hợp lệ hoặc đã hết hạn');
+    }
+
+    await this.otp.verify(user.user_id, code, 'password-reset');
+
+    return {
+      resetToken: this.jwt.sign(
+        {
+          sub: user.user_id,
+          passwordVersion: this.passwordVersion(user.password_hash),
+          typ: 'password-reset',
+        } satisfies PasswordResetGrantPayload,
+        {
+          secret: this.passwordResetSecret,
+          expiresIn: `${this.passwordResetTtlMinutes}m`,
+        },
+      ),
+      expiresIn: this.passwordResetTtlMinutes * 60,
+    };
+  }
+
+  async resendPasswordResetOtp(challengeToken: string) {
+    const email = this.decodePasswordResetChallenge(challengeToken);
+    const user = await this.users.findByEmail(email);
+    const ttl = this.ttlMinutes;
+    let devCode: string | undefined;
+
+    if (this.isPasswordResetEligible(user) && user) {
+      await this.otp.assertCanResend(
+        user.user_id,
+        ttl,
+        'password-reset',
+      );
+      const code = await this.otp.issue(
+        user.user_id,
+        ttl,
+        'password-reset',
+      );
+      await this.mail.sendPasswordResetOtp(user.email, code, ttl);
+      if (this.devEcho) devCode = code;
+    }
+
+    return {
+      ok: true as const,
+      cooldownSeconds: 60,
+      ...(devCode ? { devCode } : {}),
+    };
+  }
+
+  async resetPassword(resetToken: string, newPassword: string) {
+    const payload = this.decodePasswordResetGrant(resetToken);
+    const user = await this.users.findById(payload.sub);
+
+    if (!this.isPasswordResetEligible(user) || !user?.password_hash) {
+      throw new UnauthorizedException('Phiên đặt lại mật khẩu không hợp lệ');
+    }
+
+    if (this.passwordVersion(user.password_hash) !== payload.passwordVersion) {
+      throw new UnauthorizedException(
+        'Phiên đặt lại mật khẩu đã được sử dụng hoặc không còn hợp lệ',
+      );
+    }
+
+    if (await bcrypt.compare(newPassword, user.password_hash)) {
+      throw new BadRequestException('Mật khẩu mới phải khác mật khẩu hiện tại');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.users.updatePassword(user.user_id, passwordHash);
+    return { ok: true as const };
+  }
+
+  private decodePasswordResetChallenge(token: string): string {
+    let payload: PasswordResetChallengePayload;
+
+    try {
+      payload = this.jwt.verify<PasswordResetChallengePayload>(token, {
+        secret: this.passwordResetChallengeSecret,
+      });
+    } catch {
+      throw new UnauthorizedException(
+        'Phiên xác thực đã hết hạn. Vui lòng yêu cầu mã mới.',
+      );
+    }
+
+    if (payload.typ !== 'password-reset-otp' || !payload.email) {
+      throw new UnauthorizedException('Token xác thực không hợp lệ');
+    }
+
+    return payload.email;
+  }
+
+  private decodePasswordResetGrant(token: string): PasswordResetGrantPayload {
+    let payload: PasswordResetGrantPayload;
+
+    try {
+      payload = this.jwt.verify<PasswordResetGrantPayload>(token, {
+        secret: this.passwordResetSecret,
+      });
+    } catch {
+      throw new UnauthorizedException(
+        'Phiên đặt lại mật khẩu đã hết hạn. Vui lòng thử lại.',
+      );
+    }
+
+    if (
+      payload.typ !== 'password-reset' ||
+      !payload.sub ||
+      !payload.passwordVersion
+    ) {
+      throw new UnauthorizedException('Token đặt lại mật khẩu không hợp lệ');
+    }
+
+    return payload;
+  }
+
+  private isPasswordResetEligible(user: UserRow | null): boolean {
+    return Boolean(
+      user?.is_activated &&
+        user.auth_provider === 'LOCAL' &&
+        user.password_hash,
+    );
+  }
+
+  private passwordVersion(passwordHash: string): string {
+    return createHash('sha256').update(passwordHash).digest('hex');
   }
 
   // ── change password (unchanged) ─────────────────────────────────────────────

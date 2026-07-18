@@ -1,4 +1,5 @@
 import * as bcrypt from 'bcryptjs';
+import { createHash } from 'crypto';
 import { AuthService } from './auth.service';
 
 const makeConfig = (env: Record<string, string | undefined>) =>
@@ -31,7 +32,10 @@ const deps = (over: Partial<Record<string, any>> = {}) => {
     sign: jest.fn(() => 'signed.jwt'),
     verify: jest.fn(() => ({ sub: 1, typ: '2fa' })),
   };
-  const mail = { sendOtp: jest.fn().mockResolvedValue(undefined) };
+  const mail = {
+    sendOtp: jest.fn().mockResolvedValue(undefined),
+    sendPasswordResetOtp: jest.fn().mockResolvedValue(undefined),
+  };
   const otp = {
     issue: jest.fn().mockResolvedValue('123456'),
     verify: jest.fn().mockResolvedValue(undefined),
@@ -311,5 +315,106 @@ describe('AuthService.resendOtp', () => {
     expect(otp.issue).toHaveBeenCalledWith(1, 10);
     expect(mail.sendOtp).toHaveBeenCalled();
     expect(res).toMatchObject({ ok: true, cooldownSeconds: 60 });
+  });
+});
+
+describe('AuthService forgot password', () => {
+  it('issues and mails a purpose-scoped OTP for an eligible local account', async () => {
+    const { svc, users, otp, mail, jwt } = deps({
+      env: { OTP_DEV_ECHO: 'true' },
+    });
+    users.findByEmail.mockResolvedValue(await baseUser());
+
+    const result = await svc.beginForgotPassword(' DUNG@EXAMPLE.COM ');
+
+    expect(users.findByEmail).toHaveBeenCalledWith('dung@example.com');
+    expect(otp.issue).toHaveBeenCalledWith(1, 10, 'password-reset');
+    expect(mail.sendPasswordResetOtp).toHaveBeenCalledWith(
+      'dung@example.com',
+      '123456',
+      10,
+    );
+    expect(jwt.sign).toHaveBeenCalledWith(
+      { email: 'dung@example.com', typ: 'password-reset-otp' },
+      expect.objectContaining({ expiresIn: '10m' }),
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      challengeToken: 'signed.jwt',
+      devCode: '123456',
+    });
+  });
+
+  it('returns the same generic response without issuing an OTP for an unknown email', async () => {
+    const { svc, users, otp, mail } = deps();
+    users.findByEmail.mockResolvedValue(null);
+
+    const result = await svc.beginForgotPassword('unknown@example.com');
+
+    expect(result.ok).toBe(true);
+    expect(result.message).toMatch(/nếu email/i);
+    expect(otp.issue).not.toHaveBeenCalled();
+    expect(mail.sendPasswordResetOtp).not.toHaveBeenCalled();
+  });
+
+  it('verifies the reset OTP and returns a short-lived reset grant', async () => {
+    const { svc, users, otp, jwt } = deps();
+    const user = await baseUser();
+    users.findByEmail.mockResolvedValue(user);
+    jwt.verify.mockReturnValue({
+      email: user.email,
+      typ: 'password-reset-otp',
+    });
+
+    const result = await svc.verifyPasswordResetOtp(
+      'forgot.jwt',
+      '123456',
+    );
+
+    expect(otp.verify).toHaveBeenCalledWith(1, '123456', 'password-reset');
+    expect(result).toMatchObject({ resetToken: 'signed.jwt', expiresIn: 900 });
+    expect(jwt.sign).toHaveBeenCalledWith(
+      expect.objectContaining({ sub: 1, typ: 'password-reset' }),
+      expect.objectContaining({ expiresIn: '15m' }),
+    );
+  });
+
+  it('updates the password and makes the reset grant single-use', async () => {
+    const { svc, users, jwt } = deps();
+    const user = await baseUser();
+
+    jwt.verify.mockReturnValue({
+      sub: 1,
+      typ: 'password-reset',
+      passwordVersion: createHash('sha256')
+        .update(user.password_hash)
+        .digest('hex'),
+    });
+    users.findById.mockResolvedValue(user);
+
+    await expect(
+      svc.resetPassword('reset.jwt', 'NewPassword123!'),
+    ).resolves.toEqual({ ok: true });
+
+    const savedHash = users.updatePassword.mock.calls[0][1];
+    expect(await bcrypt.compare('NewPassword123!', savedHash)).toBe(true);
+  });
+
+  it('rejects reusing the current password', async () => {
+    const { svc, users, jwt } = deps();
+    const user = await baseUser();
+    jwt.verify.mockReturnValue({
+      sub: 1,
+      typ: 'password-reset',
+      passwordVersion: createHash('sha256')
+        .update(user.password_hash)
+        .digest('hex'),
+    });
+    users.findById.mockResolvedValue(user);
+
+    await expect(
+      svc.resetPassword('reset.jwt', 'pw123456'),
+    ).rejects.toThrow(/khác mật khẩu hiện tại/i);
+    expect(users.updatePassword).not.toHaveBeenCalled();
   });
 });
