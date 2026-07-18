@@ -36,6 +36,7 @@ export interface StudioProps {
   onSave: () => void | Promise<void>;
   onClose: () => void;
   onSaveRegions?: (frames: RectN[]) => void;
+  assignedRegion?: RectN;
   saving?: boolean;
   title?: string;
 }
@@ -47,6 +48,7 @@ export function Studio({
   onSave,
   onClose,
   onSaveRegions,
+  assignedRegion,
   saving,
   title,
 }: StudioProps) {
@@ -638,7 +640,7 @@ export function Studio({
             onViewChange={setView}
             panning={tool === 'pan'}
             fitToken={fitToken}
-            overlays={pendingFrames}
+            overlays={assignedRegion ? [assignedRegion, ...pendingFrames] : pendingFrames}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}

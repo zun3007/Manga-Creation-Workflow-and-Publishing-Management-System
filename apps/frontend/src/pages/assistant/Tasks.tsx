@@ -302,11 +302,11 @@ export default function Tasks() {
                         variant="soft"
                         className="w-32"
                         onClick={() => {
-                          if (!task.pageId) {
-                            toast.error("Task này chưa gắn trang để mở Studio.");
+                          if (!task.pageId || !task.regionId) {
+                            toast.error("Task này chưa gắn vùng để mở Studio.");
                             return;
                           }
-                          navigate(`/studio/page/${task.pageId}`, { state: { task } });
+                          navigate(`/studio/region/${task.id}`, { state: { task } });
                         }}
                       >
                         Vẽ trong Studio

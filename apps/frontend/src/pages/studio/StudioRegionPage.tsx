@@ -15,6 +15,7 @@ import type { AIAssist } from '../../lib/studio/ai/AIAssist';
 import { createDocument } from '../../lib/studio/document';
 import { loadImageFromBlob, imageToBuffer, exportPNG, serializeDoc, deserializeDoc } from '../../lib/studio/io';
 import type { TaskItem } from '../../types';
+import type { RectN } from '../../lib/studio/types';
 import { useToast } from '../../components/ui/Toast';
 import { Spinner } from '../../components/ui/Spinner';
 import { draftKey, saveDraft, loadDraft, getDraftMeta, clearDraft } from '../../lib/studio/persist';
@@ -30,16 +31,68 @@ export default function StudioRegionPage() {
   const autosaveTimerRef = useRef<number | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
+  function taskRegion(task: TaskItem): RectN | null {
+    const region = {
+      x: Number(task.regionX),
+      y: Number(task.regionY),
+      width: Number(task.regionWidth),
+      height: Number(task.regionHeight),
+    };
+
+    if (
+      !Object.values(region).every(Number.isFinite) ||
+      region.width <= 0 ||
+      region.height <= 0
+    ) {
+      return null;
+    }
+
+    return region;
+  }
+
   useEffect(() => { let alive = true; (async () => {
     try {
       const wasm = await InkforgeWasm.load(wasmUrl);
       let task: TaskItem | undefined = (location.state as any)?.task;
       if (!task) { const { data } = await api.get<TaskItem[]>('/tasks/mine'); task = data.find(t => t.id === id); }
       if (!task?.pageId) throw new Error('Task này chưa gắn trang để mở Studio.');
+      if (!taskRegion(task)) throw new Error('Task này chưa có tọa độ vùng được giao.');
       if (alive) setTaskInfo(task);
-      const w = 1000, h = 1414; const doc = createDocument({ width: w, height: h, background: 'white' });
+      let documentWidth = 1000;
+      let documentHeight = 1414;
+      let pageImage: HTMLImageElement | null = null;
+
+      if (task.pageImage) {
+        try {
+          pageImage = await loadImageFromBlob(
+            await (await fetch(task.pageImage)).blob(),
+          );
+          documentWidth = pageImage.naturalWidth || documentWidth;
+          documentHeight = pageImage.naturalHeight || documentHeight;
+        } catch (imageError) {
+          console.warn('[StudioRegionPage] Page image unavailable', imageError);
+        }
+      }
+
+      const doc = createDocument({
+        width: documentWidth,
+        height: documentHeight,
+        background: 'white',
+      });
       let eng = new StudioEngine(doc, wasm);
-      if (task?.pageImage) { try { const img = await loadImageFromBlob(await (await fetch(task.pageImage)).blob()); eng.setBuffer(doc.activeLayerId!, imageToBuffer(img, img.naturalWidth, img.naturalHeight, w, h)); } catch { /* draw on blank */ } }
+
+      if (pageImage) {
+        eng.setBuffer(
+          doc.activeLayerId!,
+          imageToBuffer(
+            pageImage,
+            documentWidth,
+            documentHeight,
+            documentWidth,
+            documentHeight,
+          ),
+        );
+      }
 
       // Check for draft restore
       const key = draftKey('task', id);
@@ -55,9 +108,19 @@ export default function StudioRegionPage() {
           const draft = await loadDraft(key);
           if (draft && draft.manifest) {
             const result = await deserializeDoc(draft.manifest as any, wasm);
-            eng = result.engine;
-            if (result.warnings?.length) {
-              console.warn('[StudioRegionPage] Draft layer load warnings:', result.warnings);
+            const draftMatchesSource =
+              result.engine.doc.width === documentWidth &&
+              result.engine.doc.height === documentHeight;
+
+            if (draftMatchesSource) {
+              eng = result.engine;
+              if (result.warnings?.length) {
+                console.warn('[StudioRegionPage] Draft layer load warnings:', result.warnings);
+              }
+            } else {
+              toast.info(
+                'Bản nháp cũ dùng kích thước canvas không tương thích nên chưa được khôi phục.',
+              );
             }
           }
         } else {
@@ -144,7 +207,8 @@ export default function StudioRegionPage() {
 
   if (error) return <div className="grid h-screen place-items-center bg-bg text-ink"><div className="flex flex-col items-center gap-3 text-center"><p className="text-sm text-danger">{error}</p><button onClick={() => navigate('/my-tasks')} className="px-4 py-2 text-xs uppercase tracking-wide rounded bg-accent text-ink">Quay lại</button></div></div>;
   if (!engine || !ai) return <div className="grid h-screen place-items-center bg-bg text-ink"><div className="flex flex-col items-center gap-3 text-ink-soft"><Spinner size={28} className="text-accent" /><span className="font-mono text-xs uppercase tracking-wider">Đang mở Studio…</span></div></div>;
+  const assignedRegion = taskInfo ? taskRegion(taskInfo) : null;
   return <div data-role={user ? roleScope(user.role) : 'assistant'} className="h-screen w-screen overflow-hidden bg-bg">
-    <Studio engine={engine} ai={ai} aiKind={aiKind} onSave={onSave} onClose={() => navigate('/my-tasks')} saving={saving} title={`Việc #${id}`} />
+    <Studio engine={engine} ai={ai} aiKind={aiKind} assignedRegion={assignedRegion ?? undefined} onSave={onSave} onClose={() => navigate('/my-tasks')} saving={saving} title={`Việc #${id} · ${taskInfo?.regionType ?? 'Vùng được giao'}`} />
   </div>;
 }

@@ -41,3 +41,21 @@ describe('TasksService.assign deadline validation', () => {
     expect(notifications.notify).not.toHaveBeenCalled();
   });
 });
+
+describe('TasksService.listMine region payload', () => {
+  it('returns the normalized region coordinates needed by Assistant Studio', async () => {
+    const db = { query: jest.fn().mockResolvedValue([]) };
+    const service = new TasksService(db as any, {} as any);
+
+    await service.listMine(9);
+
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('r.x_coordinate AS regionX'),
+      [9],
+    );
+    const sql = db.query.mock.calls[0][0] as string;
+    expect(sql).toContain('r.y_coordinate AS regionY');
+    expect(sql).toContain('r.width AS regionWidth');
+    expect(sql).toContain('r.height AS regionHeight');
+  });
+});

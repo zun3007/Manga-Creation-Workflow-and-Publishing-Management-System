@@ -149,6 +149,10 @@ export interface TaskItem {
   chapter?: string;
   page?: number;
   regionType?: RegionType;
+  regionX?: number | string;
+  regionY?: number | string;
+  regionWidth?: number | string;
+  regionHeight?: number | string;
   pageImage?: string | null;
   assignee?: string;
 }
