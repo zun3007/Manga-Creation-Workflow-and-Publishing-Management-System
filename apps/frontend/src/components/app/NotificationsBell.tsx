@@ -1,16 +1,32 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { Bell } from "lucide-react";
-import { Role } from "@manga/shared";
+import { Bell, BellRing, Clock3 } from "lucide-react";
 import { api } from "../../lib/api";
-import { useAuth } from "../../lib/auth";
 import type { AppNotification } from "../../types";
+import { Button } from "../ui/Button";
+import { Modal } from "../ui/Modal";
+
+const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
+  DEADLINE: "Nhắc hạn",
+  TASK_ASSIGNMENT: "Phân công công việc",
+  SUBMISSION: "Bài nộp",
+  REVISION: "Yêu cầu chỉnh sửa",
+  REVIEW: "Kết quả duyệt",
+  PROPOSAL_DECISION: "Quyết định đề xuất",
+  RISK_ALERT: "Cảnh báo rủi ro",
+  DECISION: "Quyết định",
+  DISPUTE: "Khiếu nại",
+  GENERAL: "Thông báo chung",
+};
+
+function notificationTypeLabel(type: string): string {
+  return NOTIFICATION_TYPE_LABELS[type] ?? "Thông báo";
+}
 
 export function NotificationsBell() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] =
+    useState<AppNotification | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -56,20 +72,13 @@ export function NotificationsBell() {
 
   async function markAsRead(notification: AppNotification) {
     const previousNotifications = notifications;
+    setSelectedNotification(notification);
+    setIsOpen(false);
     try {
       setNotifications((prev) =>
         prev.map((n) => (n.id === notification.id ? { ...n, isRead: 1 } : n))
       );
       await api.patch(`/notifications/${notification.id}/read`);
-      if (
-        user?.role === Role.EDITORIAL_BOARD &&
-        notification.relatedEntityType === "Series" &&
-        notification.relatedEntityId &&
-        notification.title.toLowerCase().includes("báo cáo bảo vệ")
-      ) {
-        setIsOpen(false);
-        navigate(`/board/series/${notification.relatedEntityId}/dossier`);
-      }
     } catch (err) {
       console.error("Failed to mark notification as read", err);
       setNotifications(previousNotifications);
@@ -90,7 +99,8 @@ export function NotificationsBell() {
   const unreadCount = notifications.filter((n) => n.isRead === 0).length;
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <>
+      <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         aria-label={unreadCount > 0 ? `notifications (${unreadCount} chưa đọc)` : "notifications"}
@@ -152,6 +162,78 @@ export function NotificationsBell() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+
+      <Modal
+        open={selectedNotification !== null}
+        onClose={() => setSelectedNotification(null)}
+        title="Chi tiết thông báo"
+        className="w-[min(94vw,34rem)] !max-h-[min(90vh,42rem)] !overflow-hidden !rounded-3xl !border-line !bg-surface p-0 text-ink shadow-2xl shadow-black/20"
+      >
+        {selectedNotification && (
+          <div className="flex max-h-[min(90vh,42rem)] flex-col">
+            <header className="border-b border-line px-6 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="font-mono text-[0.65rem] uppercase tracking-[0.28em] text-accent/80">
+                    Chi tiết thông báo
+                  </p>
+                  <h2 className="mt-1 break-words font-[var(--font-display)] text-2xl leading-tight text-ink">
+                    {selectedNotification.title}
+                  </h2>
+                </div>
+                <span className="max-w-40 shrink-0 rounded-full border border-accent/25 bg-accent/10 px-3 py-1 text-center font-mono text-[0.65rem] uppercase leading-4 tracking-wider text-accent">
+                  {notificationTypeLabel(selectedNotification.type)}
+                </span>
+              </div>
+            </header>
+
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+              <div className="rounded-2xl border border-accent/20 bg-accent/[0.07] px-4 py-4">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
+                    <BellRing className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 pt-1">
+                    <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wider text-ink-soft">
+                      Nội dung
+                    </p>
+                    <p className="whitespace-pre-wrap break-words text-sm leading-6 text-ink">
+                      {selectedNotification.content || "Thông báo này không có nội dung chi tiết."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 px-1 text-xs text-ink-soft">
+                <Clock3 className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+                <span>Nhận lúc</span>
+                <time className="font-medium text-ink" dateTime={selectedNotification.createdAt}>
+                  {new Date(selectedNotification.createdAt).toLocaleString("vi-VN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })}
+                </time>
+              </div>
+            </div>
+
+            <footer className="border-t border-line bg-surface px-6 py-4">
+              <Button
+                variant="ghost"
+                type="button"
+                aria-label="Đóng chi tiết thông báo"
+                className="w-full border border-line !bg-transparent !text-ink hover:!bg-bg"
+                onClick={() => setSelectedNotification(null)}
+              >
+                Đóng
+              </Button>
+            </footer>
+          </div>
+        )}
+      </Modal>
+    </>
   );
 }

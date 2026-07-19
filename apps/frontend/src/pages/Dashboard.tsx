@@ -5,14 +5,28 @@ import { api } from '../lib/api';
 import { Panel } from '../components/ui/Panel';
 import MangakaDashboard from './mangaka/Dashboard';
 
-function StatCard({ label, value }: { label: string; value: number | string }) {
+function StatCard({
+  label,
+  value,
+  to,
+}: {
+  label: string;
+  value: number | string;
+  to: string;
+}) {
   return (
-    <Panel className="p-5">
-      <div className="font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft">
-        {label}
-      </div>
-      <div className="mt-1 text-3xl text-ink">{value}</div>
-    </Panel>
+    <Link
+      to={to}
+      aria-label={`${label}: ${value}`}
+      className="group block rounded-[var(--app-radius)] outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+    >
+      <Panel className="h-full cursor-pointer p-5 transition duration-200 group-hover:-translate-y-1 group-hover:border-accent/35 group-hover:shadow-md">
+        <div className="font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft transition-colors group-hover:text-accent">
+          {label}
+        </div>
+        <div className="mt-1 text-3xl text-ink">{value}</div>
+      </Panel>
+    </Link>
   );
 }
 
@@ -20,7 +34,7 @@ const CFG: Record<
   string,
   {
     title: string;
-    cards: [string, string][];
+    cards: [string, string, string][];
     cta?: { to: string; label: string };
     extraCta?: { to: string; label: string };
   }
@@ -28,18 +42,18 @@ const CFG: Record<
   ASSISTANT: {
     title: 'Tổng quan trợ lý',
     cards: [
-      ['Được giao', 'assigned'],
-      ['Đang làm', 'inProgress'],
-      ['Đã nộp', 'submitted'],
-      ['Cần sửa', 'revisions'],
+      ['Được giao', 'assigned', '/my-tasks'],
+      ['Đang làm', 'inProgress', '/my-tasks'],
+      ['Đã nộp', 'submitted', '/my-tasks'],
+      ['Cần sửa', 'revisions', '/my-tasks'],
     ],
     cta: { to: '/my-tasks', label: 'Việc của tôi' },
   },
   TANTOU_EDITOR: {
     title: 'Tổng quan biên tập',
     cards: [
-      ['Chương chờ duyệt', 'chaptersToReview'],
-      ['Series phụ trách', 'managedSeries'],
+      ['Chương chờ duyệt', 'chaptersToReview', '/editor/review'],
+      ['Series phụ trách', 'managedSeries', '/editor/series'],
     ],
     cta: { to: '/editor/review', label: 'Duyệt chương' },
     extraCta: { to: '/editor/series', label: 'Xem series quản lý' },
@@ -47,20 +61,20 @@ const CFG: Record<
   EDITORIAL_BOARD: {
     title: 'Tổng quan hội đồng',
     cards: [
-      ['Đề xuất chờ duyệt', 'proposalsToReview'],
-      ['Đang xem xét', 'underReview'],
+      ['Đề xuất chờ duyệt', 'proposalsToReview', '/board/proposals'],
+      ['Đang xem xét', 'underReview', '/board/proposals'],
     ],
     cta: { to: '/board/proposals', label: 'Duyệt đề xuất' },
   },
   ADMIN: {
     title: 'Tổng quan hệ thống',
     cards: [
-      ['Người dùng', 'users'],
-      ['Hoạ sĩ', 'mangaka'],
-      ['Trợ lý', 'assistants'],
-      ['Series', 'series'],
-      ['Chương', 'chapters'],
-      ['Đề xuất', 'proposals'],
+      ['Người dùng', 'users', '/admin'],
+      ['Hoạ sĩ', 'mangaka', '/admin'],
+      ['Trợ lý', 'assistants', '/admin'],
+      ['Series', 'series', '/admin'],
+      ['Chương', 'chapters', '/admin'],
+      ['Đề xuất', 'proposals', '/admin'],
     ],
     cta: { to: '/admin', label: 'Quản trị' },
   },
@@ -104,8 +118,8 @@ function RoleDashboard({ role }: { role: string }) {
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {c.cards.map(([label, key]) => (
-              <StatCard key={key} label={label} value={s?.[key] ?? 0} />
+            {c.cards.map(([label, key, to]) => (
+              <StatCard key={key} label={label} value={s?.[key] ?? 0} to={to} />
             ))}
           </div>
           <div className="mt-6 flex flex-wrap gap-3">

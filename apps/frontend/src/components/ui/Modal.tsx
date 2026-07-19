@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Panel } from './Panel';
 
 type ModalProps = {
@@ -10,9 +11,32 @@ type ModalProps = {
   className?: string;
 };
 
+const ROLE_SCOPE_SELECTOR = [
+  '[data-role="mangaka"]',
+  '[data-role="assistant"]',
+  '[data-role="tantou_editor"]',
+  '[data-role="editorial_board"]',
+  '[data-role="admin"]',
+].join(',');
+
+function activeRoleScope(): string | undefined {
+  const activeElement = document.activeElement;
+  const activeScope =
+    activeElement instanceof Element
+      ? activeElement.closest<HTMLElement>(ROLE_SCOPE_SELECTOR)
+      : null;
+  const scope = activeScope ?? document.querySelector<HTMLElement>(ROLE_SCOPE_SELECTOR);
+  return scope?.dataset.role;
+}
+
 export function Modal({ open, onClose, title, labelledBy, children, className = '' }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousActiveRef = useRef<HTMLElement | null>(null);
+  const [roleScope, setRoleScope] = useState<string>();
+
+  useLayoutEffect(() => {
+    setRoleScope(open ? activeRoleScope() : undefined);
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -99,9 +123,10 @@ export function Modal({ open, onClose, title, labelledBy, children, className = 
     e.stopPropagation();
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50"
+      data-role={roleScope}
+      className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto bg-black/50 p-4"
       onClick={handleBackdropClick}
       role="presentation"
     >
@@ -114,10 +139,11 @@ export function Modal({ open, onClose, title, labelledBy, children, className = 
         tabIndex={-1}
         onClick={handleContentClick}
       >
-        <Panel className={`max-w-[90vw] max-h-[90vh] overflow-auto ${className}`}>
+        <Panel className={`max-h-[calc(100dvh-2rem)] max-w-[calc(100vw-2rem)] overflow-auto ${className}`}>
           {children}
         </Panel>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

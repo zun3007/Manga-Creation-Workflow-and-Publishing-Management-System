@@ -31,6 +31,33 @@ describe('Modal', () => {
     expect(dialog).toHaveAttribute('aria-modal', 'true');
   });
 
+  it('renders through a portal so transformed ancestors cannot clip it', () => {
+    render(
+      <div style={{ transform: 'translateZ(0)', overflow: 'hidden' }}>
+        <Modal open={true} onClose={vi.fn()}>
+          <p>Portal content</p>
+        </Modal>
+      </div>
+    );
+
+    expect(screen.getByRole('dialog').parentElement?.parentElement).toBe(document.body);
+  });
+
+  it('preserves the role theme when rendered through a portal', () => {
+    render(
+      <div data-role="assistant">
+        <Modal open={true} onClose={vi.fn()}>
+          <p>Assistant themed modal</p>
+        </Modal>
+      </div>
+    );
+
+    expect(screen.getByRole('dialog').parentElement).toHaveAttribute(
+      'data-role',
+      'assistant',
+    );
+  });
+
   it('sets aria-label from title prop', () => {
     render(
       <Modal open={true} onClose={vi.fn()} title="Confirm Action">

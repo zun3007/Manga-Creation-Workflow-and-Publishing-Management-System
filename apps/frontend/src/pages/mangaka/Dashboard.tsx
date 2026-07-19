@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   BookOpen,
@@ -39,31 +39,39 @@ function StatCard({
   value,
   Icon,
   accent,
+  to,
 }: {
   label: string;
   value: number;
   Icon: any;
   accent?: 'warn' | 'danger';
+  to: string;
 }) {
   const alert = accent && value > 0;
   return (
     <MV variants={item}>
-      <Panel className="p-4">
-        <div className="flex items-start justify-between">
-          <p className="font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft">{label}</p>
-          <Icon
-            size={18}
-            className={alert ? (accent === 'danger' ? 'text-danger' : 'text-warn') : 'text-ink-soft'}
-          />
-        </div>
-        <p
-          className={`mt-2 font-display text-4xl ${
-            alert ? (accent === 'danger' ? 'text-danger' : 'text-warn') : 'text-ink'
-          }`}
-        >
-          {value}
-        </p>
-      </Panel>
+      <Link
+        to={to}
+        aria-label={`${label}: ${value}`}
+        className="group block rounded-[var(--app-radius)] outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+      >
+        <Panel className="h-full cursor-pointer p-4 transition duration-200 group-hover:-translate-y-1 group-hover:border-accent/35 group-hover:shadow-md">
+          <div className="flex items-start justify-between">
+            <p className="font-mono text-[0.62rem] uppercase tracking-wider text-ink-soft transition-colors group-hover:text-accent">{label}</p>
+            <Icon
+              size={18}
+              className={alert ? (accent === 'danger' ? 'text-danger' : 'text-warn') : 'text-ink-soft group-hover:text-accent'}
+            />
+          </div>
+          <p
+            className={`mt-2 font-display text-4xl ${
+              alert ? (accent === 'danger' ? 'text-danger' : 'text-warn') : 'text-ink'
+            }`}
+          >
+            {value}
+          </p>
+        </Panel>
+      </Link>
     </MV>
   );
 }
@@ -150,11 +158,11 @@ export default function Dashboard() {
 
           {/* Stat strip */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-            <StatCard label="Series hoạt động" value={num(summary?.activeSeries)} Icon={BookOpen} />
-            <StatCard label="Chương đang vẽ" value={num(summary?.chaptersInProgress)} Icon={Layers} />
-            <StatCard label="Chờ bạn duyệt" value={num(summary?.pendingReview)} Icon={Inbox} accent="danger" />
-            <StatCard label="Task đang mở" value={num(summary?.openTasks)} Icon={CheckSquare} />
-            <StatCard label="Series rủi ro" value={num(summary?.atRiskSeries)} Icon={AlertTriangle} accent="warn" />
+            <StatCard label="Series hoạt động" value={num(summary?.activeSeries)} Icon={BookOpen} to="/series" />
+            <StatCard label="Chương đang vẽ" value={num(summary?.chaptersInProgress)} Icon={Layers} to="/series" />
+            <StatCard label="Chờ bạn duyệt" value={num(summary?.pendingReview)} Icon={Inbox} accent="danger" to="/review" />
+            <StatCard label="Task đang mở" value={num(summary?.openTasks)} Icon={CheckSquare} to="/series" />
+            <StatCard label="Series rủi ro" value={num(summary?.atRiskSeries)} Icon={AlertTriangle} accent="warn" to="/series" />
           </div>
 
           <div className="grid grid-cols-1 gap-8 xl:grid-cols-[1.6fr_1fr]">
