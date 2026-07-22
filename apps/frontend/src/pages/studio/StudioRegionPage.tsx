@@ -183,7 +183,7 @@ export default function StudioRegionPage() {
       toast.error('Task này chưa gắn trang để lưu Studio.');
       return;
     }
-    const tid = toast.loading('Đang lưu Studio và nộp bài…');
+    const tid = toast.loading('Đang lưu Studio…');
     try {
       const blob = await exportPNG(engine); const fd = new FormData(); fd.append('file', new File([blob], `task-${id}.png`, { type: 'image/png' }));
       const { data } = await api.post<{ url: string }>('/uploads', fd);
@@ -196,13 +196,11 @@ export default function StudioRegionPage() {
         manifest.layerImages[lid] = layerRes.data.url;
       }
       await api.post('/studio/docs', { pageId: taskInfo.pageId, manifest });
-      await api.post('/submissions', { taskId: id });
       engine.markSaved();
       const key = draftKey('task', id);
       await clearDraft(key);
-      toast.update(tid, 'success', 'Đã nộp bài.');
-      navigate('/my-tasks');
-    } catch (e) { console.error(e); toast.update(tid, 'error', 'Nộp bài thất bại. Thử lại nhé.'); } finally { setSaving(false); }
+      toast.update(tid, 'success', 'Đã lưu Studio. Vào Việc của tôi để nộp bài khi sẵn sàng.');
+    } catch (e) { console.error(e); toast.update(tid, 'error', 'Lưu Studio thất bại. Thử lại nhé.'); } finally { setSaving(false); }
   }
 
   if (error) return <div className="grid h-screen place-items-center bg-bg text-ink"><div className="flex flex-col items-center gap-3 text-center"><p className="text-sm text-danger">{error}</p><button onClick={() => navigate('/my-tasks')} className="px-4 py-2 text-xs uppercase tracking-wide rounded bg-accent text-ink">Quay lại</button></div></div>;
