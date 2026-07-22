@@ -133,7 +133,7 @@ describe("PublicationSchedule", () => {
       </ToastProvider>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "Xuất bản" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Phát hành" }));
 
     await waitFor(() =>
       expect(mockPatch).toHaveBeenCalledWith("/publication-schedules/1/publish"),

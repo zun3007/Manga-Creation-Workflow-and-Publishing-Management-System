@@ -136,6 +136,8 @@ export class PublicationScheduleService {
    * Danh sách toàn bộ lịch xuất bản.
    */
   async list() {
+    const today = this.todayDate();
+
     return this.db.query(
       `SELECT
          ps.schedule_id AS id,
@@ -153,14 +155,14 @@ export class PublicationScheduleService {
 
          CASE
            WHEN ps.publish_status = 'SCHEDULED'
-             AND DATE(ps.release_date) > CURRENT_DATE()
+             AND DATE(ps.release_date) > ?
            THEN 1
            ELSE 0
          END AS canCancel,
 
          CASE
            WHEN ps.publish_status = 'SCHEDULED'
-             AND DATE(ps.release_date) <= CURRENT_DATE()
+             AND DATE(ps.release_date) <= ?
              AND c.chapter_status = ?
            THEN 1
            ELSE 0
@@ -174,7 +176,7 @@ export class PublicationScheduleService {
        ORDER BY
          ps.release_date ASC,
          ps.schedule_id DESC`,
-      [ChapterStatus.BOARD_APPROVED],
+      [today, today, ChapterStatus.BOARD_APPROVED],
     );
   }
 

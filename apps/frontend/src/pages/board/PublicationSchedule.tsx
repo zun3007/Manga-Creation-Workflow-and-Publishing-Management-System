@@ -269,7 +269,7 @@ export default function PublicationSchedule() {
                             disabled={saving}
                             className="text-sm font-medium text-accent transition hover:brightness-95 disabled:opacity-50"
                           >
-                            Xuất bản
+                            Phát hành
                           </button>
                         )}
                         {Boolean(schedule.canCancel) && (

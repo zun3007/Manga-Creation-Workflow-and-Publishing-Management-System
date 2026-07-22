@@ -201,8 +201,9 @@ describe('PublicationScheduleService', () => {
 
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('canPublish'),
-      [ChapterStatus.BOARD_APPROVED],
+      ['2026-07-06', '2026-07-06', ChapterStatus.BOARD_APPROVED],
     );
+    expect(db.query.mock.calls[0][0]).not.toContain('CURRENT_DATE()');
     expect(result).toBe(rows);
   });
 
