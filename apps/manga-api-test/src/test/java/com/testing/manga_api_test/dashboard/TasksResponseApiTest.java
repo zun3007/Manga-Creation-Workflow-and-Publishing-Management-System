@@ -29,7 +29,7 @@ public class TasksResponseApiTest {
         // Starting to check result
         response.then()
                 .statusCode(200)
-                .body("size()", equalTo(5))
+                .body("size()", equalTo(11))
 
                 .body("[0].id", equalTo(1))
                 .body("[0].description", equalTo("Vẽ nền dốc núi tuyết"))

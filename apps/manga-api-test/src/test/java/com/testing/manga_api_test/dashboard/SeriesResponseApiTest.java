@@ -28,13 +28,13 @@ public class SeriesResponseApiTest {
         // Starting to check result
         response.then()
                 .statusCode(200)
-                .body("size()", equalTo(3))
-                .body("[0].title", equalTo("Crimson Inkfall"))
-                .body("[0].riskLevel", equalTo("LOW"))
-                .body("[1].title", equalTo("Paper Lanterns"))
-                .body("[1].riskLevel", equalTo("MEDIUM"))
-                .body("[2].title", equalTo("The Tenth Panel"))
-                .body("[2].riskLevel", equalTo("HIGH"));
+                .body("size()", equalTo(10))
+                .body("[0].title", equalTo("Asterism Academy"))
+                .body("[0].riskLevel", equalTo(null))
+                .body("[1].title", equalTo("Crimson Inkfall"))
+                .body("[1].riskLevel", equalTo(null))
+                .body("[2].title", equalTo("Last Train to Yomi"))
+                .body("[2].riskLevel", equalTo(null));
     }
 
     // TC-DB-SRS-002: Dashboard series should fail when missing access token

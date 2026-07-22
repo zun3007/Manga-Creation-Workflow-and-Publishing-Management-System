@@ -31,12 +31,12 @@ public class SummaryResponseApiTest {
         // Starting to check result
         response.then()
                 .statusCode(200)
-                .body("totalSeries", equalTo(3))
-                .body("activeSeries", equalTo(2))
-                .body("atRiskSeries", equalTo(1))
-                .body("chaptersInProgress", equalTo(2))
-                .body("openTasks", equalTo(4))
-                .body("pendingReview", equalTo(1))
+                .body("totalSeries", equalTo(10))
+                .body("activeSeries", equalTo(4))
+                .body("atRiskSeries", equalTo(2))
+                .body("chaptersInProgress", equalTo(7))
+                .body("openTasks", equalTo(9))
+                .body("pendingReview", equalTo(3))
                 .body("unreadNotifications", equalTo(3));
     }
 

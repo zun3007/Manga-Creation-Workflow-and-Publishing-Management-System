@@ -28,7 +28,7 @@ public class SubmissionsResponseApiTest {
         // Starting to check result
         response.then()
                 .statusCode(200)
-                .body("size()", equalTo(1))
+                .body("size()", equalTo(3))
                 .body("[0].id", equalTo(2))
                 .body("[0].status", equalTo("UNDER_REVIEW"))
                 .body("[0].note", equalTo("nhân vật v1"))

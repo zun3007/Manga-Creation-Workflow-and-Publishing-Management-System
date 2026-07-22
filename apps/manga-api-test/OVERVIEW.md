@@ -188,18 +188,6 @@ USE manga_creation_workflow_and_publishing_management_system;
 
 - TC-CP-020: Create proposal should fail when sample manuscript url > 500 characters
 
-### Update Proposals API Test
-- TC-UP-001: Update proposal should return success when updating all fields
-- TC-UP-002: Update proposal should return success when updating title only
-- TC-UP-003: Update proposal should return success when updating synopsis only
-- TC-UP-004: Update proposal should return success when updating proposed frequency only
-- TC-UP-005: Update proposal should return success when updating genreIds only
-- TC-UP-006: Update proposal should return success when updating sample manuscript URL only
-- TC-UP-007: Update proposal should return success when request body is empty
-- TC-UP-008: Update proposal should fail when missing access token
-- TC-UP-009: Update proposal should fail when invalid access token
-- TC-UP-010: Update proposal should fail when status is not "DRAFT"
-- 
 ### Get All Genres API Test
 - TC-GR-001: Get all genres should return success
 - TC-GR-002: Get all genres should fail when missing access token

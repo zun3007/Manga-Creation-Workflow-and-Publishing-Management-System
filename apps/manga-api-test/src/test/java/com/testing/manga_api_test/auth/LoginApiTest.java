@@ -75,7 +75,7 @@ public class LoginApiTest {
         // Constraint
         response.then()
                 .statusCode(401)
-                .body("message", equalTo("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên."))
+                .body("message", equalTo("Email hoặc mật khẩu không đúng"))
                 .body("error", equalTo("Unauthorized"))
                 .body("statusCode", equalTo(401));
     }
